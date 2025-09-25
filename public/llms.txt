@@ -1,0 +1,50 @@
+# LLMs.txt for Dreamify AI Image Generation Platform
+# This file provides guidance for AI models and LLMs crawling this website
+
+# Website Information
+Name: Dreamify
+Description: AI-powered image generation platform using advanced diffusion models
+Purpose: Generate high-quality images from text prompts and reference images
+Technology: Next.js, React, AI/ML, Image Generation
+
+# Content Overview
+Main Features:
+- Text-to-Image Generation
+- Image-to-Image Generation  
+- Multiple AI Models (HiDream, Flux, Stable Diffusion)
+- Community Works Gallery
+- Multi-language Support (English, Chinese)
+
+# Crawling Guidelines
+Allowed Content:
+- Homepage and main pages
+- Community works and generated images
+- Model information and descriptions
+- UI components and interface elements
+- Static assets (images, icons, SVGs)
+- Public API documentation
+
+Sensitive Content (Do Not Crawl):
+- User-generated prompts (unless explicitly public)
+- API endpoints requiring authentication
+- User account information
+- Internal system files
+
+# Model Information
+Available Models:
+- HiDream-full-fp8: High-quality full-featured model
+- Flux-Dev: Development version of Flux model
+- Flux-Kontext: Context-aware Flux model
+- StableDiffusion-3.5: Latest Stable Diffusion model
+
+# Usage Guidelines
+- This platform is designed for creative image generation
+- Generated images may be used for personal and commercial purposes
+- Respect copyright and intellectual property rights
+- Generated content should comply with platform terms of service
+
+# Contact Information
+For questions about this platform or crawling guidelines, please refer to the main website.
+
+# Last Updated
+Last Updated: 2025/7/9

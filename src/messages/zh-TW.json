@@ -1,0 +1,332 @@
+{
+  "site": {
+    "title": "Dreamifly - 免費AI繪畫線上生成工具 | 一鍵生成動漫、插畫、藝術圖",
+    "description": "Dreamifly 是一款免費AI繪畫網站，無需註冊，支援動漫、插畫、3D藝術等風格。用戶可通過文字或參考圖快速生成高質量圖像，作為先進AI生圖工具，提供流暢智能創作體驗。適合設計師與繪畫愛好者，輕鬆AI作圖，可隨時利用AI生成圖片"
+  },
+  "home": {
+    "hero": {
+      "titlePrefix": "通過AI釋放你的",
+      "titleHighlight": "無限想像力，只需一鍵！",
+      "subtitle": {
+        "prefix": "由全國30台家用電腦的閒置4090顯卡，",
+        "highlight": "免費無限制",
+        "suffix": "提供分散式算力支援。"
+      },
+      "description": "Dreamifly - 免費AI繪畫線上生成工具 | 一鍵生成動漫、插畫、藝術圖",
+      "startButton": "開始創作",
+      "faqButton": "常見問題",
+      "imageCaption": "AI藝術",
+      "tags": {
+        "fastGeneration": "快速生成",
+        "multipleModels": "多種模型",
+        "noLogin": "無需登入",
+        "highCustomization": "高度定制",
+        "chineseSupport": "支援中文"
+      }
+    },
+    "banner": {
+      "title": "最新AI繪畫圖片編輯模型",
+      "highlight": "Flux Kontext",
+      "description": "已經上線，上傳任意參考圖片即可體驗！",
+      "closeButton": "關閉橫幅",
+      "maintenance": {
+        "title": "新模型上線",
+        "description": "🎉 生圖服務已全面恢復！新增多款AI模型，歡迎體驗創作",
+        "mobileTitle": "新模型上線"
+      }
+    },
+    "preview": {
+      "closeHint": "點擊圖片外部區域或關閉按鈕退出預覽"
+    },
+    "generate": {
+      "title": "AI 圖像生成",
+      "description": "使用先進的 HiDream-I1 模型，將您的創意轉化為精美的圖像",
+      "form": {
+        "prompt": {
+          "label": "提示詞",
+          "placeholder": "描述你想看到的內容（推薦使用英文）"
+        },
+        "upload": {
+          "label": "上傳參考圖片（可選）",
+          "clickOrDrag": "點擊或拖拽上傳",
+          "dropToUpload": "釋放以上傳",
+          "limitReached": "已達上限",
+          "maxImages": "最多 {maxImages} 張圖片"
+        },
+        "randomPrompt": "隨機提示詞",
+        "optimizePrompt": "優化提示詞",
+        "optimizingPrompt": "優化中...",
+        "width": {
+          "label": "寬度",
+          "hint": "圖片寬度（64-1920，8的倍數）"
+        },
+        "height": {
+          "label": "高度",
+          "hint": "圖片高度（64-1920，8的倍數）"
+        },
+        "model": {
+          "label": "模型",
+          "hint": "選擇要使用的AI模型",
+          "loading": "載入模型中...",
+          "noModelsAvailable": "暫無可用的模型",
+          "tags": {
+            "textToImage": "文生圖",
+            "imageToImage": "圖生圖",
+            "chineseSupport": "支援中文",
+            "fastGeneration": "極速生成",
+            "realisticStyle": "寫實風格",
+            "animeSpecialty": "動漫特長",
+            "asianPortrait": "亞洲人像"
+          },
+          "descriptions": {
+            "HiDream-full-fp16": "HiDream-I1 是 AI 藝術領域最出色、最先進的模型之一，由北京智象未來科技有限公司開發。",
+            "HiDream-full-fp8": "HiDream-I1 是 AI 藝術領域最出色、最先進的模型之一，由北京智象未來科技有限公司開發。",
+            "Flux-Dev": "FLUX.1-Dev 是由 Black Forest Labs 開發的開源 AI 藝術模型，具有強大的視覺創作能力和優秀的文本理解性能。",
+            "Flux-Kontext": "Flux Kontext[Dev] 是 Black Forest Labs 開發的 12B 參數圖像編輯模型，支援通過文本和圖像輸入進行精確編輯。",
+            "Flux-Krea": "FLUX.1 Krea [dev] 是 Black Forest Labs (BFL) 和 Krea AI 聯合開發的開源文本到圖像生成模型。該模型旨在克服傳統 AI 圖像生成中常見的「AI 味」問題，如「過飽和」、「高光過曝」和「塑料感」，追求更真實、多樣的輸出。",
+            "Stable-Diffusion-35": "Stable Diffusion 3.5是Stability AI推出的升級版文生圖模型，採用改進的擴散架構，支援更高解析度，優化了提示詞理解與細節生成，可生成更逼真、連貫的圖像。",
+            "Qwen-Image": "Qwen-Image是阿里巴巴通義千問團隊發布的首個圖像生成基礎模型，基於MMDiT架構，擁有20B參數並已開源。該模型不僅支援寫實、動漫、賽博朋克等多種風格的圖像生成與風格轉換，還具備圖像內容編輯、細節增強和文字添加等能力。Qwen-Image在文字渲染方面取得了進展，並能在編輯過程中保持非編輯區域的視覺細節和語義連貫性。",
+            "Qwen-Image-Edit": "Qwen-Image-Edit是通義實驗室推出的圖像編輯大模型，支援根據文本指令對圖像進行智能編輯，如修改、增強、修復等，實現精準的內容調整與創意生成。",
+            "Wai-SDXL-V150": "一個基於SDXL、光輝系列的第三方社區模型，特長動漫類角色的繪製。"
+          }
+        },
+        "styleButton": "風格",
+        "steps": {
+          "label": "步數",
+          "hint": "高steps可能提高細節，但生成時間更長（10-32）"
+        },
+        "batch_size": {
+          "label": "生成數量",
+          "hint": "一次生成的圖片數量（1-2）"
+        },
+        "denoising_strength": {
+          "label": "降噪強度",
+          "hint": "決定參考圖像的重繪程度（0-1）"
+        },
+        "advanced": {
+          "expand": "展開進階選項",
+          "collapse": "收起進階選項"
+        },
+        "generateButton": {
+          "default": "生成圖片",
+          "loading": "生成中..."
+        },
+        "tabs": {
+          "generate": "圖片生成",
+          "styleTransfer": "風格轉換"
+        },
+        "styleTransfer": {
+          "title": "風格轉換",
+          "selectStyle": "選擇風格",
+          "startTransfer": "開始轉換",
+          "transferring": "轉換中...",
+          "styles": {
+            "cartoon": "卡通",
+            "anime": "動漫",
+            "oilPainting": "油畫",
+            "lineArt": "線稿",
+            "vectorLine": "矢量線條",
+            "pixel": "街機像素",
+            "lego": "樂高積木",
+            "risograph": "Riso噪點插畫",
+            "realistic": "現實風格",
+            "puppet": "布偶風格",
+            "emoji": "Emoji圖標風格"
+          }
+        },
+        "progress": {
+          "title": "生成進度",
+          "estimatedTime": "預計耗時",
+          "seconds": "秒",
+          "status": {
+            "initializing": "正在初始化...",
+            "processing": "正在處理...",
+            "finalizing": "正在完成..."
+          }
+        },
+        "generating": "正在生成...",
+        "finalizing": "正在完成..."
+      },
+      "preview": {
+        "title": "預覽",
+        "placeholder": "生成的圖像將顯示在這裡",
+        "download": "下載圖片",
+        "generating": "生成中...",
+        "completed": "生成完成",
+        "error": "生成失敗",
+        "retrying": "正在重試",
+        "hint": "圖片生成可能耗時較長，偶爾一張圖片出錯是正常情況，請耐心等待。",
+        "status": {
+          "generating": "張圖片正在生成",
+          "success": "張已成功",
+          "failed": "張失敗"
+        }
+      },
+      "error": {
+        "general": "生成圖像時出錯，請重試",
+        "invalidSize": "圖像尺寸必須在 64x64 到 1920x1080 之間",
+        "invalidSteps": "步數必須在 1 到 100 之間",
+        "validation": {
+          "stepsRange": "步數必須在10到32之間",
+          "batchSizeRange": "生成數量必須在1到4之間",
+          "sizeRange": "寬高必須在64到1920之間",
+          "imageCountLimit": "當前模型 {model} 最多支援 {maxImages} 張參考圖片，請刪除多餘的圖片",
+          "fileType": "請上傳圖片檔案",
+          "fileSize": "圖片大小不能超過 10MB",
+          "imageProcessing": "處理圖片失敗，請重試",
+          "modelNotAvailable": {
+            "needReference": "需要上傳參考圖片",
+            "notSupportI2I": "不支援圖片到圖片生成",
+            "maxImagesExceeded": "最多支援 {maxImages} 張參考圖片"
+          }
+        }
+      }
+    },
+    "features": {
+      "title": "為什麼選擇我們？",
+      "speed": {
+        "title": "快速生成",
+        "description": "只需10秒，即可將您的創意轉化為精美的圖像"
+      },
+      "customization": {
+        "title": "高度定制",
+        "description": "完全控制圖像的大小、風格和細節"
+      },
+      "security": {
+        "title": "安全可靠",
+        "description": "您的數據和創意受到完全保護"
+      },
+      "noLogin": {
+        "title": "無需登入",
+        "description": "立即體驗 AI 圖像生成，無需註冊和登入"
+      }
+    },
+    "faq": {
+      "title": "常見問題",
+      "questions": [
+        {
+          "q": "什麼是Dreamifly？",
+          "a": "Dreamifly是一個完全免費、基於多種AI繪畫模型的線上文生圖（text to image）、圖生圖（image to image）服務網站，優秀的AI設計繪圖工具，支援現實、動漫、插畫、3D等多風格的作品，請在此自由地發揮你的創意！"
+        },
+        {
+          "q": "Dreamifly是完全免費的嗎？",
+          "a": "沒錯，我們提供完全免費的生圖服務。"
+        },
+        {
+          "q": "Dreamifly能創作什麼樣的圖像？",
+          "a": "各種各樣的風格，貼近現實的場景，藝術性的插畫，動漫風格的畫像等等。"
+        },
+        {
+          "q": "Dreamifly生成的圖像用於商業用途嗎？",
+          "a": "當然，你擁有對生成圖形的使用權，不論個人還是商業目的都完全沒問題。"
+        },
+        {
+          "q": "Dreamifly提供哪些模型？",
+          "a": "HiDream-I1滿血版、Flux.1-Dev以及未來更多開源模型。"
+        },
+        {
+          "q": "我需要建立一個帳戶並登入才能使用 Dreamifly 嗎？",
+          "a": "不，你可以直接使用我們的生圖功能。"
+        }
+      ]
+    },
+    "community": {
+      "title": "社群",
+      "subtitle": "探索其他用戶創作的精彩作品，並從中獲取靈感",
+      "generateSame": "畫同款",
+      "sharePrompt": {
+        "title": "想分享你的繪畫作品和創意提示詞？",
+        "description": "歡迎填寫問卷，讓更多人看到你的靈感！"
+      }
+    },
+    "suanleme": {
+      "title": "本專案由以下平台提供龐大算力支援",
+      "gongji": "共績算力",
+      "suanleme": "算了麼",
+      "advantages": {
+        "title": "共享算力優勢",
+        "items": [
+          "閒置算力利用，讓硬體創造價值",
+          "貢獻社群，幫助更多人使用 AI",
+          "獲得獎勵，享受優先級和其他特權"
+        ],
+        "button": "了解如何共享算力"
+      }
+    },
+    "gongji": {
+      "title": "共績算力支援",
+      "description": "本專案由共績算力提供強大的分散式計算支援，讓模型推理更高效、更經濟。",
+      "advantages": {
+        "title": "共績算力優勢",
+        "items": [
+          "分散式算力網絡，整合閒置計算資源",
+          "高性價比，降低 AI 應用部署成本",
+          "綠色環保，提高資源利用效率"
+        ]
+      },
+      "stats": {
+        "nodes": "提供本專案節點",
+        "devices": "分散式算力設備",
+        "availability": "服務可用性"
+      },
+      "button": "部署你的服務"
+    },
+    "stats": {
+      "title": "網站統計",
+      "uptime": "運行時間",
+      "totalGenerations": "總生成數量",
+      "dailyGenerations": "今日生成數量",
+      "intro": {
+        "prefix": "自",
+        "suffix": "上線以來",
+        "continuous": "我們已經連續",
+        "days": "天",
+        "accompany": "陪伴著大家",
+        "created": "一起創造了",
+        "pieces": "張",
+        "works": "精彩作品",
+        "today": "而今天，又有",
+        "newWorks": "新作品誕生"
+      },
+      "message": {
+        "behind": "每一張圖像的背後，",
+        "unique": "都是你獨一無二的",
+        "inspiration": "靈感與想像",
+        "thanks": "感謝你，",
+        "together": "和我們一起，",
+        "explore": "探索創意，",
+        "possibilities": "無限可能！"
+      }
+    }
+  },
+  "nav": {
+    "language": "語言",
+    "home": "首頁",
+    "faq": "常見問題",
+    "community": "社群",
+
+    "quickGenerate": "快速生成",
+    "siteName": "Dreamifly",
+    "switchLanguage": "切換語言",
+    "friends": "友鏈"
+  },
+  "footer": {
+    "copyright": "Dreamifly 版權所有。"
+  },
+  "friends": {
+    "title": "友鏈",
+    "subtitle": "發現精彩的AI繪畫平台和工具",
+    "description": "我們與優秀的AI繪畫平台合作，為您提供更多創作可能",
+    "anycomfy": {
+      "name": "AnyComfy",
+      "url": "anycomfy.com",
+      "description": "一個免費無限制的線上ComfyUI平台，輕鬆運行任何AI繪畫工作流"
+    },
+    "visitSite": "訪問網站",
+    "comingSoon": {
+      "title": "即將推出",
+      "subtitle": "更多友鏈",
+      "description": "更多精彩的AI繪畫平台即將加入"
+    }
+  }
+} 

@@ -1,0 +1,332 @@
+{
+  "site": {
+    "title": "Dreamifly - Free AI Art Generator Online | One-Click Anime, Illustration, and Art Creation",
+    "description": "Dreamifly is a free AI art website that requires no registration. It supports various styles including anime, illustration, and 3D art. Users can quickly generate high-quality images through text or reference images. As an advanced AI image generation tool, it provides a smooth and intelligent creative experience. Suitable for designers and art enthusiasts, making AI drawing easy and can generate images with AI anytime"
+  },
+  "home": {
+    "hero": {
+      "titlePrefix": "Unleash Your Imagination Through AI",
+      "titleHighlight": "Infinite Possibilities, Just One Click!",
+      "subtitle": {
+        "prefix": "Powered by 30 distributed RTX 4090 GPUs from home computers,",
+        "highlight": "Free Unlimited",
+        "suffix": "providing distributed computing support."
+      },
+      "description": "Dreamifly - Free AI Art Generator Online | One-Click Anime, Illustration, and Art Creation",
+      "startButton": "Start Creating",
+      "faqButton": "FAQ",
+      "imageCaption": "AI Art",
+      "tags": {
+        "fastGeneration": "Fast Generation",
+        "multipleModels": "Multiple Models",
+        "noLogin": "No Login Required",
+        "highCustomization": "High Customization",
+        "chineseSupport": "Chinese Support"
+      }
+    },
+    "banner": {
+      "title": "Latest AI Image Editing Model",
+      "highlight": "Flux Kontext",
+      "description": "is now live! Upload any reference image to experience it!",
+      "closeButton": "Close banner",
+      "maintenance": {
+        "title": "New Models Available",
+        "description": "🎉 Image generation service fully restored! New AI models added, welcome to experience creation",
+        "mobileTitle": "New Models"
+      }
+    },
+    "preview": {
+      "closeHint": "Click outside the image or close button to exit preview"
+    },
+    "generate": {
+      "title": "AI Image Generation",
+      "description": "Transform your ideas into beautiful images using our advanced HiDream-I1 model",
+      "form": {
+        "prompt": {
+          "label": "Prompt",
+          "placeholder": "Describe what you want to see (English recommended, Chinese only supported by HiDream model)..."
+        },
+        "upload": {
+          "label": "Upload Reference Image (Optional)",
+          "clickOrDrag": "Click or drag to upload",
+          "dropToUpload": "Drop to upload",
+          "limitReached": "Limit reached",
+          "maxImages": "Max {maxImages} images"
+        },
+        "randomPrompt": "Random Prompt",
+        "optimizePrompt": "Optimize Prompt",
+        "optimizingPrompt": "Optimizing...",
+        "width": {
+          "label": "Width",
+          "hint": "Image width (64-1920, multiples of 8)"
+        },
+        "height": {
+          "label": "Height",
+          "hint": "Image height (64-1920, multiples of 8)"
+        },
+        "model": {
+          "label": "Model",
+          "hint": "Select the AI model to use",
+          "loading": "Loading models...",
+          "noModelsAvailable": "No models available",
+          "tags": {
+            "textToImage": "Text to Image",
+            "imageToImage": "Image to Image",
+            "chineseSupport": "Chinese Support",
+            "fastGeneration": "Fast Generation",
+            "realisticStyle": "Realistic Style",
+            "animeSpecialty": "Anime Specialty",
+            "asianPortrait": "Asian Portrait"
+          },
+          "descriptions": {
+            "HiDream-full-fp16": "HiDream-I1 is one of the most outstanding and advanced models in the AI art field, developed by Beijing Zhixiang Future Technology Co., Ltd.",
+            "HiDream-full-fp8": "HiDream-I1 is one of the most outstanding and advanced models in the AI art field, developed by Beijing Zhixiang Future Technology Co., Ltd.",
+            "Flux-Dev": "FLUX.1-Dev is an open-source AI art model developed by Black Forest Labs, featuring powerful visual creation capabilities and excellent text understanding performance.",
+            "Flux-Kontext": "Flux Kontext[Dev] is a 12B parameter image editing model developed by Black Forest Labs, supporting precise editing with both text and image input.",
+            "Flux-Krea": "FLUX.1 Krea [dev] is an open-source text-to-image generation model jointly developed by Black Forest Labs (BFL) and Krea AI. This model aims to overcome common 'AI taste' issues in traditional AI image generation such as 'over-saturation', 'over-exposed highlights', and 'plastic feel', pursuing more realistic and diverse outputs.",
+            "Stable-Diffusion-35": "Stable Diffusion 3.5 is an upgraded text-to-image model launched by Stability AI, featuring an improved diffusion architecture, support for higher resolutions, optimized prompt understanding and detail generation, capable of producing more realistic and coherent images.",
+            "Qwen-Image": "Qwen-Image is the first image generation foundation model released by Alibaba's Tongyi Qianwen team, based on MMDiT architecture with 20B parameters and open-sourced. The model not only supports realistic, anime, cyberpunk and other style image generation and style transfer, but also has capabilities for image content editing, detail enhancement and text addition. Qwen-Image has made progress in text rendering and can maintain visual details and semantic coherence of non-edited areas during the editing process.",
+            "Qwen-Image-Edit": "Qwen-Image-Edit is an image editing model developed by Alibaba's Tongyi Qianwen team, specifically designed for image content editing and modification. The model supports text-instruction-based image editing, capable of precisely understanding editing requirements while maintaining the overall style and details of the image.",
+            "Wai-SDXL-V150": "A third-party community model based on SDXL and the Brilliant series, specializing in drawing anime-style characters."
+          }
+        },
+        "steps": {
+          "label": "Steps",
+          "hint": "Higher steps may improve details but increase generation time (10-32)"
+        },
+        "batch_size": {
+          "label": "Batch Size",
+          "hint": "Number of images to generate at once (1-2)"
+        },
+        "denoising_strength": {
+          "label": "Denoising Strength",
+          "hint": "Controls how much of the reference image to preserve (0-1)"
+        },
+        "advanced": {
+          "expand": "Show Advanced Options",
+          "collapse": "Hide Advanced Options"
+        },
+        "generateButton": {
+          "default": "Generate Image",
+          "loading": "Generating..."
+        },
+        "styleButton": "Style",
+        "tabs": {
+          "generate": "Image Generation",
+          "styleTransfer": "Style Transfer"
+        },
+        "styleTransfer": {
+          "title": "Style Transfer",
+          "selectStyle": "Select Style",
+          "startTransfer": "Start Transfer",
+          "transferring": "Transferring...",
+          "styles": {
+            "cartoon": "Cartoon",
+            "anime": "Anime",
+            "oilPainting": "Oil Painting",
+            "lineArt": "Line Art",
+            "vectorLine": "Vector Line",
+            "pixel": "Pixel",
+            "lego": "Lego",
+            "risograph": "Risograph",
+            "realistic": "Realistic",
+            "puppet": "Puppet",
+            "emoji": "Emoji Icon"
+          }
+        },
+        "progress": {
+          "title": "Generation Progress",
+          "estimatedTime": "Estimated Time",
+          "seconds": "seconds",
+          "status": {
+            "initializing": "Initializing...",
+            "processing": "Processing...",
+            "finalizing": "Finalizing..."
+          }
+        },
+        "generating": "Generating...",
+        "finalizing": "Finalizing..."
+      },
+      "preview": {
+        "title": "Preview",
+        "placeholder": "Enter your prompt and click generate to start creating",
+        "download": "Download Image",
+        "generating": "Generating...",
+        "completed": "Completed",
+        "error": "Generation failed",
+        "retrying": "Retrying",
+        "hint": "Image generation may take some time, and occasional errors are normal. Please be patient.",
+        "status": {
+          "generating": "images generating",
+          "success": "successful",
+          "failed": "failed"
+        }
+      },
+      "error": {
+        "general": "Error generating image, please try again",
+        "invalidSize": "Image size must be between 64x64 and 1920x1080",
+        "invalidSteps": "Steps must be between 1 and 100",
+        "validation": {
+          "stepsRange": "Steps must be between 10 and 32",
+          "batchSizeRange": "Batch size must be between 1 and 4",
+          "sizeRange": "Width and height must be between 64 and 1920",
+          "imageCountLimit": "Current model {model} supports at most {maxImages} reference images, please remove excess images",
+          "fileType": "Please upload an image file",
+          "fileSize": "Image size cannot exceed 10MB",
+          "imageProcessing": "Failed to process image, please try again",
+          "modelNotAvailable": {
+            "needReference": "Reference image required",
+            "notSupportI2I": "Image-to-image generation not supported",
+            "maxImagesExceeded": "Supports at most {maxImages} reference images"
+          }
+        }
+      }
+    },
+    "features": {
+      "title": "Why Choose Us?",
+      "speed": {
+        "title": "Fast Generation",
+        "description": "Transform your ideas into beautiful images in just 10 seconds"
+      },
+      "customization": {
+        "title": "Highly Customizable",
+        "description": "Full control over image size, style, and details"
+      },
+      "security": {
+        "title": "Secure & Reliable",
+        "description": "Your data and creativity are fully protected"
+      },
+      "noLogin": {
+        "title": "No Login Required",
+        "description": "Start experiencing AI image generation without registration"
+      }
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "questions": [
+        {
+          "q": "What is Dreamifly?",
+          "a": "Dreamifly is a completely free online service based on multiple AI art models, supporting both text-to-image and image-to-image generation. It is an excellent AI design and drawing tool, supporting various styles such as realistic, anime, illustration, and 3D. Feel free to unleash your creativity here!"
+        },
+        {
+          "q": "Is Dreamifly completely free?",
+          "a": "Yes, we provide completely free image generation services."
+        },
+        {
+          "q": "What kind of images can Dreamifly create?",
+          "a": "Various styles, realistic scenes, artistic illustrations, anime-style portraits, and more."
+        },
+        {
+          "q": "Can I use Dreamifly-generated images for commercial purposes?",
+          "a": "Yes, you have full rights to use the generated images for both personal and commercial purposes."
+        },
+        {
+          "q": "What models does Dreamifly provide?",
+          "a": "HiDream-I1 Full Version, Flux.1-Dev, and more open-source models in the future."
+        },
+        {
+          "q": "Do I need to create an account and log in to use Dreamifly?",
+          "a": "No, you can directly use our image generation features."
+        }
+      ]
+    },
+    "community": {
+      "title": "Community",
+      "subtitle": "Explore amazing works created by other users and get inspired",
+      "generateSame": "Generate Same Style",
+      "sharePrompt": {
+        "title": "Want to share your artwork and creative prompts?",
+        "description": "Welcome to fill out our survey and let more people see your inspiration!"
+      }
+    },
+    "suanleme": {
+      "title": "This project is powered by the following platforms",
+      "gongji": "Gongji Computing",
+      "suanleme": "Suanleme",
+      "advantages": {
+        "title": "Shared Computing Advantages",
+        "items": [
+          "Utilize idle computing power to create value",
+          "Contribute to the community and help more people use AI",
+          "Earn rewards and enjoy priority access and other privileges"
+        ],
+        "button": "Learn how to share computing power"
+      }
+    },
+    "gongji": {
+      "title": "Powered by Gongji Computing",
+      "description": "This project is supported by Gongji Computing's powerful distributed computing network, making model inference more efficient and economical.",
+      "advantages": {
+        "title": "Gongji Computing Advantages",
+        "items": [
+          "Distributed computing network that integrates idle computing resources",
+          "Cost-effective, reducing AI application deployment costs",
+          "Environmentally friendly, improving resource utilization efficiency"
+        ]
+      },
+      "stats": {
+        "nodes": "Project Nodes",
+        "devices": "Distributed Computing Devices",
+        "availability": "Service Availability"
+      },
+      "button": "Deploy Your Service"
+    },
+    "stats": {
+      "title": "Site Statistics",
+      "uptime": "Uptime",
+      "totalGenerations": "Total Generations",
+      "dailyGenerations": "Today's Generations",
+      "intro": {
+        "prefix": "Since",
+        "suffix": "launch",
+        "continuous": "We have continuously",
+        "days": "days",
+        "accompany": "accompanying everyone",
+        "created": "created over",
+        "pieces": "pieces of",
+        "works": "wonderful works",
+        "today": "And today, there are",
+        "newWorks": "new works born"
+      },
+      "message": {
+        "behind": "Behind each image,",
+        "unique": "lies your unique",
+        "inspiration": "inspiration and imagination",
+        "thanks": "Thank you,",
+        "together": "for joining us,",
+        "explore": "to explore creativity,",
+        "possibilities": "and infinite possibilities!"
+      }
+    }
+  },
+  "nav": {
+    "language": "Language",
+    "home": "Home",
+    "faq": "FAQ",
+    "community": "Community",
+
+    "quickGenerate": "Quick Generate",
+    "siteName": "Dreamifly",
+    "switchLanguage": "Switch Language",
+    "friends": "Friends"
+  },
+  "friends": {
+    "title": "Friends",
+    "subtitle": "Discover amazing AI art platforms and tools",
+    "description": "We collaborate with excellent AI art platforms to provide you with more creative possibilities",
+    "anycomfy": {
+      "name": "AnyComfy",
+      "url": "anycomfy.com",
+      "description": "A free unlimited online ComfyUI platform for easily running any AI art workflow"
+    },
+    "visitSite": "Visit Site",
+    "comingSoon": {
+      "title": "Coming Soon",
+      "subtitle": "More friends",
+      "description": "More amazing AI art platforms will be added here soon"
+    }
+  },
+  "footer": {
+    "copyright": "Dreamifly. All rights reserved."
+  }
+} 

@@ -1,0 +1,27 @@
+# Robots.txt for Dreamify AI Image Generation Platform
+# Allow most content to be crawled and indexed
+
+User-agent: *
+Allow: /
+
+# Allow all static assets
+Allow: /images/
+Allow: /models/
+Allow: /form/
+Allow: /common/
+
+# Allow API endpoints for discovery (but they may require authentication)
+Allow: /api/stats
+
+# Disallow sensitive or private areas
+Disallow: /api/generate
+Disallow: /api/upload
+Disallow: /admin/
+Disallow: /private/
+Disallow: /internal/
+
+# Sitemap location (if you have one)
+# Sitemap: https://yourdomain.com/sitemap.xml
+
+# Crawl delay (optional - be respectful to server resources)
+Crawl-delay: 1 
