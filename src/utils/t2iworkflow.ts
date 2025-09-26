@@ -734,7 +734,7 @@ const qwenImageWorkflowTemplate = {
   },
   "66": {
     "inputs": {
-      "shift": 3.1000000000000005,
+      "shift": 2.5,
       "model": [
         "37",
         0
