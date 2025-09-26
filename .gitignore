@@ -34,7 +34,7 @@ yarn-error.log*
 .env*
 
 # dockerfile with sensitive data
-dockerfile
+# dockerfile
 
 # vercel
 .vercel
