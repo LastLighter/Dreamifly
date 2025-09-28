@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import LanguageSwitch from './LanguageSwitch'
 import WeChatIcon from './WeChatIcon'
+import GitHubIcon from './GitHubIcon'
 import { useParams } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import { useTranslations } from 'next-intl'
@@ -61,8 +62,9 @@ export default function Navbar() {
           </span>
         </div>
         
-        {/* 移动端微信图标 */}
-        <div className="ml-auto">
+        {/* 移动端图标 */}
+        <div className="ml-auto flex items-center gap-2">
+          <GitHubIcon />
           <WeChatIcon />
         </div>
       </div>
@@ -146,9 +148,15 @@ export default function Navbar() {
        </button>
           </nav>
 
-          {/* 语言切换和微信图标 */}
+          {/* 语言切换和图标 */}
           <div className="mt-auto px-4 w-full">
             <div className="flex flex-col items-center gap-4 relative">
+              {/* GitHub 图标 */}
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-sm text-gray-700">GitHub</span>
+                <GitHubIcon />
+              </div>
+              
               {/* 微信图标 */}
               <div className="flex flex-col items-center gap-2">
                 <span className="text-sm text-gray-700">关注我们</span>

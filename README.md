@@ -1,16 +1,17 @@
-# Dreamify - Free AI Art Generator Online | One-Click Anime, Illustration, and Art Creation
+# Dreamifly - Free AI Art Generator Online | One-Click Anime, Illustration, and Art Creation
 
 ![Dreamify Logo](https://dreamifly.com/images/dreamifly-logo.jpg)
 
-> **Dreamify** 是一个基于 **Next.js** 与 **ComfyUI API** 的开源 AI 图像生成平台，支持文生图（Text-to-Image）和图生图（Image-to-Image），无需注册、完全免费，专为开发者与创意者打造。
+> **Dreamifly** 是一个基于 **Next.js** 与 **ComfyUI API** 的开源 AI 图像生成平台，支持文生图（Text-to-Image）和图生图（Image-to-Image），无需注册，专为开发者与创意者打造。
 
 ---
 
 ## 🚀 项目简介
 
-Dreamify 是一个轻量级、高性能的 AI 绘画网站模板，集成多种先进 AI 模型（如 **HiDream-I1**、**Flux.1-Dev**、**Stable Diffusion 3.5**、**Qwen-Image** 等），通过调用 ComfyUI 后端 API 实现秒级图像生成。项目采用现代 Web 技术栈构建，开箱即用，适合快速部署个人 AI 创作平台或作为二次开发模板。
+Dreamifly 是一个轻量级、高性能的 AI 绘画网站模板，集成多种先进 AI 模型（如 **HiDream-I1**、**Flux.1-Dev**、**Stable Diffusion 3.5**、**Qwen-Image** 等），通过调用 ComfyUI 后端 API 实现秒级图像生成。项目采用现代 Web 技术栈构建，开箱即用，适合快速部署个人 AI 创作平台或作为二次开发模板。
 
 无论你是设计师、开发者还是 AI 艺术爱好者，Dreamify 都能让你在 10 秒内将创意变为现实。
+> 目前官方站已经日均访问量已达2K+， 感谢大家对Dreamifly的热爱~
 
 ---
 
@@ -21,7 +22,7 @@ Dreamify 是一个轻量级、高性能的 AI 绘画网站模板，集成多种�
 | 🧠 **多模型支持** | 支持 8 种主流 AI 模型，包括 HiDream、Flux、Stable Diffusion、Qwen 等 |
 | 🎨 **高质量输出** | 支持最高 1920×1920 分辨率，细节丰富 |
 | 🔐 **无需登录** | 完全匿名使用，保护用户隐私 |
-| 💬 **智能提示词优化** | 自动将中文提示词转换为英文，提升生成效果 |
+| 💬 **智能提示词优化** | 自动将中文提示词转换为英文（基于LLM OpenAI API），提升生成效果 |
 | 🖼️ **图生图功能** | 支持单图和多图输入，进行风格迁移与图像编辑 |
 | 🎭 **风格转换** | 内置多种艺术风格，一键应用 |
 | 📊 **数据统计** | 实时统计生成次数，支持数据库存储 |
@@ -97,7 +98,7 @@ yarn install
 # 数据库配置
 DATABASE_URL='postgresql://username:password@localhost:5432/dreamify'
 
-# ComfyUI API 端点（无需设置所有模型， 仅配置需要的模型， 其余环境变量完全不配置， 页面即不会展示相应模型）
+# ComfyUI API 端点（无需设置所有模型， 仅配置需要的模型。如果特定环境变量完全不配置， 页面即不会展示相应模型）
 HiDream_Fp8_URL='https://your-hidream-api.com'
 Flux_Krea_URL='https://your-flux-krea-api.com'
 Stable_Diffusion_3_5_URL='https://your-sd35-api.com'

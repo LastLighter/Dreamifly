@@ -23,7 +23,6 @@ export default function WeChatIcon() {
           className="flex items-center justify-center w-12 h-12 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
         >
           <div className="relative w-6 h-6 flex items-center justify-center">
-            <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full blur-sm opacity-50"></div>
             <Image
               src="/common/wechat.svg"
               alt="WeChat"
