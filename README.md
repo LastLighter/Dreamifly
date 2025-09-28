@@ -78,7 +78,7 @@ Dreamifly 是一个轻量级、高性能的 AI 绘画网站模板，集成多种
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/LastLighter/Dreamify.git
+git clone https://github.com/LastLighter/Dreamifly.git
 cd Dreamify
 ```
 
@@ -220,7 +220,7 @@ docker build -t dreamify:latest .
 
 # 运行容器
 docker run -d \
-  --name dreamify \
+  --name dreamifly \
   -p 3000:3000 \
   -e DATABASE_URL="postgresql://username:password@host:port/database" \
   -e HiDream_Fp8_URL="https://your-api.com" \
@@ -242,7 +242,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/dreamify
+      - DATABASE_URL=postgresql://postgres:password@db:5432/dreamifly
       - HiDream_Fp8_URL=https://your-hidream-api.com
       - Flux_Krea_URL=https://your-flux-krea-api.com
       - NEXT_PUBLIC_BASE_URL=https://your-domain.com
@@ -410,7 +410,7 @@ MIT License | © 2025 Dreamify Project
 
 ## 🌐 在线体验
 
-👉 [立即体验 Dreamify](https://dreamifly.com)
+👉 [立即体验 Dreamifly](https://dreamifly.com)
 
 ---
 
