@@ -1,5 +1,5 @@
 import { hidreamFp8T2IWorkflow,  fluxDevT2IWorkflow, stableDiffusion3T2IWorkflow, fluxKreaT2IWorkflow, qwenImageT2IWorkflow, waiSDXLV150Workflow } from "./t2iworkflow";
-import { fluxI2IWorkflow, fluxKontextI2IMultiImageWorkflow, fluxKontextI2IWorkflow, QwenImageEditWorkflow } from "./i2iworkflow";
+import { fluxI2IWorkflow, fluxKontextI2IMultiImageWorkflow, fluxKontextI2IWorkflow, QwenImageEdit2ImagesWorkflow, QwenImageEdit3ImagesWorkflow, QwenImageEditWorkflow } from "./i2iworkflow";
 const T2IModelMap = {
   "HiDream-full-fp8": hidreamFp8T2IWorkflow,
   "Flux-Dev": fluxDevT2IWorkflow,
@@ -36,8 +36,12 @@ export async function generateImage(params: GenerateParams): Promise<string> {
   // 1. 准备工作流数据
   let workflow = {};
   if(params.images && params.images.length > 0){
-    if(params.images.length > 1){
+    if(params.model === 'Flux-Kontext' && params.images.length > 1){
       workflow = fluxKontextI2IMultiImageWorkflow
+    }else if(params.model === 'Qwen-Image-Edit' && params.images.length == 2){
+      workflow = QwenImageEdit2ImagesWorkflow
+    }else if(params.model === 'Qwen-Image-Edit' && params.images.length == 3){
+      workflow = QwenImageEdit3ImagesWorkflow
     }else{
       workflow = I2IModelMap[params.model as keyof typeof I2IModelMap];
     }
@@ -210,14 +214,22 @@ function setQwenImageT2IorkflowParams(workflow: any, params: GenerateParams) {
 }
 
 function setQwenImageEditorkflowParams(workflow: any, params: GenerateParams) {
-  workflow["78"].inputs.image = params.images?.[0];
-  workflow["76"].inputs.prompt = params.prompt;
+  if(params.images && params.images.length >= 1){
+    workflow["78"].inputs.image = params.images?.[0];
+    if(params.images.length >= 2){
+      workflow["79"].inputs.image = params.images?.[1];
+      if(params.images.length == 3){
+        workflow["80"].inputs.image = params.images?.[2];
+      }
+    }
+  }
+  workflow["111"].inputs.prompt = params.prompt;
   workflow["3"].inputs.steps = 4
   if (params.seed) {
     workflow["3"].inputs.seed = params.seed;
   }
   if (params.negative_prompt) {
-    workflow["77"].inputs.prompt = params.negative_prompt;
+    workflow["110"].inputs.prompt = params.negative_prompt;
   }
 }
 

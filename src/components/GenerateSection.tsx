@@ -93,7 +93,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
     const models = [
       {
         id: "Qwen-Image-Edit",
-        maxImages: 1,
+        maxImages: 3,
         tags: ["chineseSupport", "fastGeneration"]
       },
       {

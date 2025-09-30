@@ -42,7 +42,7 @@ const ALL_MODELS: ModelConfig[] = [
     image: "/models/Qwen-Image.jpg",
     use_i2i: true,
     use_t2i: false,
-    maxImages: 1,
+    maxImages: 3,
     tags: ["chineseSupport", "fastGeneration"],
     isRecommended: true
   },

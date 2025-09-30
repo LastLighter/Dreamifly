@@ -826,7 +826,7 @@ export const fluxKontextI2IMultiImageWorkflow = {
 export const QwenImageEditWorkflow = {
   "3": {
     "inputs": {
-      "seed": 493840772337270,
+      "seed": 535421182206366,
       "steps": 4,
       "cfg": 1,
       "sampler_name": "euler",
@@ -837,15 +837,15 @@ export const QwenImageEditWorkflow = {
         0
       ],
       "positive": [
-        "76",
+        "111",
         0
       ],
       "negative": [
-        "77",
+        "110",
         0
       ],
       "latent_image": [
-        "88",
+        "112",
         0
       ]
     },
@@ -872,7 +872,7 @@ export const QwenImageEditWorkflow = {
   },
   "37": {
     "inputs": {
-      "unet_name": "qwen_image_edit_fp8_e4m3fn.safetensors",
+      "unet_name": "qwen_image_edit_2509_fp8_e4m3fn.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -939,51 +939,9 @@ export const QwenImageEditWorkflow = {
       "title": "CFGNorm"
     }
   },
-  "76": {
-    "inputs": {
-      "prompt": "请在下面的图片中加上活力青春风格的文字“共绩算力 极客江湖”，建议分别使用绿色渐变和橙色渐变，辅以白色描边和黑色阴影。文字布局可以采用上下斜角对齐，文字的字体要尽可能小",
-      "clip": [
-        "38",
-        0
-      ],
-      "vae": [
-        "39",
-        0
-      ],
-      "image": [
-        "93",
-        0
-      ]
-    },
-    "class_type": "TextEncodeQwenImageEdit",
-    "_meta": {
-      "title": "TextEncodeQwenImageEdit"
-    }
-  },
-  "77": {
-    "inputs": {
-      "prompt": "",
-      "clip": [
-        "38",
-        0
-      ],
-      "vae": [
-        "39",
-        0
-      ],
-      "image": [
-        "93",
-        0
-      ]
-    },
-    "class_type": "TextEncodeQwenImageEdit",
-    "_meta": {
-      "title": "TextEncodeQwenImageEdit"
-    }
-  },
   "78": {
     "inputs": {
-      "image": "banner.png"
+      "image": "source.jpg"
     },
     "class_type": "LoadImage",
     "_meta": {
@@ -1033,6 +991,59 @@ export const QwenImageEditWorkflow = {
     "_meta": {
       "title": "缩放图像（像素）"
     }
+  },
+  "110": {
+    "inputs": {
+      "prompt": "xxx",
+      "clip": [
+        "38",
+        0
+      ],
+      "vae": [
+        "39",
+        0
+      ],
+      "image1": [
+        "93",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": {
+      "title": "TextEncodeQwenImageEditPlus"
+    }
+  },
+  "111": {
+    "inputs": {
+      "prompt": "请让图1中的角色进入图2的场景，穿着图2的角色的衣服，做出和图2人物一样的动作",
+      "clip": [
+        "38",
+        0
+      ],
+      "vae": [
+        "39",
+        0
+      ],
+      "image1": [
+        "93",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": {
+      "title": "TextEncodeQwenImageEditPlus"
+    }
+  },
+  "112": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "空Latent图像（SD3）"
+    }
   }
 }
 
@@ -1042,3 +1053,22 @@ export { hidreamFp8I2IWorkflow };
 const hidreamFp16I2IWorkflow = JSON.parse(JSON.stringify(hidreamFp8I2IWorkflow));
 hidreamFp16I2IWorkflow["69"].inputs.unet_name = "hidream_i1_full_fp16.safetensors";
 export { hidreamFp16I2IWorkflow };
+const temp1 = JSON.parse(JSON.stringify(QwenImageEditWorkflow));
+temp1["79"] = JSON.parse(JSON.stringify(temp1["78"]));
+temp1["95"] = JSON.parse(JSON.stringify(temp1["93"]));
+temp1["95"].inputs.image = ["79", 0];
+temp1["110"].inputs.image2 = ["95", 0];
+temp1["111"].inputs.image2 = ["95", 0];
+
+const QwenImageEdit2ImagesWorkflow = temp1;
+export { QwenImageEdit2ImagesWorkflow };
+
+const temp2 = JSON.parse(JSON.stringify(temp1));
+temp2["80"] = JSON.parse(JSON.stringify(temp2["78"]));
+temp2["96"] = JSON.parse(JSON.stringify(temp2["93"]));
+temp2["96"].inputs.image = ["80", 0];
+temp2["110"].inputs.image3 = ["96", 0];
+temp2["111"].inputs.image3 = ["96", 0];
+
+const QwenImageEdit3ImagesWorkflow = temp2;
+export { QwenImageEdit3ImagesWorkflow };
