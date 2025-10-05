@@ -225,6 +225,8 @@ function setQwenImageEditorkflowParams(workflow: any, params: GenerateParams) {
   }
   workflow["111"].inputs.prompt = params.prompt;
   workflow["3"].inputs.steps = 4
+  workflow["112"].inputs.width = params.width;
+  workflow["112"].inputs.height = params.height;
   if (params.seed) {
     workflow["3"].inputs.seed = params.seed;
   }
