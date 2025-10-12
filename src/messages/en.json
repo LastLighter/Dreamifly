@@ -312,8 +312,8 @@
   },
   "friends": {
     "title": "Friends",
-    "subtitle": "Discover amazing AI art platforms and tools",
-    "description": "We collaborate with excellent AI art platforms to provide you with more creative possibilities",
+    "subtitle": "Discover amazing AI tools and platforms",
+    "description": "We collaborate with excellent AI tool platforms to provide you with more creative possibilities",
     "anycomfy": {
       "name": "AnyComfy",
       "url": "anycomfy.com",
@@ -328,7 +328,7 @@
     "comingSoon": {
       "title": "Coming Soon",
       "subtitle": "More friends",
-      "description": "More amazing AI art platforms will be added here soon"
+      "description": "More amazing AI tool platforms will be added here soon"
     }
   },
   "footer": {

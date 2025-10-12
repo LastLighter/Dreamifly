@@ -320,8 +320,8 @@
   },
   "friends": {
     "title": "友链",
-    "subtitle": "发现精彩的AI绘画平台和工具",
-    "description": "我们与优秀的AI绘画平台合作，为您提供更多创作可能",
+    "subtitle": "发现精彩的AI工具和平台",
+    "description": "我们与优秀的AI工具平台合作，为您提供更多创作可能",
     "anycomfy": {
       "name": "AnyComfy",
       "url": "anycomfy.com",
@@ -336,7 +336,7 @@
     "comingSoon": {
       "title": "即将推出",
       "subtitle": "更多友链",
-      "description": "更多精彩的AI绘画平台即将加入"
+      "description": "更多精彩的AI工具平台即将加入"
     }
   }
 }
