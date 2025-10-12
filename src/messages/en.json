@@ -319,6 +319,11 @@
       "url": "anycomfy.com",
       "description": "A free unlimited online ComfyUI platform for easily running any AI art workflow"
     },
+    "manbo": {
+      "name": "Manbo Voice Generator",
+      "url": "tools.dayun.cool/manbo",
+      "description": "A free online Manbo voice generation tool for instant AI Manbo voice synthesis"
+    },
     "visitSite": "Visit Site",
     "comingSoon": {
       "title": "Coming Soon",

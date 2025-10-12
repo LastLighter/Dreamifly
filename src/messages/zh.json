@@ -327,6 +327,11 @@
       "url": "anycomfy.com",
       "description": "一个免费无限制的在线ComfyUI平台，轻松运行任何AI绘画工作流"
     },
+    "manbo": {
+      "name": "曼波配音生成器",
+      "url": "tools.dayun.cool/manbo",
+      "description": "一个免费的在线曼波配音生成工具，轻松实现秒级AI曼波配音"
+    },
     "visitSite": "访问网站",
     "comingSoon": {
       "title": "即将推出",
