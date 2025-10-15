@@ -28,7 +28,6 @@ interface GenerateParams {
   batch_size: number;
   model: string;
   images?: string[];
-  denoise?: number;
   negative_prompt?: string;
 }
 
@@ -139,9 +138,6 @@ function setFluxDevI2IorkflowParams(workflow: any, params: GenerateParams) {
   workflow["52"].inputs.height = params.height;
   workflow["46"].inputs.width = params.width;
   workflow["46"].inputs.height = params.height;
-  if (params.denoise) {
-    workflow["17"].inputs.denoise = params.denoise;
-  }
   if (params.seed) {
     workflow["45"].inputs.noise_seed = params.seed;
   }

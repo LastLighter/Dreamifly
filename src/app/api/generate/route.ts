@@ -7,13 +7,13 @@ import { eq, sql } from 'drizzle-orm'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { prompt, width, height, steps, seed, batch_size, model, images, denoise, negative_prompt } = body
+    const { prompt, width, height, steps, seed, batch_size, model, images, negative_prompt } = body
 
     // 验证输入
-    if (width < 64 || width > 1920 || height < 64 || height > 1920) {
+    if (width < 64 || width > 1440 || height < 64 || height > 1440) {
       return NextResponse.json({ error: 'Invalid image dimensions' }, { status: 400 })
     }
-    if (steps < 5 || steps > 40) {
+    if (steps < 5 || steps > 32) {
       return NextResponse.json({ error: 'Invalid steps value' }, { status: 400 })
     }
 
@@ -27,7 +27,6 @@ export async function POST(request: Request) {
       batch_size,
       model,
       images,
-      denoise,
       negative_prompt,
     })
 

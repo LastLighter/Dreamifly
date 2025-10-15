@@ -186,7 +186,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
           const res = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+              body: JSON.stringify({
               prompt: finalPrompt, // 使用优化后的prompt或原始prompt
               negative_prompt: negativePrompt.trim() || undefined, // 添加负面提示词
               width,
@@ -196,7 +196,6 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
               batch_size,
               model,
               images: uploadedImages,
-              denoise: uploadedImages.length > 0 ? denoising_strength : undefined,
             }),
           });
 
@@ -319,7 +318,6 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
           batch_size: 1,
           model: 'Flux-Kontext',
           images: uploadedImages,
-          denoise: 0.7,
         }),
       });
 

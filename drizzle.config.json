@@ -3,6 +3,6 @@
   "out": "./drizzle",
   "dialect": "postgresql",
   "dbCredentials": {
-    "url": "postgresql://root:fjCe3orB2lYFtzHSkv7Q641Za9V8n5A0@sha1.clusters.zeabur.com:31446/zeabur"
+    "url": "postgresql://dreamifly:Dreamifly123!QAZ.@10.0.1.16:5432/dreamifly"
   }
 } 

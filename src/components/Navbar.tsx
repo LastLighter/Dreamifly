@@ -5,15 +5,22 @@ import Image from 'next/image'
 import LanguageSwitch from './LanguageSwitch'
 import WeChatIcon from './WeChatIcon'
 import GitHubIcon from './GitHubIcon'
-import { useParams } from 'next/navigation'
+import AuthModal from './AuthModal'
+import { useParams, useRouter } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
+import { useSession, signOut } from '@/lib/auth-client'
 
 export default function Navbar() {
   const { locale } = useParams()
+  const router = useRouter()
   const t = useTranslations('nav')
+  const tAuth = useTranslations('auth')
+  const { data: session } = useSession()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
 
   // 处理点击遮罩层关闭菜单
   const handleOverlayClick = () => {
@@ -34,6 +41,13 @@ export default function Navbar() {
         block: 'start'
       })
     }, 500)
+  }
+
+  // 处理登出
+  const handleLogout = async () => {
+    await signOut()
+    setShowUserMenu(false)
+    router.refresh()
   }
 
   return (
@@ -62,8 +76,48 @@ export default function Navbar() {
           </span>
         </div>
         
-        {/* 移动端图标 */}
+        {/* 移动端图标和用户菜单 */}
         <div className="ml-auto flex items-center gap-2">
+          {session?.user ? (
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-200/50 transition-colors"
+              >
+                <Image
+                  src={session.user.avatar || '/images/default-avatar.svg'}
+                  alt="Avatar"
+                  width={32}
+                  height={32}
+                  className="rounded-full border-2 border-orange-400/30"
+                />
+              </button>
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                  <Link
+                    href={transferUrl('/profile', locale)}
+                    onClick={() => setShowUserMenu(false)}
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    {tAuth('profile')}
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
+                  >
+                    {tAuth('logout')}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="px-3 py-1.5 text-sm bg-gradient-to-r from-orange-400 to-amber-400 text-white font-semibold rounded-lg hover:from-orange-500 hover:to-amber-500 transition-all"
+            >
+              {tAuth('login')}
+            </button>
+          )}
           <GitHubIcon />
           <WeChatIcon />
         </div>
@@ -151,18 +205,48 @@ export default function Navbar() {
           {/* 语言切换和图标 */}
           <div className="mt-auto px-4 w-full">
             <div className="flex flex-col items-center gap-4 relative">
-              {/* GitHub 图标 */}
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-sm text-gray-700">GitHub</span>
-                <GitHubIcon />
-              </div>
-              
-              {/* 微信图标 */}
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-sm text-gray-700">关注我们</span>
-                <WeChatIcon />
-              </div>
-              
+              {/* 用户信息 */}
+              {session?.user && (
+                <div className="w-full">
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowUserMenu(!showUserMenu)}
+                      className="w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
+                    >
+                      <Image
+                        src={session.user.avatar || '/images/default-avatar.svg'}
+                        alt="Avatar"
+                        width={40}
+                        height={40}
+                        className="rounded-full border-2 border-orange-400/30 flex-shrink-0"
+                      />
+                      <div className="flex-1 text-left overflow-hidden">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {session.user.nickname || session.user.name}
+                        </p>
+                      </div>
+                    </button>
+                    {showUserMenu && (
+                      <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                        <Link
+                          href={transferUrl('/profile', locale)}
+                          onClick={() => setShowUserMenu(false)}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        >
+                          {tAuth('profile')}
+                        </Link>
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
+                        >
+                          {tAuth('logout')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* 语言切换 */}
               <div className="flex flex-col items-center gap-2 relative">
                 <span className="text-sm text-gray-700">{t('switchLanguage')}</span>
@@ -170,10 +254,32 @@ export default function Navbar() {
                   <LanguageSwitch />
                 </div>
               </div>
+
+              {/* 登录按钮（移动至语言切换下方） */}
+              {!session?.user && (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="w-full bg-gradient-to-r from-orange-400 to-amber-400 text-white font-semibold py-2.5 rounded-xl hover:from-orange-500 hover:to-amber-500 transition-all"
+                >
+                  {tAuth('login')}
+                </button>
+              )}
+
+              {/* 图标区域（无文字） */}
+              <div className="flex items-center justify-center gap-4">
+                <GitHubIcon />
+                <WeChatIcon />
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
     </>
   )
 } 
