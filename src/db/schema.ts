@@ -1,4 +1,4 @@
-import { pgTable, timestamp, integer, text, boolean, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, integer, text, boolean } from 'drizzle-orm/pg-core';
 
 export const siteStats = pgTable('site_stats', {
   id: integer('id').primaryKey().default(1),
