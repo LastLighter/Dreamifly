@@ -15,6 +15,13 @@
       "when": 1748590690772,
       "tag": "0001_talented_mach_iv",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1760603124478,
+      "tag": "0002_abandoned_ultimatum",
+      "breakpoints": true
     }
   ]
 }

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { user } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
 
-// 更新用户资料
 export async function POST(request: NextRequest) {
   try {
     // 验证用户身份
@@ -19,19 +18,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { nickname, avatar } = body;
 
-    // 更新用户资料
-    await db.update(user)
+    // 更新用户信息
+    await db
+      .update(user)
       .set({
-        nickname: nickname || null,
-        avatar: avatar || '/images/default-avatar.svg',
-        updatedAt: new Date(),
+        nickname,
+        avatar,
       })
       .where(eq(user.id, session.user.id));
 
-    return NextResponse.json({ 
-      success: true,
-      message: 'Profile updated successfully'
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating profile:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

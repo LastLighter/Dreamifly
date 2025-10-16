@@ -67,6 +67,19 @@ export const auth = betterAuth({
         required: false,
         // 昵称将在注册后设置为 Dreamer-{uid}
       },
+      signature: {
+        type: "string",
+        required: false,
+      },
+      isActive: {
+        type: "boolean",
+        required: false,
+        defaultValue: true,
+      },
+      lastLoginAt: {
+        type: "date",
+        required: false,
+      },
     },
   },
   session: {

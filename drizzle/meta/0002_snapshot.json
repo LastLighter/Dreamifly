@@ -1,6 +1,6 @@
 {
-  "id": "f701350b-1fc9-49e2-a914-b7ce89ee98cf",
-  "prevId": "0785738f-aca2-402f-b79d-9b3e2f95b6ee",
+  "id": "e1c4c123-404e-469a-b6e3-e8d0cb2df50e",
+  "prevId": "f701350b-1fc9-49e2-a914-b7ce89ee98cf",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -311,6 +311,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "avatar": {
+          "name": "avatar",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'/images/default-avatar.svg'"
         },
         "signature": {
           "name": "signature",

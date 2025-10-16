@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "avatar" varchar(500) DEFAULT '/images/default-avatar.svg';
