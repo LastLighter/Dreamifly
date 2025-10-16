@@ -26,7 +26,6 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
   const [batch_size, setBatchSize] = useState(1);
   const [model, setModel] = useState('Qwen-Image');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [denoising_strength, setDenoisingStrength] = useState(0.7);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [imageStatuses, setImageStatuses] = useState<Array<{
     status: 'pending' | 'success' | 'error';
@@ -43,12 +42,10 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
   const generateSectionRef = useRef<HTMLDivElement>(null);
   const [stepsError, setStepsError] = useState<string | null>(null);
   const [batchSizeError, setBatchSizeError] = useState<string | null>(null);
-  const [sizeError, setSizeError] = useState<string | null>(null);
   const [imageCountError, setImageCountError] = useState<string | null>(null);
   const stepsRef = useRef<HTMLInputElement>(null);
   const batchSizeRef = useRef<HTMLInputElement>(null);
   const widthRef = useRef<HTMLInputElement>(null);
-  const heightRef = useRef<HTMLInputElement>(null);
   
   // 要设置为参考图片的生成图片 URL
   const [generatedImageToSetAsReference, setGeneratedImageToSetAsReference] = useState<string | null>(null);
@@ -86,7 +83,6 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
     let hasError = false;
     setStepsError(null);
     setBatchSizeError(null);
-    setSizeError(null);
     setImageCountError(null);
     
     // 验证参考图片数量
@@ -137,18 +133,17 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
       hasError = true;
     }
     
-    if (steps < 5 || steps > 40) {
+    if (steps < 5 || steps > 32) {
       setStepsError(t('error.validation.stepsRange'));
       stepsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       hasError = true;
     }
-    if (batch_size < 1 || batch_size > 4) {
+    if (batch_size < 1 || batch_size > 2) {
       setBatchSizeError(t('error.validation.batchSizeRange'));
       batchSizeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       hasError = true;
     }
-    if (width < 64 || width > 1920 || height < 64 || height > 1920) {
-      setSizeError(t('error.validation.sizeRange'));
+    if (width < 64 || width > 1440 || height < 64 || height > 1440) {
       widthRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       hasError = true;
     }
@@ -179,7 +174,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
     const requests = Array(batch_size).fill(null).map((_, index) => {
       const startTime = Date.now();
       let retryCount = 0;
-      const maxRetries = 2;
+      const maxRetries = 1;
 
       const makeRequest = async () => {
         try {
@@ -445,16 +440,11 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
                     isGenerating={isGenerating}
                     uploadedImages={uploadedImages}
                     setUploadedImages={setUploadedImages}
-                    denoising_strength={denoising_strength}
-                    setDenoisingStrength={setDenoisingStrength}
                     stepsError={stepsError}
                     batchSizeError={batchSizeError}
-                    sizeError={sizeError}
                     imageCountError={imageCountError}
                     stepsRef={stepsRef}
                     batchSizeRef={batchSizeRef}
-                    widthRef={widthRef}
-                    heightRef={heightRef}
                     generatedImageToSetAsReference={generatedImageToSetAsReference}
                   />
                 </div>

@@ -22,7 +22,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [needsVerification, setNeedsVerification] = useState(false)
 
   if (!isOpen) return null
 
@@ -80,7 +79,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
         if (result.error) {
           // 检查是否是邮箱未验证的错误
           if (result.error.message?.includes('verify') || result.error.message?.includes('verification')) {
-            setNeedsVerification(true)
             setMode('verify')
             setError(t('error.emailNotVerified'))
           } else {
@@ -118,8 +116,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             }
           }
           
-          // 提示用户验证邮箱
-          setNeedsVerification(true)
           setMode('verify')
           setSuccess(t('success.registerCheckEmail'))
         }
@@ -243,7 +239,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
               type="button"
               onClick={() => {
                 setMode('login')
-                setNeedsVerification(false)
                 setError('')
                 setSuccess('')
               }}

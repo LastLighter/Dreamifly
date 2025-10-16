@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { useTranslations } from 'next-intl'
 import { $fetch } from '@/lib/auth-client'
 
 export default function VerifyEmailPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const t = useTranslations('auth')
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
 
@@ -23,7 +21,7 @@ export default function VerifyEmailPage() {
       }
 
       try {
-        const response = await $fetch('/api/auth/verify-email', {
+        await $fetch('/api/auth/verify-email', {
           method: 'POST',
           body: JSON.stringify({ token }),
           headers: {
@@ -31,21 +29,17 @@ export default function VerifyEmailPage() {
           },
         })
 
-        if (response.ok) {
-          setStatus('success')
-          setMessage('邮箱验证成功！')
-          // 3秒后跳转到首页
-          setTimeout(() => {
-            router.push('/')
-          }, 3000)
-        } else {
-          setStatus('error')
-          setMessage('验证失败，链接可能已过期')
-        }
+        // $fetch from better-auth returns data directly or throws an error
+        setStatus('success')
+        setMessage('邮箱验证成功！')
+        // 3秒后跳转到首页
+        setTimeout(() => {
+          router.push('/')
+        }, 3000)
       } catch (error) {
         console.error('Verification error:', error)
         setStatus('error')
-        setMessage('验证过程中出现错误')
+        setMessage('验证失败，链接可能已过期')
       }
     }
 

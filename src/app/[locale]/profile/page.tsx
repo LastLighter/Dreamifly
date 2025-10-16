@@ -2,9 +2,10 @@
 
 import { useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { useSession, updateUser, changePassword, signOut } from '@/lib/auth-client'
+import { useSession, changePassword, signOut } from '@/lib/auth-client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { ExtendedUser } from '@/types/auth'
 
 export default function ProfilePage() {
   const t = useTranslations('auth')
@@ -12,8 +13,8 @@ export default function ProfilePage() {
   const { data: session, isPending } = useSession()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [nickname, setNickname] = useState(session?.user?.nickname || '')
-  const [avatar, setAvatar] = useState(session?.user?.avatar || '/images/default-avatar.svg')
+  const [nickname, setNickname] = useState((session?.user as ExtendedUser)?.nickname || '')
+  const [avatar, setAvatar] = useState((session?.user as ExtendedUser)?.avatar || '/images/default-avatar.svg')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -94,10 +95,20 @@ export default function ProfilePage() {
     setSaving(true)
 
     try {
-      await updateUser({
-        nickname,
-        avatar,
+      const response = await fetch('/api/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nickname,
+          avatar,
+        }),
       })
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile')
+      }
 
       setSuccess(t('success.profileUpdated'))
       setTimeout(() => {
@@ -231,14 +242,14 @@ export default function ProfilePage() {
           </div>
 
           {/* UID (read-only) */}
-          {session.user.uid && (
+          {(session.user as ExtendedUser).uid && (
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 用户 ID (UID)
               </label>
               <input
                 type="text"
-                value={`#${session.user.uid}`}
+                value={`#${(session.user as ExtendedUser).uid}`}
                 disabled
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed font-mono"
               />

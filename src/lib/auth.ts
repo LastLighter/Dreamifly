@@ -12,7 +12,7 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true, // 启用邮箱验证要求
     autoSignIn: false, // 注册后不自动登录，需要先验证邮箱
-    sendResetPassword: async ({ user, url }, request) => {
+    sendResetPassword: async ({ user, url }) => {
       // 输出重置链接到控制台（方便开发调试）
       console.log('\n' + '='.repeat(80));
       console.log('🔐 密码重置邮件');
@@ -32,7 +32,7 @@ export const auth = betterAuth({
   emailVerification: {
     sendOnSignUp: true, // 注册时自动发送验证邮件
     autoSignInAfterVerification: true, // 验证后自动登录
-    sendVerificationEmail: async ({ user, url }, request) => {
+    sendVerificationEmail: async ({ user, url }) => {
       // 输出验证链接到控制台（方便开发调试）
       console.log('\n' + '='.repeat(80));
       console.log('📧 邮箱验证邮件');

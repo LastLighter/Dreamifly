@@ -25,16 +25,11 @@ interface GenerateFormProps {
   isGenerating: boolean;
   uploadedImages: string[];
   setUploadedImages: (value: string[] | ((prev: string[]) => string[])) => void;
-  denoising_strength: number;
-  setDenoisingStrength: (value: number) => void;
   stepsError?: string | null;
   batchSizeError?: string | null;
-  sizeError?: string | null;
   imageCountError?: string | null;
   stepsRef?: React.RefObject<HTMLInputElement | null>;
   batchSizeRef?: React.RefObject<HTMLInputElement | null>;
-  widthRef?: React.RefObject<HTMLInputElement | null>;
-  heightRef?: React.RefObject<HTMLInputElement | null>;
   generatedImageToSetAsReference?: string | null;
 }
 
@@ -56,16 +51,11 @@ export default function GenerateForm({
   isGenerating,
   uploadedImages,
   setUploadedImages,
-  denoising_strength,
-  setDenoisingStrength,
   stepsError,
   batchSizeError,
-  sizeError,
   imageCountError,
   stepsRef,
   batchSizeRef,
-  widthRef,
-  heightRef,
   generatedImageToSetAsReference
 }: GenerateFormProps) {
   const t = useTranslations('home.generate')
