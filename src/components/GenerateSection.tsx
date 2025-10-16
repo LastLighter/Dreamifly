@@ -180,7 +180,10 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
         try {
           const res = await fetch('/api/generate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_API_KEY}`
+            },
               body: JSON.stringify({
               prompt: finalPrompt, // 使用优化后的prompt或原始prompt
               negative_prompt: negativePrompt.trim() || undefined, // 添加负面提示词

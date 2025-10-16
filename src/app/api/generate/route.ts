@@ -6,6 +6,19 @@ import { eq, sql } from 'drizzle-orm'
 
 export async function POST(request: Request) {
   try {
+    // 验证认证头
+    const authHeader = request.headers.get('Authorization')
+    const expectedApiKey = process.env.NEXT_PUBLIC_API_KEY
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Missing or invalid Authorization header' }, { status: 401 })
+    }
+    
+    const providedKey = authHeader.substring(7) // 移除 "Bearer " 前缀
+    if (!expectedApiKey || providedKey !== expectedApiKey) {
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+    }
+
     const body = await request.json()
     const { prompt, width, height, steps, seed, batch_size, model, images, negative_prompt } = body
 
