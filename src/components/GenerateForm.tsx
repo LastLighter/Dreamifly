@@ -361,12 +361,19 @@ export default function GenerateForm({
             console.log('GenerateForm: Successfully set previewImage')
             
             // 计算合适的尺寸（保持8的倍数）
-            const newWidth = Math.round(img.width / 8) * 8
-            const newHeight = Math.round(img.height / 8) * 8
+            let newWidth = Math.round(img.width / 8) * 8
+            let newHeight = Math.round(img.height / 8) * 8
+            
+            // 如果图片尺寸超过1440，按比例缩放
+            if (newWidth > 1440 || newHeight > 1440) {
+              const scale = Math.min(1440 / newWidth, 1440 / newHeight)
+              newWidth = Math.round(newWidth * scale / 8) * 8
+              newHeight = Math.round(newHeight * scale / 8) * 8
+            }
             
             // 确保尺寸在允许范围内
-            const finalWidth = Math.min(Math.max(newWidth, 64), 1920)
-            const finalHeight = Math.min(Math.max(newHeight, 64), 1920)
+            const finalWidth = Math.min(Math.max(newWidth, 64), 1440)
+            const finalHeight = Math.min(Math.max(newHeight, 64), 1440)
             
             // 更新宽高状态
             setWidth(finalWidth)
@@ -438,10 +445,19 @@ export default function GenerateForm({
         const base64String = event.target.result.toString().split(',')[1]
         const img = new window.Image()
         img.onload = () => {
-          const newWidth = Math.round(img.width / 8) * 8
-          const newHeight = Math.round(img.height / 8) * 8
-          const finalWidth = Math.min(Math.max(newWidth, 64), 1920)
-          const finalHeight = Math.min(Math.max(newHeight, 64), 1920)
+          // 计算合适的尺寸（保持8的倍数）
+          let newWidth = Math.round(img.width / 8) * 8
+          let newHeight = Math.round(img.height / 8) * 8
+          
+          // 如果图片尺寸超过1440，按比例缩放
+          if (newWidth > 1440 || newHeight > 1440) {
+            const scale = Math.min(1440 / newWidth, 1440 / newHeight)
+            newWidth = Math.round(newWidth * scale / 8) * 8
+            newHeight = Math.round(newHeight * scale / 8) * 8
+          }
+          
+          const finalWidth = Math.min(Math.max(newWidth, 64), 1440)
+          const finalHeight = Math.min(Math.max(newHeight, 64), 1440)
           setWidth(finalWidth)
           setHeight(finalHeight)
           setUploadedImages((prev: string[]) => [...prev, base64String])
@@ -499,12 +515,19 @@ export default function GenerateForm({
                 const img = new window.Image();
                 img.onload = () => {
                   // 计算合适的尺寸（保持8的倍数）
-                  const newWidth = Math.round(img.width / 8) * 8;
-                  const newHeight = Math.round(img.height / 8) * 8;
+                  let newWidth = Math.round(img.width / 8) * 8;
+                  let newHeight = Math.round(img.height / 8) * 8;
+                  
+                  // 如果图片尺寸超过1440，按比例缩放
+                  if (newWidth > 1440 || newHeight > 1440) {
+                    const scale = Math.min(1440 / newWidth, 1440 / newHeight);
+                    newWidth = Math.round(newWidth * scale / 8) * 8;
+                    newHeight = Math.round(newHeight * scale / 8) * 8;
+                  }
                   
                   // 确保尺寸在允许范围内
-                  const finalWidth = Math.min(Math.max(newWidth, 64), 1920);
-                  const finalHeight = Math.min(Math.max(newHeight, 64), 1920);
+                  const finalWidth = Math.min(Math.max(newWidth, 64), 1440);
+                  const finalHeight = Math.min(Math.max(newHeight, 64), 1440);
                   
                   // 更新宽高状态
                   setWidth(finalWidth);
