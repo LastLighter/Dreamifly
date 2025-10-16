@@ -1,7 +1,5 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface SendEmailParams {
   to: string;
   subject: string;
@@ -10,6 +8,9 @@ interface SendEmailParams {
 
 export async function sendEmail({ to, subject, html }: SendEmailParams) {
   try {
+    // 只在请求时创建Resend实例，避免构建阶段使用环境变量
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    
     const { data, error } = await resend.emails.send({
       from: process.env.EMAIL_FROM || 'Dreamifly <noreply@dreamifly.com>',
       to: [to],
