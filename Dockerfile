@@ -35,6 +35,7 @@ COPY src ./src
 COPY drizzle ./drizzle
 COPY middleware.ts ./
 COPY eslint.config.mjs ./
+COPY .env.local ./
 
 RUN npm install
 
