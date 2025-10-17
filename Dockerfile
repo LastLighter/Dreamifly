@@ -50,14 +50,14 @@ FROM base AS runner
 RUN apk add --no-cache curl
 
 # 复制构建结果
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder  /app/.next ./.next
+COPY --from=builder  /app/public ./public
+COPY --from=builder  /app/node_modules ./node_modules
+COPY --from=builder  /app/package.json ./package.json
 
 # 复制必要的配置文件
-COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./
-COPY --from=builder --chown=nextjs:nodejs /app/middleware.ts ./
+COPY --from=builder  /app/next.config.js ./
+COPY --from=builder  /app/middleware.ts ./
 
 # 暴露端口
 EXPOSE 3000
