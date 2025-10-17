@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { signIn, signUp, sendVerificationEmail, forgetPassword, useSession } from '@/lib/auth-client'
-import { useRouter } from 'next/navigation'
+import { signIn, signUp, sendVerificationEmail, forgetPassword } from '@/lib/auth-client'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -13,8 +12,6 @@ interface AuthModalProps {
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
   const t = useTranslations('auth')
-  const router = useRouter()
-  const { refetch: refetchSession } = useSession()
   const [mode, setMode] = useState<'login' | 'register' | 'reset' | 'verify'>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

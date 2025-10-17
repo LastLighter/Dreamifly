@@ -6,7 +6,7 @@ import LanguageSwitch from './LanguageSwitch'
 import WeChatIcon from './WeChatIcon'
 import GitHubIcon from './GitHubIcon'
 import AuthModal from './AuthModal'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -15,7 +15,6 @@ import { ExtendedUser } from '@/types/auth'
 
 export default function Navbar() {
   const { locale } = useParams()
-  const router = useRouter()
   const t = useTranslations('nav')
   const tAuth = useTranslations('auth')
   const { data: session } = useSession()
