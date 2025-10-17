@@ -87,9 +87,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           }
         } else {
           setSuccess(t('success.login'))
-          // auth-client会自动处理页面刷新，这里只需要关闭弹窗
+          // 登录成功后刷新页面以更新session
           setTimeout(() => {
             onClose()
+            window.location.reload()
           }, 500)
         }
       } else if (mode === 'register') {
