@@ -85,6 +85,9 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day (update session every day)
+    cookieCache: {
+      enabled: false, // 禁用cookie缓存，强制每次都从服务器获取
+    },
   },
 });
 

@@ -48,7 +48,8 @@ export default function Navbar() {
   const handleLogout = async () => {
     await signOut()
     setShowUserMenu(false)
-    router.refresh()
+    // 强制刷新页面确保session状态更新
+    window.location.reload()
   }
 
   return (

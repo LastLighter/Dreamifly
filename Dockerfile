@@ -1,4 +1,5 @@
-# 使用官方 Node.js 20 Alpine 镜像
+# 使用官方 Node.js 22 Alpine 镜像
+# FROM node:22-alpine AS base
 FROM base-mirror.tencentcloudcr.com/tekton/base/node:21-alpine AS base
 
 # 设置工作目录
@@ -48,10 +49,6 @@ FROM base AS runner
 # 安装必要的系统工具
 RUN apk add --no-cache curl
 
-# 创建非 root 用户
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
-
 # 复制构建结果
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
@@ -61,12 +58,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 # 复制必要的配置文件
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./
 COPY --from=builder --chown=nextjs:nodejs /app/middleware.ts ./
-
-# 设置权限
-RUN chown -R nextjs:nodejs /app
-
-# 切换到非 root 用户
-USER nextjs
 
 # 暴露端口
 EXPOSE 3000

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
-import { signIn, signUp, sendVerificationEmail, forgetPassword } from '@/lib/auth-client'
+import { signIn, signUp, sendVerificationEmail, forgetPassword, useSession } from '@/lib/auth-client'
 import { useRouter } from 'next/navigation'
 
 interface AuthModalProps {
@@ -14,6 +14,7 @@ interface AuthModalProps {
 export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) {
   const t = useTranslations('auth')
   const router = useRouter()
+  const { refetch: refetchSession } = useSession()
   const [mode, setMode] = useState<'login' | 'register' | 'reset' | 'verify'>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -86,10 +87,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           }
         } else {
           setSuccess(t('success.login'))
+          // auth-client会自动处理页面刷新，这里只需要关闭弹窗
           setTimeout(() => {
             onClose()
-            router.refresh()
-          }, 1000)
+          }, 500)
         }
       } else if (mode === 'register') {
         const result = await signUp.email({
