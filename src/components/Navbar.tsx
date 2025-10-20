@@ -6,7 +6,7 @@ import LanguageSwitch from './LanguageSwitch'
 import WeChatIcon from './WeChatIcon'
 import GitHubIcon from './GitHubIcon'
 import AuthModal from './AuthModal'
-import { useParams } from 'next/navigation'
+import { useParams, usePathname, useRouter } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
@@ -21,6 +21,8 @@ export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const pathname = usePathname()
+  const router = useRouter()
 
   // 处理点击遮罩层关闭菜单
   const handleOverlayClick = () => {
@@ -34,13 +36,22 @@ export default function Navbar() {
 
   // 处理点击导航项
   const handleNavItemClick = (sectionId: string) => {
+    const isHome = pathname === `/${locale}` || pathname === `/${locale}/`
     setIsMobileMenuOpen(false)
-    setTimeout(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ 
+    if (!isHome) {
+      router.push(transferUrl('/', locale))
+    }
+    scrollToSection(sectionId)
+  }
+
+  // 在主页平滑滚动到指定部分
+  const scrollToSection = (sectionId: string,delayms:number = 500) => {
+   setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({
         behavior: 'smooth',
         block: 'start'
       })
-    }, 500)
+    }, delayms)
   }
 
   // 处理登出
