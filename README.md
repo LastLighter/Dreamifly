@@ -111,6 +111,18 @@ MAX_TOKENS=2000
 
 # 应用配置
 NEXT_PUBLIC_BASE_URL='http://localhost:3000'
+
+# 阿里云 OSS（对象存储服务）的访问密钥 ID
+OSS_AK=xxx
+
+# 阿里云 OSS 的访问密钥 Secret（密钥）
+OSS_SK=xxx
+
+# OSS 存储桶（Bucket）名称
+OSS_BUCKET=xxx
+
+# OSS 访问的 Endpoint（访问域名或节点地址）
+OSS_ENDPOINT=https://xxx.xxx.com
 ```
 
 > 🔐 **重要提示**：
