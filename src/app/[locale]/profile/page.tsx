@@ -20,6 +20,10 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // Local avatar selection state
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+
   // Password change state
   const [showPasswordForm, setShowPasswordForm] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -60,33 +64,16 @@ export default function ProfilePage() {
       return
     }
 
-    setUploading(true)
     setError('')
+    setSuccess('')
 
-    try {
-      // Create form data
-      const formData = new FormData()
-      formData.append('file', file)
+    // Revoke previous preview URL if exists
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview)
 
-      // Upload to server
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        throw new Error('Upload failed')
-      }
-
-      const data = await response.json()
-      setAvatar(data.url)
-      setSuccess(t('success.profileUpdated'))
-    } catch (err) {
-      console.error('Upload error:', err)
-      setError(t('error.uploadFailed'))
-    } finally {
-      setUploading(false)
-    }
+    // Set local preview and hold file for later upload on save
+    const objectUrl = URL.createObjectURL(file)
+    setAvatarPreview(objectUrl)
+    setPendingAvatarFile(file)
   }
 
   const handleSaveProfile = async () => {
@@ -95,6 +82,24 @@ export default function ProfilePage() {
     setSaving(true)
 
     try {
+      let avatarUrlToSave = avatar
+
+      // If user selected a new avatar, upload it now
+      if (pendingAvatarFile) {
+        setUploading(true)
+        const formData = new FormData()
+        formData.append('file', pendingAvatarFile)
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!uploadResponse.ok) {
+          throw new Error('Upload failed')
+        }
+        const uploadData = await uploadResponse.json()
+        avatarUrlToSave = uploadData.url
+      }
+
       const response = await fetch('/api/profile', {
         method: 'POST',
         headers: {
@@ -102,7 +107,7 @@ export default function ProfilePage() {
         },
         body: JSON.stringify({
           nickname,
-          avatar,
+          avatar: avatarUrlToSave,
         }),
       })
 
@@ -110,6 +115,11 @@ export default function ProfilePage() {
         throw new Error('Failed to update profile')
       }
 
+      // Apply new avatar state and clear pending preview
+      setAvatar(avatarUrlToSave)
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+      setAvatarPreview(null)
+      setPendingAvatarFile(null)
       setSuccess(t('success.profileUpdated'))
       setTimeout(() => {
         router.refresh()
@@ -119,6 +129,7 @@ export default function ProfilePage() {
       setError(t('error.updateFailed'))
     } finally {
       setSaving(false)
+      setUploading(false)
     }
   }
 
@@ -207,7 +218,7 @@ export default function ProfilePage() {
             <div className="flex items-center gap-6">
               <div className="relative">
                 <Image
-                  src={avatar}
+                  src={avatarPreview || avatar}
                   alt="Avatar"
                   width={100}
                   height={100}
