@@ -8,6 +8,7 @@ import { Inter } from 'next/font/google'
 import '@/app/globals.css'
 import UmamiProvider from 'next-umami'
 import { AvatarProvider } from '@/contexts/AvatarContext'
+import VersionDisplay from '@/components/VersionDisplay'
 
 const inter = Inter({ subsets: ['latin'] })
 const umamiWebsiteId = "7fd99628-3822-4bae-a794-b2d1d8926678"
@@ -87,6 +88,7 @@ export default async function LocaleLayout({
               </main>
               <Footer />
             </div>
+            <VersionDisplay />
           </AvatarProvider>
         </NextIntlClientProvider>
       </body>

@@ -112,6 +112,9 @@ MAX_TOKENS=2000
 # 应用配置
 NEXT_PUBLIC_BASE_URL='http://localhost:3000'
 
+# 网站版本号
+NEXT_PUBLIC_WEB_VERSION=1.0.0
+
 # 阿里云 OSS（对象存储服务）的访问密钥 ID
 OSS_AK=xxx
 
