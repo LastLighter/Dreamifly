@@ -6,11 +6,13 @@ import { useSession, changePassword, signOut } from '@/lib/auth-client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { ExtendedUser } from '@/types/auth'
+import { useAvatar } from '@/contexts/AvatarContext'
 
 export default function ProfilePage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { data: session, isPending } = useSession()
+  const { avatar: globalAvatar, updateAvatar } = useAvatar()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [nickname, setNickname] = useState('')
@@ -39,6 +41,11 @@ export default function ProfilePage() {
       setAvatar(user.avatar || '/images/default-avatar.svg')
     }
   }, [session])
+
+  // 同步全局头像状态到本地状态
+  useEffect(() => {
+    setAvatar(globalAvatar)
+  }, [globalAvatar])
 
   if (isPending) {
     return (
@@ -130,7 +137,8 @@ export default function ProfilePage() {
       setAvatarPreview(null)
       setPendingAvatarFile(null)
       
-      // 注意：session会在下次页面刷新时自动更新，因为useEffect会监听session变化
+      // 立即更新全局头像状态
+      updateAvatar(avatarUrlToSave)
       
       setSuccess(t('success.profileUpdated'))
       setTimeout(() => {

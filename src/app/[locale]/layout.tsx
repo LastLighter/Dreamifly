@@ -7,6 +7,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import '@/app/globals.css'
 import UmamiProvider from 'next-umami'
+import { AvatarProvider } from '@/contexts/AvatarContext'
 
 const inter = Inter({ subsets: ['latin'] })
 const umamiWebsiteId = "7fd99628-3822-4bae-a794-b2d1d8926678"
@@ -78,13 +79,15 @@ export default async function LocaleLayout({
       </head>
       <body className={inter.className}>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <div className="min-h-screen flex flex-col">
-            <Navbar />
-            <main className="flex-grow">
-              {children}
-            </main>
-            <Footer />
-          </div>
+          <AvatarProvider>
+            <div className="min-h-screen flex flex-col">
+              <Navbar />
+              <main className="flex-grow">
+                {children}
+              </main>
+              <Footer />
+            </div>
+          </AvatarProvider>
         </NextIntlClientProvider>
       </body>
     </html >

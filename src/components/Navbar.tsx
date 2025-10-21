@@ -9,15 +9,17 @@ import AuthModal from './AuthModal'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import { useTranslations } from 'next-intl'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession, signOut } from '@/lib/auth-client'
 import { ExtendedUser } from '@/types/auth'
+import { useAvatar } from '@/contexts/AvatarContext'
 
 export default function Navbar() {
   const { locale } = useParams()
   const t = useTranslations('nav')
   const tAuth = useTranslations('auth')
   const { data: session } = useSession()
+  const { avatar: globalAvatar } = useAvatar()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -97,7 +99,7 @@ export default function Navbar() {
                 className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-200/50 transition-colors"
               >
                 <Image
-                  src={(session.user as ExtendedUser).avatar || '/images/default-avatar.svg'}
+                  src={globalAvatar}
                   alt="Avatar"
                   width={32}
                   height={32}
@@ -226,7 +228,7 @@ export default function Navbar() {
                       className="w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
                     >
                       <Image
-                        src={(session.user as ExtendedUser).avatar || '/images/default-avatar.svg'}
+                        src={globalAvatar}
                         alt="Avatar"
                         width={40}
                         height={40}
