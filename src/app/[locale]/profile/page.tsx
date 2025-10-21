@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { data: session, isPending } = useSession()
-  const { avatar: globalAvatar, updateAvatar } = useAvatar()
+  const { avatar: globalAvatar, nickname: globalNickname, updateProfile, updateNickname } = useAvatar()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [nickname, setNickname] = useState('')
@@ -42,10 +42,16 @@ export default function ProfilePage() {
     }
   }, [session])
 
-  // 同步全局头像状态到本地状态
+  // 同步全局头像和昵称状态到本地状态
   useEffect(() => {
     setAvatar(globalAvatar)
   }, [globalAvatar])
+
+  useEffect(() => {
+    setNickname(globalNickname)
+  }, [globalNickname])
+
+  // 仅在保存成功时通过 updateProfile 同步全局昵称，输入时不实时同步
 
   if (isPending) {
     return (
@@ -137,8 +143,8 @@ export default function ProfilePage() {
       setAvatarPreview(null)
       setPendingAvatarFile(null)
       
-      // 立即更新全局头像状态
-      updateAvatar(avatarUrlToSave)
+      // 立即更新全局头像和昵称状态
+      updateProfile(avatarUrlToSave, nickname)
       
       setSuccess(t('success.profileUpdated'))
       setTimeout(() => {

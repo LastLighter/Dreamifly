@@ -19,7 +19,7 @@ export default function Navbar() {
   const t = useTranslations('nav')
   const tAuth = useTranslations('auth')
   const { data: session } = useSession()
-  const { avatar: globalAvatar } = useAvatar()
+  const { avatar: globalAvatar, nickname: globalNickname } = useAvatar()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -236,7 +236,7 @@ export default function Navbar() {
                       />
                       <div className="flex-1 text-left overflow-hidden">
                         <p className="text-sm font-medium text-gray-900 truncate">
-                          {(session.user as ExtendedUser).nickname || session.user.name}
+                          {globalNickname || session.user.name}
                         </p>
                       </div>
                     </button>
