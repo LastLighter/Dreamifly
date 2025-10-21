@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSession, changePassword, signOut } from '@/lib/auth-client'
 import { useRouter } from 'next/navigation'
@@ -13,8 +13,8 @@ export default function ProfilePage() {
   const { data: session, isPending } = useSession()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [nickname, setNickname] = useState((session?.user as ExtendedUser)?.nickname || '')
-  const [avatar, setAvatar] = useState((session?.user as ExtendedUser)?.avatar || '/images/default-avatar.svg')
+  const [nickname, setNickname] = useState('')
+  const [avatar, setAvatar] = useState('/images/default-avatar.svg')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -30,6 +30,15 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
+
+  // 监听session变化，更新用户数据
+  useEffect(() => {
+    if (session?.user) {
+      const user = session.user as ExtendedUser
+      setNickname(user.nickname || '')
+      setAvatar(user.avatar || '/images/default-avatar.svg')
+    }
+  }, [session])
 
   if (isPending) {
     return (
@@ -120,6 +129,9 @@ export default function ProfilePage() {
       if (avatarPreview) URL.revokeObjectURL(avatarPreview)
       setAvatarPreview(null)
       setPendingAvatarFile(null)
+      
+      // 注意：session会在下次页面刷新时自动更新，因为useEffect会监听session变化
+      
       setSuccess(t('success.profileUpdated'))
       setTimeout(() => {
         router.refresh()
