@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { data: session, isPending } = useSession()
-  const { avatar: globalAvatar, nickname: globalNickname, updateProfile, updateNickname } = useAvatar()
+  const { avatar: globalAvatar, nickname: globalNickname, updateProfile } = useAvatar()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [nickname, setNickname] = useState('')

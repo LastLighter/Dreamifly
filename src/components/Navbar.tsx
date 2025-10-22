@@ -9,9 +9,8 @@ import AuthModal from './AuthModal'
 import { useParams, usePathname, useRouter } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import { useTranslations } from 'next-intl'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useSession, signOut } from '@/lib/auth-client'
-import { ExtendedUser } from '@/types/auth'
 import { useAvatar } from '@/contexts/AvatarContext'
 
 export default function Navbar() {

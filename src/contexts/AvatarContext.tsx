@@ -28,7 +28,7 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
       setAvatar(user.avatar || '/images/default-avatar.svg')
       setNickname(user.nickname || user.name || '')
     }
-  }, [session?.user?.avatar, session?.user?.nickname, session?.user?.name])
+  }, [session?.user])
 
   // 更新头像的方法
   const updateAvatar = (newAvatar: string) => {
