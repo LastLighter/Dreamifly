@@ -222,15 +222,18 @@ const PromptInput = ({
               {isGenerating ? (
                 isQueuing ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-1 h-3 w-3 md:h-4 md:w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    {/* 排队中 - 黄色时钟图标 */}
+                    <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-amber-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M12 6v6l4 2"></path>
+                      <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     {t('form.progress.status.queuing')}
                   </>
                 ) : (
                   <>
-                    <svg className="animate-spin -ml-1 mr-1 h-3 w-3 md:h-4 md:w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    {/* 生图中 - 绿色spinner */}
+                    <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-green-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
@@ -239,7 +242,7 @@ const PromptInput = ({
                 )
               ) : isOptimizing ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-1 h-3 w-3 md:h-4 md:w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
@@ -247,7 +250,7 @@ const PromptInput = ({
                 </>
               ) : (
                 <>
-                  <svg className="mr-1 h-3 w-3 md:mr-2 md:h-4 md:w-4 text-orange-500" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-orange-500" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
                     <path fill="currentColor" d="M640 224A138.666667 138.666667 0 0 0 778.666667 85.333333h64A138.666667 138.666667 0 0 0 981.333333 224v64A138.666667 138.666667 0 0 0 842.666667 426.666667h-64A138.666667 138.666667 0 0 0 640 288v-64zM170.666667 298.666667a85.333333 85.333333 0 0 1 85.333333-85.333334h298.666667V128H256a170.666667 170.666667 0 0 0-170.666667 170.666667v426.666666a170.666667 170.666667 0 0 0 170.666667 170.666667h512a170.666667 170.666667 0 0 0 170.666667-170.666667v-213.333333h-85.333334v213.333333a85.333333 85.333333 0 0 1-85.333333 85.333334H256a85.333333 85.333333 0 0 1-85.333333-85.333334V298.666667z"></path>
                   </svg>
                   {t('form.generateButton.default')}
