@@ -6,6 +6,7 @@ import StyleTransferForm from './StyleTransferForm'
 import TabNavigation from './TabNavigation'
 import PromptInput from './PromptInput'
 import { optimizePrompt } from '../utils/promptOptimizer'
+import { useSession } from '@/lib/auth-client'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
@@ -18,6 +19,7 @@ export interface GenerateSectionRef {
 const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ communityWorks }, ref) => {
   const t = useTranslations('home.generate')
   const tHome = useTranslations('home')
+  const { data: session, isPending } = useSession()
   const [prompt, setPrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [width, setWidth] = useState(1024);
@@ -46,9 +48,13 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
   const stepsRef = useRef<HTMLInputElement>(null);
   const batchSizeRef = useRef<HTMLInputElement>(null);
   const widthRef = useRef<HTMLInputElement>(null);
+  const [isQueuing, setIsQueuing] = useState(false);
   
   // 要设置为参考图片的生成图片 URL
   const [generatedImageToSetAsReference, setGeneratedImageToSetAsReference] = useState<string | null>(null);
+  
+  // 用户认证状态
+  const authStatus = isPending ? 'loading' : (session?.user ? 'authenticated' : 'unauthenticated') as 'loading' | 'authenticated' | 'unauthenticated';
 
   // 处理画同款功能
   const handleGenerateSame = (promptText: string) => {
@@ -410,6 +416,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
                   onRatioChange={handleRatioChange}
                   selectedStyle={selectedStyle}
                   onStyleChange={setSelectedStyle}
+                  isQueuing={isQueuing}
                 />
               </div>
             </div>
@@ -434,7 +441,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
                     setBatchSize={setBatchSize}
                     model={model}
                     setModel={setModel}
-                    status="authenticated"
+                    status={authStatus}
                     onGenerate={handleGenerate}
                     isAdvancedOpen={isAdvancedOpen}
                     setIsAdvancedOpen={setIsAdvancedOpen}
@@ -449,6 +456,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
                     stepsRef={stepsRef}
                     batchSizeRef={batchSizeRef}
                     generatedImageToSetAsReference={generatedImageToSetAsReference}
+                    setIsQueuing={setIsQueuing}
                   />
                 </div>
               ) : (
@@ -458,6 +466,8 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
                     setUploadedImages={setUploadedImages}
                     onStyleTransfer={handleStyleTransfer}
                     isGenerating={isGenerating}
+                    authStatus={authStatus}
+                    setIsQueuing={setIsQueuing}
                   />
                 </div>
               )}

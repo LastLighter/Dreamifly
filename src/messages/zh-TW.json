@@ -139,6 +139,7 @@
           "estimatedTime": "預計耗時",
           "seconds": "秒",
           "status": {
+            "queuing": "排隊中...",
             "initializing": "正在初始化...",
             "processing": "正在處理...",
             "finalizing": "正在完成..."

@@ -3,6 +3,8 @@ import { generateImage } from '@/utils/comfyApi'
 import { db } from '@/db'
 import { siteStats } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
+import { auth } from '@/lib/auth'
+import { headers } from 'next/headers'
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +19,17 @@ export async function POST(request: Request) {
     const providedKey = authHeader.substring(7) // 移除 "Bearer " 前缀
     if (!expectedApiKey || providedKey !== expectedApiKey) {
       return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+    }
+
+    // 检查用户是否已登录
+    const session = await auth.api.getSession({
+      headers: await headers()
+    })
+    
+    // 如果用户未登录，添加延迟
+    if (!session?.user) {
+      const unauthDelay = parseInt(process.env.UNAUTHENTICATED_USER_DELAY || '20', 10)
+      await new Promise(resolve => setTimeout(resolve, unauthDelay * 1000))
     }
 
     const body = await request.json()

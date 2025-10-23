@@ -31,6 +31,7 @@ interface GenerateFormProps {
   stepsRef?: React.RefObject<HTMLInputElement | null>;
   batchSizeRef?: React.RefObject<HTMLInputElement | null>;
   generatedImageToSetAsReference?: string | null;
+  setIsQueuing?: (value: boolean) => void;
 }
 
 export default function GenerateForm({
@@ -56,7 +57,8 @@ export default function GenerateForm({
   imageCountError,
   stepsRef,
   batchSizeRef,
-  generatedImageToSetAsReference
+  generatedImageToSetAsReference,
+  setIsQueuing: setIsQueuingProp
 }: GenerateFormProps) {
   const t = useTranslations('home.generate')
   const [progress, setProgress] = useState(0)
@@ -68,6 +70,10 @@ export default function GenerateForm({
   const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
   const [modelsLoading, setModelsLoading] = useState(true)
+  const [isQueuing, setIsQueuing] = useState(false)
+  
+  // 获取未登录用户延迟时间（秒）
+  const unauthDelay = parseInt(process.env.NEXT_PUBLIC_UNAUTHENTICATED_USER_DELAY || '20', 10)
 
   // 获取标签样式的函数
   const getTagStyle = (tag: string) => {
@@ -144,17 +150,44 @@ export default function GenerateForm({
       const stepsFactor = steps / baseSteps;
       const modelFactor = modelTimeFactors[model as keyof typeof modelTimeFactors] || 1.0;
       
-      const totalTime = baseTime * pixelFactor * stepsFactor * modelFactor;
-      setEstimatedTime(totalTime);
+      const generationTime = baseTime * pixelFactor * stepsFactor * modelFactor;
+      // 预期时间只显示生图时间，不包含排队时间
+      setEstimatedTime(generationTime);
+      
+      // 如果用户未登录，先设置排队状态
+      if (status === 'unauthenticated') {
+        setIsQueuing(true);
+        setIsQueuingProp?.(true);
+      }
       
       // 进度条动画
       let currentProgress = 0;
       const startTime = Date.now();
+      let queuingEnded = false; // 使用局部变量而不是state来避免重新渲染导致timer重置
       
       timer = setInterval(() => {
         const currentTime = Date.now();
         const elapsedTime = (currentTime - startTime) / 1000; // 转换为秒
-        const timeRatio = elapsedTime / totalTime;
+        
+        // 如果用户未登录且在排队期间
+        if (status === 'unauthenticated' && elapsedTime < unauthDelay) {
+          // 排队期间进度保持为0
+          setProgress(0);
+          return;
+        }
+        
+        // 排队结束，开始生成（只执行一次）
+        if (status === 'unauthenticated' && !queuingEnded) {
+          queuingEnded = true;
+          setIsQueuing(false);
+          setIsQueuingProp?.(false);
+        }
+        
+        // 计算实际生成的时间比例（排除排队时间）
+        const generationElapsedTime = status === 'unauthenticated' 
+          ? elapsedTime - unauthDelay 
+          : elapsedTime;
+        const timeRatio = generationElapsedTime / generationTime;
         
         // 计算目标进度
         let targetProgress;
@@ -184,6 +217,8 @@ export default function GenerateForm({
     } else {
       setProgress(0);
       setEstimatedTime(0);
+      setIsQueuing(false);
+      setIsQueuingProp?.(false);
     }
 
     return () => {
@@ -191,7 +226,7 @@ export default function GenerateForm({
         clearInterval(timer);
       }
     };
-  }, [isGenerating, steps, width, height, model]);
+  }, [isGenerating, steps, width, height, model, status, unauthDelay, setIsQueuingProp]);
 
   // Add click outside handler for dropdown
   useEffect(() => {
@@ -848,7 +883,7 @@ export default function GenerateForm({
           {/* Generate button removed for external placement */}
         </div>
 
-        {isGenerating && (
+        {isGenerating && !isQueuing && (
           <div className="mt-6">
             <div className="flex justify-between items-center mb-2">
               <span className="text-gray-900">{t('form.progress.title')}</span>

@@ -7,6 +7,8 @@ interface StyleTransferFormProps {
   setUploadedImages: (value: string[] | ((prev: string[]) => string[])) => void;
   onStyleTransfer: (style: string) => void;
   isGenerating: boolean;
+  authStatus: 'loading' | 'authenticated' | 'unauthenticated';
+  setIsQueuing?: (value: boolean) => void;
 }
 
 interface StyleOption {
@@ -89,7 +91,9 @@ export default function StyleTransferForm({
   uploadedImages,
   setUploadedImages,
   onStyleTransfer,
-  isGenerating
+  isGenerating,
+  authStatus,
+  setIsQueuing: setIsQueuingProp
 }: StyleTransferFormProps) {
   const t = useTranslations('home.generate')
   const [selectedStyle, setSelectedStyle] = useState<string>('')
@@ -97,6 +101,10 @@ export default function StyleTransferForm({
   const [progress, setProgress] = useState(0)
   const [estimatedTime, setEstimatedTime] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isQueuing, setIsQueuing] = useState(false)
+  
+  // 获取未登录用户延迟时间（秒）
+  const unauthDelay = parseInt(process.env.NEXT_PUBLIC_UNAUTHENTICATED_USER_DELAY || '20', 10)
 
   // 进度条动画逻辑
   useEffect(() => {
@@ -105,17 +113,43 @@ export default function StyleTransferForm({
     if (isGenerating) {
       // 风格转换的预估时间（比生成图片稍快）
       const baseTime = 30; // 基础30秒
-      const totalTime = baseTime;
-      setEstimatedTime(totalTime);
+      // 预期时间只显示生图时间，不包含排队时间
+      setEstimatedTime(baseTime);
+      
+      // 如果用户未登录，先设置排队状态
+      if (authStatus === 'unauthenticated') {
+        setIsQueuing(true);
+        setIsQueuingProp?.(true);
+      }
       
       // 进度条动画
       let currentProgress = 0;
       const startTime = Date.now();
+      let queuingEnded = false; // 使用局部变量而不是state来避免重新渲染导致timer重置
       
       timer = setInterval(() => {
         const currentTime = Date.now();
         const elapsedTime = (currentTime - startTime) / 1000; // 转换为秒
-        const timeRatio = elapsedTime / totalTime;
+        
+        // 如果用户未登录且在排队期间
+        if (authStatus === 'unauthenticated' && elapsedTime < unauthDelay) {
+          // 排队期间进度保持为0
+          setProgress(0);
+          return;
+        }
+        
+        // 排队结束，开始生成（只执行一次）
+        if (authStatus === 'unauthenticated' && !queuingEnded) {
+          queuingEnded = true;
+          setIsQueuing(false);
+          setIsQueuingProp?.(false);
+        }
+        
+        // 计算实际生成的时间比例（排除排队时间）
+        const generationElapsedTime = authStatus === 'unauthenticated' 
+          ? elapsedTime - unauthDelay 
+          : elapsedTime;
+        const timeRatio = generationElapsedTime / baseTime;
         
         // 计算目标进度
         let targetProgress;
@@ -145,6 +179,8 @@ export default function StyleTransferForm({
     } else {
       setProgress(0);
       setEstimatedTime(0);
+      setIsQueuing(false);
+      setIsQueuingProp?.(false);
     }
 
     return () => {
@@ -152,7 +188,7 @@ export default function StyleTransferForm({
         clearInterval(timer);
       }
     };
-  }, [isGenerating]);
+  }, [isGenerating, authStatus, unauthDelay, setIsQueuingProp]);
 
   const handleStyleSelect = (styleId: string) => {
     setSelectedStyle(styleId)
@@ -426,7 +462,7 @@ export default function StyleTransferForm({
         </button>
         
         {/* 进度条信息 */}
-        {isGenerating && (
+        {isGenerating && !isQueuing && (
           <div className="space-y-2">
             <div className="flex justify-between items-center text-sm">
               <span className="text-gray-900">{t('form.progress.title')}</span>

@@ -139,6 +139,7 @@
           "estimatedTime": "Estimated Time",
           "seconds": "seconds",
           "status": {
+            "queuing": "Queuing...",
             "initializing": "Initializing...",
             "processing": "Processing...",
             "finalizing": "Finalizing..."
