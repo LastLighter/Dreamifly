@@ -49,6 +49,8 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
   const batchSizeRef = useRef<HTMLInputElement>(null);
   const widthRef = useRef<HTMLInputElement>(null);
   const [isQueuing, setIsQueuing] = useState(false);
+  const [concurrencyError, setConcurrencyError] = useState<string | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
   
   // 要设置为参考图片的生成图片 URL
   const [generatedImageToSetAsReference, setGeneratedImageToSetAsReference] = useState<string | null>(null);
@@ -90,6 +92,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
     setStepsError(null);
     setBatchSizeError(null);
     setImageCountError(null);
+    setConcurrencyError(null);
     
     // 验证参考图片数量
     const models = [
@@ -203,6 +206,16 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
             }),
           });
 
+          // 处理并发限制错误
+          if (res.status === 429) {
+            const errorData = await res.json();
+            const errorMessage = errorData.error || '并发请求过多，请稍后重试';
+            setConcurrencyError(errorMessage);
+            setShowErrorModal(true);
+            setIsGenerating(false);
+            throw new Error('CONCURRENCY_LIMIT');
+          }
+
           if (res.status !== 200) {
             throw new Error(`HTTP error! status: ${res.status}`);
           }
@@ -234,6 +247,19 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
           await imageLoadPromise;
         } catch (err) {
           console.error(`生成图片失败 (尝试 ${retryCount + 1}/${maxRetries + 1}):`, err);
+
+          // 如果是并发限制错误，不进行重试
+          if (err instanceof Error && err.message === 'CONCURRENCY_LIMIT') {
+            setImageStatuses(prev => {
+              const newStatuses = [...prev];
+              newStatuses[index] = ({
+                status: 'error',
+                message: '并发限制'
+              });
+              return newStatuses;
+            });
+            return;
+          }
 
           if (retryCount < maxRetries) {
             retryCount++;
@@ -303,6 +329,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
   const handleStyleTransfer = async (stylePrompt: string) => {
     if (uploadedImages.length === 0) return;
     
+    setConcurrencyError(null);
     setIsGenerating(true);
     setGeneratedImages([]);
     setImageStatuses([{ status: 'pending', message: t('preview.generating') }]);
@@ -311,7 +338,10 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
       const startTime = Date.now();
       const res = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_API_KEY}`
+        },
         body: JSON.stringify({
           prompt: stylePrompt,
           negative_prompt: negativePrompt.trim() || undefined, // 添加负面提示词
@@ -324,6 +354,20 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
           images: uploadedImages,
         }),
       });
+
+      // 处理并发限制错误
+      if (res.status === 429) {
+        const errorData = await res.json();
+        const errorMessage = errorData.error || '并发请求过多，请稍后重试';
+        setConcurrencyError(errorMessage);
+        setShowErrorModal(true);
+        setIsGenerating(false);
+        setImageStatuses([{
+          status: 'error',
+          message: '并发限制'
+        }]);
+        return;
+      }
 
       if (res.status !== 200) {
         throw new Error(`HTTP error! status: ${res.status}`);
@@ -417,6 +461,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
                   selectedStyle={selectedStyle}
                   onStyleChange={setSelectedStyle}
                   isQueuing={isQueuing}
+                  concurrencyError={concurrencyError}
                 />
               </div>
             </div>
@@ -487,6 +532,51 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
           </div>
         </div>
       </div>
+
+      {/* 并发限制错误模态框 */}
+      {showErrorModal && concurrencyError && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeInUp"
+          onClick={() => setShowErrorModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scaleIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 错误图标 */}
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
+              <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            
+            {/* 标题 */}
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              并发限制
+            </h3>
+            
+            {/* 错误消息 */}
+            <p className="text-gray-600 text-center mb-6">
+              {concurrencyError}
+            </p>
+            
+            {/* 提示信息 */}
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-3 mb-6 rounded">
+              <p className="text-sm text-amber-800">
+                💡 提示：请等待其他标签页的生图任务完成后再试，或者关闭其他正在生图的标签页。
+              </p>
+            </div>
+            
+            {/* 关闭按钮 */}
+            <button
+              onClick={() => setShowErrorModal(false)}
+              className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl"
+            >
+              我知道了
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 图片放大模态框 */}
       {zoomedImage && (
