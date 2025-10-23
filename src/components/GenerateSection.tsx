@@ -461,7 +461,6 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
                   selectedStyle={selectedStyle}
                   onStyleChange={setSelectedStyle}
                   isQueuing={isQueuing}
-                  concurrencyError={concurrencyError}
                 />
               </div>
             </div>
@@ -563,7 +562,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
             {/* 提示信息 */}
             <div className="bg-amber-50 border-l-4 border-amber-500 p-3 mb-6 rounded">
               <p className="text-sm text-amber-800">
-                💡 提示：请等待其他标签页的生图任务完成后再试，或者关闭其他正在生图的标签页。
+                💡 提示：请等待其他标签页的生图任务完成后再试
               </p>
             </div>
             
