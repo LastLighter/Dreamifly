@@ -77,7 +77,7 @@ export default async function LocaleLayout({
         <meta name="google-site-verification" content="F_mzKY9JDvflHFEEsBGIiItkpIhVwc0sBPqo_UI5VtQ" />
         <meta name="baidu-site-verification" content="codeva-KBWW4lhtr9" />
         <meta name="google-adsense-account" content="ca-pub-4748169198248582" />
-        <meta name="tencent-site-verification" content="3d7c005887f9c6d2132214eaba66fa63"/>
+        <meta name="tencent-site-verification" content="24400f56c329b949ae3d7baf9a945f78"/>
       </head>
       <body className={inter.className}>
         <NextIntlClientProvider locale={locale} messages={messages}>
