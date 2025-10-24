@@ -350,7 +350,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
           steps: 25,
           seed: Math.floor(Math.random() * 100000000),
           batch_size: 1,
-          model: 'Flux-Kontext',
+          model: 'Qwen-Image-Edit',
           images: uploadedImages,
         }),
       });
