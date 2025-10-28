@@ -7,14 +7,6 @@ WORKDIR /app
 
 # 设置环境变量
 ENV DATABASE_URL=''
-ENV Kontext_fp8_URL=''
-ENV Flux_Krea_URL=''
-ENV Qwen_Image_URL=''
-ENV Qwen_Image_Edit_URL=''
-ENV OPEN_AI_API=''
-ENV MAX_TOKENS=2000
-ENV Wai_SDXL_V150_URL=''
-ENV NEXT_PUBLIC_BASE_URL=''
 
 
 # 构建阶段
