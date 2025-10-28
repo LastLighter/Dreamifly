@@ -3,16 +3,21 @@
 import Script from 'next/script'
 import { useEffect } from 'react'
 
-// 扩展 Window 接口以支持 TencentGDT
+// 扩展 Window 接口以支持 TencentGDT（队列与SDK对象的联合类型）
+type TencentGDTNativeAPI = {
+  renderAd: (ad: unknown, containerId: string) => void
+  loadAd: (placementId: string) => void
+}
+
+type TencentGDTQueue = Array<unknown> & {
+  // 数组 push 返回 number，更贴近真实行为
+  push: (config: unknown) => number
+  NATIVE?: TencentGDTNativeAPI
+}
+
 declare global {
   interface Window {
-    TencentGDT?: {
-      push: (config: any) => void
-      NATIVE?: {
-        renderAd: (ad: any, containerId: string) => void
-        loadAd: (placementId: string) => void
-      }
-    }
+    TencentGDT?: TencentGDTQueue
   }
 }
 
@@ -21,7 +26,8 @@ export default function TencentAds() {
     // H5 SDK 在线文档地址：http://developers.adnet.qq.com/doc/web/js_develop
     // 全局命名空间申明TencentGDT对象
     if (typeof window !== 'undefined') {
-      window.TencentGDT = window.TencentGDT || []
+      const queue: TencentGDTQueue = (window.TencentGDT as TencentGDTQueue) || ([] as unknown as TencentGDTQueue)
+      window.TencentGDT = queue
 
       // 广告初始化
       window.TencentGDT.push({
@@ -31,8 +37,8 @@ export default function TencentAds() {
         muid_type: '1', // {String} - 移动终端标识类型，1：imei，2：idfa，3：mac号 - 选填
         muid: '******', // {String} - 加密终端标识，详细加密算法见API说明 -  选填
         count: 1, // {Number} - 拉取广告的数量，默认是3，最高支持10 - 选填
-        onComplete: function(res: any) {
-          if (res && res.constructor === Array) {
+        onComplete: function(res: unknown) {
+          if (Array.isArray(res)) {
             // 原生模板广告位调用 window.TencentGDT.NATIVE.renderAd(res[0], 'containerId') 进行模板广告的渲染
             // res[0] 代表取广告数组第一个数据
             // containerId：广告容器ID
