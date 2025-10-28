@@ -30,7 +30,7 @@ COPY middleware.ts ./
 COPY eslint.config.mjs ./
 COPY .env ./
 
-RUN npm install
+RUN npm install --registry=http://nexus.suanleme.local:8081/repository/npm
 
 # 构建应用
 RUN npm run build
