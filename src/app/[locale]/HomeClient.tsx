@@ -279,10 +279,10 @@ export default function HomeClient() {
           </div>
         </section>
 
-        {/* Tencent Ads */}
+        {/* Tencent Ads - Top */}
         <div className="relative py-6 px-5 sm:px-8 lg:px-40 z-20">
-          <div id="containerId"></div>
-          <TencentAds />
+          <div id="ad-top"></div>
+          <TencentAds placementId="5222868351048167" containerId="ad-top" />
         </div>
 
         {/* Generate Section */}
@@ -290,6 +290,12 @@ export default function HomeClient() {
           communityWorks={communityWorks} 
           ref={generateSectionRef}
         />
+
+        {/* Tencent Ads - Below Generate Section */}
+        <div className="relative py-6 px-5 sm:px-8 lg:px-40 z-20">
+          <div id="ad-below-generate"></div>
+          <TencentAds placementId="8232358642752084" containerId="ad-below-generate" />
+        </div>
 
         {/* Stats Section - 改进响应式设计 */}
         <section id="site-stats" className="py-8 sm:py-12 px-5 sm:px-8 lg:px-40 bg-gray-200/80 backdrop-blur-md relative">

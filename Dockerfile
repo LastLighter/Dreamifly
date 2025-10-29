@@ -8,7 +8,6 @@ WORKDIR /app
 # 设置环境变量
 ENV DATABASE_URL=''
 
-
 # 构建阶段
 FROM base  AS builder
 
