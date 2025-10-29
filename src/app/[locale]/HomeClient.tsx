@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import community from './communityWorks'
 import SiteStats from '@/components/SiteStats'
 import GenerateSection, { GenerateSectionRef } from '@/components/GenerateSection'
+import TencentAds from '@/components/TencentAds'
 
 interface FAQItem {
   q: string;
@@ -277,6 +278,12 @@ export default function HomeClient() {
             </div>
           </div>
         </section>
+
+        {/* Tencent Ads */}
+        <div className="py-6 px-5 sm:px-8 lg:px-40">
+          <div id="containerId"></div>
+          <TencentAds />
+        </div>
 
         {/* Generate Section */}
         <GenerateSection 
