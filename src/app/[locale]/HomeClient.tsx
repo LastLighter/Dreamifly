@@ -133,11 +133,11 @@ export default function HomeClient() {
       >
         {/* Hero Section - 改进响应式设计 */}
         <section className="relative min-h-screen flex items-center justify-center px-5 sm:px-8 lg:px-40 overflow-hidden lg:pt-24">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(249,115,22,0.05),rgba(249,115,22,0))]"></div>
-          <div className="absolute inset-0 bg-[url('/images/bg.png')] bg-cover bg-center opacity-20" style={{ position: 'fixed' }}></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-50 via-gray-100 to-gray-50 z-0"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(249,115,22,0.05),rgba(249,115,22,0))] z-0"></div>
+          <div className="absolute inset-0 bg-[url('/images/bg.png')] bg-cover bg-center opacity-20 z-0" style={{ position: 'fixed' }}></div>
 
-          <div className="w-full max-w-[1400px] mx-auto relative px-6 sm:px-8">
+          <div className="w-full max-w-[1400px] mx-auto relative px-6 sm:px-8 z-10">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-6 xl:gap-8 items-center">
               {/* 左侧文字内容 - 改进移动端间距 */}
               <div className="text-left">
@@ -280,7 +280,7 @@ export default function HomeClient() {
         </section>
 
         {/* Tencent Ads */}
-        <div className="py-6 px-5 sm:px-8 lg:px-40">
+        <div className="relative py-6 px-5 sm:px-8 lg:px-40 z-20">
           <div id="containerId"></div>
           <TencentAds />
         </div>
