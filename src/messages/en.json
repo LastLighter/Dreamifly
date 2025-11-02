@@ -178,6 +178,7 @@
           "modelNotAvailable": {
             "needReference": "Reference image required",
             "notSupportI2I": "Image-to-image generation not supported",
+            "notSupportReference": "Reference image upload not supported",
             "maxImagesExceeded": "Supports at most {maxImages} reference images"
           }
         }

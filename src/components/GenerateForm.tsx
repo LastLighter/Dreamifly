@@ -739,7 +739,7 @@ export default function GenerateForm({
                             {uploadedImages.length > 0 ? 
                               (modelOption.use_i2i ? 
                                 t('error.validation.modelNotAvailable.maxImagesExceeded', { maxImages: modelOption.maxImages || 1 }) : 
-                                t('error.validation.modelNotAvailable.needReference')
+                                t('error.validation.modelNotAvailable.notSupportReference')
                               ) : 
                               t('error.validation.modelNotAvailable.needReference')
                             }

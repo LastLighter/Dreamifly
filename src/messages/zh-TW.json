@@ -178,6 +178,7 @@
           "modelNotAvailable": {
             "needReference": "需要上傳參考圖片",
             "notSupportI2I": "不支援圖片到圖片生成",
+            "notSupportReference": "不支援上傳參考圖片",
             "maxImagesExceeded": "最多支援 {maxImages} 張參考圖片"
           }
         }
