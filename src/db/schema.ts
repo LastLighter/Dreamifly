@@ -24,6 +24,7 @@ export const user = pgTable("user", {
   signature: text("signature"),
   isActive: boolean("is_active").default(true), // 数据库字段名: is_active
   lastLoginAt: timestamp("last_login_at"), // 数据库字段名: last_login_at
+  isAdmin: boolean("is_admin").default(false), // 数据库字段名: is_admin
 });
 
 export const session = pgTable("session", {

@@ -10,6 +10,7 @@ export interface ExtendedUser {
   uid?: number
   avatar?: string
   nickname?: string
+  isAdmin?: boolean
 }
 
 // Extended session type

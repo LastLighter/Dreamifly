@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 隐藏 admin 页面的 Navbar 和 Footer */
+.admin-page ~ nav:not([data-admin-sidebar]),
+.admin-page ~ #main-nav,
+body:has(.admin-page) nav:not([data-admin-sidebar]),
+body:has(.admin-page) #main-nav,
+body:has(.admin-page) footer {
+  display: none !important;
+}
+
 :root {
   --foreground-rgb: 51, 51, 51;
   --background-start-rgb: 255, 247, 237;

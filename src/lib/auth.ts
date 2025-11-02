@@ -80,6 +80,11 @@ export const auth = betterAuth({
         type: "date",
         required: false,
       },
+      isAdmin: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+      },
     },
   },
   session: {
