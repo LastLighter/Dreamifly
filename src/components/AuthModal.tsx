@@ -75,11 +75,33 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
         })
 
         if (result.error) {
-          // 检查是否是邮箱未验证的错误
-          if (result.error.message?.includes('verify') || result.error.message?.includes('verification')) {
+          // 检查是否是邮箱未验证的错误（支持多种错误格式）
+          const isVerificationError = 
+            result.error.message?.includes('verify') || 
+            result.error.message?.includes('verification') ||
+            result.error.message?.includes('未验证') ||
+            result.error.message?.includes('not verified') ||
+            result.error.code === 'EMAIL_NOT_VERIFIED' ||
+            result.error.code === 'VERIFICATION_REQUIRED'
+
+          if (isVerificationError) {
+            // 切换到验证模式
             setMode('verify')
             setError(t('error.emailNotVerified'))
+            
+            // 自动尝试重新发送验证邮件
+            try {
+              await sendVerificationEmail({
+                email,
+                callbackURL: '/',
+              })
+              setSuccess(t('success.verificationEmailSent'))
+            } catch (err) {
+              console.error('Failed to resend verification email:', err)
+              // 发送失败不影响用户体验，用户可以在验证页面手动点击重发
+            }
           } else {
+            // 其他错误（密码错误等）
             setError(t('error.loginFailed'))
           }
         } else {
