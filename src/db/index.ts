@@ -6,8 +6,10 @@ import * as schema from './schema';
 const getConnectionString = (): string => {
   const dbUrl = process.env.DATABASE_URL;
   
-  if (!dbUrl) {
-    throw new Error('DATABASE_URL environment variable is not set');
+  // 构建时 DATABASE_URL 可能为空，返回一个有效的占位符 URL
+  // 这样构建时不会报错，但运行时必须有真实的值
+  if (!dbUrl || dbUrl.trim() === '') {
+    return 'postgresql://placeholder:placeholder@localhost:5432/placeholder';
   }
 
   // 如果连接字符串中没有timezone参数，添加它
