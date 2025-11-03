@@ -1,16 +1,20 @@
 import { NextResponse } from 'next/server'
 import { generateImage } from '@/utils/comfyApi'
 import { db } from '@/db'
-import { siteStats } from '@/db/schema'
+import { siteStats, modelUsageStats } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { concurrencyManager } from '@/utils/concurrencyManager'
+import { randomUUID } from 'crypto'
 
 export async function POST(request: Request) {
   let generationId: string | null = null;
   
   try {
+    // 记录总开始时间（包含排队延迟）
+    const totalStartTime = Date.now()
+    
     // 验证认证头
     const authHeader = request.headers.get('Authorization')
     const expectedApiKey = process.env.NEXT_PUBLIC_API_KEY
@@ -49,6 +53,7 @@ export async function POST(request: Request) {
       generationId = concurrencyManager.start(userId);
     } else {
       // 如果用户未登录，添加延迟（未登录用户不受并发限制）
+      // 这个延迟时间会被计入总响应时间
       const unauthDelay = parseInt(process.env.UNAUTHENTICATED_USER_DELAY || '20', 10)
       await new Promise(resolve => setTimeout(resolve, unauthDelay * 1000))
     }
@@ -77,6 +82,9 @@ export async function POST(request: Request) {
       negative_prompt,
     })
 
+    // 计算总响应时间（秒），包含排队延迟
+    const responseTime = (Date.now() - totalStartTime) / 1000
+
     // 更新统计数据
     await db.update(siteStats)
       .set({
@@ -85,6 +93,25 @@ export async function POST(request: Request) {
         updatedAt: new Date(),
       })
       .where(eq(siteStats.id, 1))
+
+    // 记录模型使用统计
+    try {
+      // 创建当前时间的Date对象（JavaScript Date内部存储为UTC时间戳）
+      // PostgreSQL的timestamptz会自动处理时区转换
+      const now = new Date()
+      
+      await db.insert(modelUsageStats).values({
+        id: randomUUID(),
+        modelName: model,
+        userId: session?.user?.id || null,
+        responseTime,
+        isAuthenticated: !!session?.user,
+        createdAt: now,
+      })
+    } catch (error) {
+      // 记录统计失败不应该影响主流程
+      console.error('Failed to record model usage stats:', error)
+    }
 
     // 成功完成，清理并发跟踪
     if (generationId) {

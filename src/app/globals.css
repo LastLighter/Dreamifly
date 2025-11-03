@@ -203,4 +203,47 @@ body:has(.admin-page) footer {
     scrollbar-width: thin;
     scrollbar-color: rgba(251, 146, 60, 0.6) rgba(148, 163, 184, 0.1);
   }
+
+  /* 移除图表选中时的黑框 */
+  svg:focus,
+  svg:focus-visible,
+  svg:active {
+    outline: none !important;
+    border: none !important;
+  }
+
+  /* 移除recharts元素的默认选中样式 */
+  .recharts-wrapper:focus,
+  .recharts-wrapper:focus-visible,
+  .recharts-wrapper:active {
+    outline: none !important;
+    border: none !important;
+  }
+
+  /* 移除recharts图表元素的选中边框 */
+  .recharts-surface:focus,
+  .recharts-surface:active,
+  .recharts-surface:focus-visible {
+    outline: none !important;
+    border: none !important;
+  }
+
+  /* 移除饼图相关元素的选中样式 */
+  .recharts-pie:focus,
+  .recharts-pie:active,
+  .recharts-pie:focus-visible,
+  .recharts-layer:focus,
+  .recharts-layer:active,
+  .recharts-layer:focus-visible {
+    outline: none !important;
+    border: none !important;
+  }
+
+  /* 移除饼图扇形的选中样式 */
+  path:focus,
+  path:active,
+  path:focus-visible {
+    outline: none !important;
+    stroke: inherit !important;
+  }
 }

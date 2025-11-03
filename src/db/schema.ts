@@ -1,4 +1,4 @@
-import { pgTable, timestamp, integer, text, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, integer, text, boolean, real } from 'drizzle-orm/pg-core';
 
 export const siteStats = pgTable('site_stats', {
   id: integer('id').primaryKey().default(1),
@@ -65,4 +65,14 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expires_at").notNull(), // 数据库字段名: expires_at
   createdAt: timestamp("created_at").defaultNow(), // 数据库字段名: created_at
   updatedAt: timestamp("updated_at").defaultNow(), // 数据库字段名: updated_at
+});
+
+// 模型调用统计表
+export const modelUsageStats = pgTable("model_usage_stats", {
+  id: text("id").primaryKey(), // 使用UUID作为主键
+  modelName: text("model_name").notNull(), // 模型名称
+  userId: text("user_id"), // 用户ID，可以为null（未登录用户）
+  responseTime: real("response_time").notNull(), // 响应时间（秒）
+  isAuthenticated: boolean("is_authenticated").default(false).notNull(), // 是否已登录
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 调用时间
 }); 
