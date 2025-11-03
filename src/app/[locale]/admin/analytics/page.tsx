@@ -86,7 +86,14 @@ export default function AnalyticsPage() {
   const [checkingAdmin, setCheckingAdmin] = useState(true)
   const [timeRange, setTimeRange] = useState<TimeRange>('week')
   const [loading, setLoading] = useState(true)
+  const [syncing, setSyncing] = useState(false)
   const [stats, setStats] = useState<StatsResponse | null>(null)
+  const [statsCache, setStatsCache] = useState<Record<TimeRange, StatsResponse | null>>({
+    today: null,
+    week: null,
+    month: null,
+    all: null,
+  })
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string>('')
 
   // 获取当前用户完整信息（包括头像）
@@ -163,35 +170,78 @@ export default function AnalyticsPage() {
     checkAdmin()
   }, [session, sessionLoading, router, locale])
 
-  // 获取统计数据
-  useEffect(() => {
-    const fetchStats = async () => {
-      if (!isAdmin || checkingAdmin) return
-
-      try {
-        setLoading(true)
-        // 禁用缓存，确保每次都获取最新数据
-        const response = await fetch(`/api/admin/model-stats?timeRange=${timeRange}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-          },
-        })
-        if (!response.ok) {
-          throw new Error('Failed to fetch stats')
-        }
-        const data: StatsResponse = await response.json()
-        setStats(data)
-      } catch (error) {
-        console.error('Error fetching stats:', error)
-      } finally {
-        setLoading(false)
+  // 获取单个时间范围的统计数据
+  const fetchStatsForRange = async (range: TimeRange): Promise<StatsResponse | null> => {
+    try {
+      const response = await fetch(`/api/admin/model-stats?timeRange=${range}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      })
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats')
       }
+      const data: StatsResponse = await response.json()
+      return data
+    } catch (error) {
+      console.error(`Error fetching stats for ${range}:`, error)
+      return null
     }
+  }
 
-    fetchStats()
-  }, [isAdmin, checkingAdmin, timeRange])
+  // 获取所有时间范围的数据（初始加载和手动同步）
+  const fetchAllStats = async (isSync = false) => {
+    if (!isAdmin || checkingAdmin) return
+
+    try {
+      if (isSync) {
+        setSyncing(true)
+      } else {
+        setLoading(true)
+      }
+
+      // 并行获取所有时间范围的数据
+      const [todayData, weekData, monthData, allData] = await Promise.all([
+        fetchStatsForRange('today'),
+        fetchStatsForRange('week'),
+        fetchStatsForRange('month'),
+        fetchStatsForRange('all'),
+      ])
+
+      // 更新缓存
+      const newCache = {
+        today: todayData,
+        week: weekData,
+        month: monthData,
+        all: allData,
+      }
+      setStatsCache(newCache)
+
+      // 设置当前选择的时间范围的数据
+      setStats(newCache[timeRange])
+    } catch (error) {
+      console.error('Error fetching all stats:', error)
+    } finally {
+      setLoading(false)
+      setSyncing(false)
+    }
+  }
+
+  // 初始加载时获取所有数据
+  useEffect(() => {
+    if (isAdmin && !checkingAdmin) {
+      fetchAllStats(false)
+    }
+  }, [isAdmin, checkingAdmin])
+
+  // 切换时间范围时使用缓存数据
+  useEffect(() => {
+    if (statsCache[timeRange]) {
+      setStats(statsCache[timeRange])
+    }
+  }, [timeRange, statsCache])
 
   // 格式化每日数据用于图表
   const formatDailyData = () => {
@@ -270,20 +320,20 @@ export default function AnalyticsPage() {
                     : `/${avatarSrc}`
                   
                   return (
-                    <Image
+                <Image
                       src={normalizedAvatarSrc}
-                      alt="Avatar"
-                      width={36}
-                      height={36}
+                  alt="Avatar"
+                  width={36}
+                  height={36}
                       className="rounded-full border-2 border-orange-400/40 shadow-sm object-cover"
                       unoptimized={normalizedAvatarSrc.startsWith('http')}
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
                         if (!target.src.includes('default-avatar.svg')) {
-                          target.src = '/images/default-avatar.svg'
+                    target.src = '/images/default-avatar.svg'
                         }
-                      }}
-                    />
+                  }}
+                />
                   )
                 })()}
                 <div className="flex flex-col items-start">
@@ -301,23 +351,48 @@ export default function AnalyticsPage() {
           <div className="max-w-7xl mx-auto space-y-6">
             {/* 时间范围选择 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-gray-700">时间范围：</span>
-                <div className="flex gap-2">
-                  {(['today', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
-                    <button
-                      key={range}
-                      onClick={() => setTimeRange(range)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        timeRange === range
-                          ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {range === 'today' ? '今天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
-                    </button>
-                  ))}
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium text-gray-700">时间范围：</span>
+                  <div className="flex gap-2">
+                    {(['today', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
+                      <button
+                        key={range}
+                        onClick={() => setTimeRange(range)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          timeRange === range
+                            ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {range === 'today' ? '今天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <button
+                  onClick={() => fetchAllStats(true)}
+                  disabled={syncing}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                    syncing
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-orange-400 to-amber-400 text-white hover:from-orange-500 hover:to-amber-500'
+                  }`}
+                >
+                  {syncing ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>同步中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      <span>实时同步</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -329,8 +404,8 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             ) : !stats || stats.modelStats.length === 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
-                <div className="text-center text-gray-500">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12">
+              <div className="text-center text-gray-500">
                   <p className="text-lg font-medium">暂无数据</p>
                   <p className="mt-2 text-sm">选择的时间范围内没有统计数据</p>
                 </div>
@@ -539,8 +614,8 @@ export default function AnalyticsPage() {
                         ))}
                       </tbody>
                     </table>
-                  </div>
-                </div>
+              </div>
+            </div>
               </>
             )}
           </div>
