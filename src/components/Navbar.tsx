@@ -12,7 +12,6 @@ import { useTranslations } from 'next-intl'
 import { useState, useEffect } from 'react'
 import { useSession, signOut } from '@/lib/auth-client'
 import { useAvatar } from '@/contexts/AvatarContext'
-import { ExtendedUser } from '@/types/auth'
 
 export default function Navbar() {
   const { locale } = useParams()

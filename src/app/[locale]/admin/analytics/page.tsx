@@ -3,7 +3,7 @@
 import { useSession } from '@/lib/auth-client'
 import { ExtendedUser } from '@/types/auth'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import AdminSidebar from '@/components/AdminSidebar'
 import Image from 'next/image'
 import { transferUrl } from '@/utils/locale'
@@ -192,7 +192,7 @@ export default function AnalyticsPage() {
   }
 
   // 获取所有时间范围的数据（初始加载和手动同步）
-  const fetchAllStats = async (isSync = false) => {
+  const fetchAllStats = useCallback(async (isSync = false) => {
     if (!isAdmin || checkingAdmin) return
 
     try {
@@ -227,14 +227,14 @@ export default function AnalyticsPage() {
       setLoading(false)
       setSyncing(false)
     }
-  }
+  }, [isAdmin, checkingAdmin, timeRange])
 
   // 初始加载时获取所有数据
   useEffect(() => {
     if (isAdmin && !checkingAdmin) {
       fetchAllStats(false)
     }
-  }, [isAdmin, checkingAdmin])
+  }, [isAdmin, checkingAdmin, fetchAllStats])
 
   // 切换时间范围时使用缓存数据
   useEffect(() => {

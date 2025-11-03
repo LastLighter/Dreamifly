@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node -e \"try { require('fs').rmSync('.next', { recursive: true, force: true }); } catch(e) {}\" && next build",
+    "build:clean": "rimraf .next && next build",
     "start": "next start",
     "lint": "next lint"
   },

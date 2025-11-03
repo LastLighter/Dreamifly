@@ -35,6 +35,29 @@ const nextConfig = {
       },
     ];
   },
+
+  // 实验性配置：确保构建稳定性
+  experimental: {
+    // 禁用一些可能导致构建问题的特性
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+    // 禁用输出文件跟踪以避免权限问题
+    outputFileTracingIncludes: {},
+  },
+
+  // 修复构建时的 .nft.json 和 trace 文件错误
+  // 优化输出文件跟踪，排除可能导致权限问题的目录
+  outputFileTracingExcludes: {
+    '*': [
+      '**/.git/**',
+      '**/.next/**',
+      '**/node_modules/**',
+      '**/.cache/**',
+      '**/trace',
+      '**/trace/**',
+    ],
+  },
 };
 
 // 最后应用 next-intl 插件

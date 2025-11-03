@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { modelUsageStats, user } from '@/db/schema'
-import { and, gte, sql, eq } from 'drizzle-orm'
+import { gte, sql, eq } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
@@ -60,7 +60,6 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const timeRange = (searchParams.get('timeRange') || 'week') as TimeRange
-    const groupBy = searchParams.get('groupBy') || 'model' // 'model' 或 'day'
 
     const startDate = getTimeRangeDate(timeRange)
 
