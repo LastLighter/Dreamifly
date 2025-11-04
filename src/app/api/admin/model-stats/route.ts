@@ -125,12 +125,52 @@ export async function GET(request: Request) {
       count: Number(stat.count),
     }))
 
+    // 获取总计数据
+    const totalStats = await db
+      .select({
+        totalCalls: sql<number>`count(*)::int`,
+        authenticatedCalls: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = true)::int`,
+        unauthenticatedCalls: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
+      })
+      .from(modelUsageStats)
+      .where(gte(modelUsageStats.createdAt, startDate))
+
+    // 获取每日总计趋势（用于折线图）
+    let dailyTrend: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
+    
+    if (timeRange === 'week' || timeRange === 'month') {
+      const dailyTrendData = await db
+        .select({
+          date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+          total: sql<number>`count(*)::int`,
+          authenticated: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = true)::int`,
+          unauthenticated: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
+        })
+        .from(modelUsageStats)
+        .where(gte(modelUsageStats.createdAt, startDate))
+        .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+        .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+
+      dailyTrend = dailyTrendData.map((stat) => ({
+        date: stat.date,
+        total: Number(stat.total),
+        authenticated: Number(stat.authenticated),
+        unauthenticated: Number(stat.unauthenticated),
+      }))
+    }
+
     // 设置响应头，禁用缓存
     return NextResponse.json(
       {
         timeRange,
         modelStats,
         dailyData,
+        totalStats: {
+          totalCalls: totalStats[0] ? Number(totalStats[0].totalCalls) : 0,
+          authenticatedCalls: totalStats[0] ? Number(totalStats[0].authenticatedCalls) : 0,
+          unauthenticatedCalls: totalStats[0] ? Number(totalStats[0].unauthenticatedCalls) : 0,
+        },
+        dailyTrend,
       },
       {
         headers: {

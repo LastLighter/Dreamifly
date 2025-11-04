@@ -59,6 +59,7 @@ export async function GET(request: Request) {
 
     let timeDistribution: Array<{ date: string; hour: number; count: number }> = []
     let modelDistribution: Array<{ modelName: string; count: number }> = []
+    let ipUsers: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; callCount: number }> = []
 
     if (type === 'user') {
       // 用户详情：按小时统计调用时间分布，按模型统计调用分布
@@ -152,6 +153,36 @@ export async function GET(request: Request) {
         modelName: stat.modelName,
         count: Number(stat.count),
       }))
+
+      // 获取使用该IP的登录用户信息
+      const ipUserStats = await db
+        .select({
+          userId: modelUsageStats.userId,
+          userName: user.name,
+          userEmail: user.email,
+          userNickname: user.nickname,
+          callCount: sql<number>`count(*)::int`,
+        })
+        .from(modelUsageStats)
+        .innerJoin(user, eq(modelUsageStats.userId, user.id))
+        .where(
+          and(
+            eq(modelUsageStats.ipAddress, identifier),
+            isNotNull(modelUsageStats.userId),
+            eq(modelUsageStats.isAuthenticated, true),
+            ...(timeRange !== 'all' ? [gte(modelUsageStats.createdAt, startDate)] : [])
+          )
+        )
+        .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname)
+        .orderBy(sql`count(*) DESC`)
+
+      ipUsers = ipUserStats.map((stat) => ({
+        userId: stat.userId,
+        userName: stat.userName,
+        userEmail: stat.userEmail,
+        userNickname: stat.userNickname,
+        callCount: Number(stat.callCount),
+      }))
     }
 
     return NextResponse.json(
@@ -161,6 +192,7 @@ export async function GET(request: Request) {
         timeRange,
         timeDistribution,
         modelDistribution,
+        ipUsers: type === 'ip' ? ipUsers : undefined,
       },
       {
         headers: {

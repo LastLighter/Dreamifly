@@ -70,6 +70,7 @@ export default function CrawlerAnalysisPage() {
   const [detailData, setDetailData] = useState<{
     timeDistribution: Array<{ date: string; hour: number; count: number }>
     modelDistribution: Array<{ modelName: string; count: number }>
+    ipUsers?: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; callCount: number }>
   } | null>(null)
 
   // 获取当前用户完整信息（包括头像）
@@ -208,6 +209,7 @@ export default function CrawlerAnalysisPage() {
       setDetailData({
         timeDistribution: detailResponse.timeDistribution || [],
         modelDistribution: detailResponse.modelDistribution || [],
+        ipUsers: detailResponse.ipUsers || [],
       })
     } catch (error) {
       console.error('Error fetching detail:', error)
@@ -272,7 +274,7 @@ export default function CrawlerAnalysisPage() {
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-gradient-to-r from-orange-400/10 to-amber-400/10 rounded-lg">
                   <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                   </svg>
                 </div>
                 <div>
@@ -809,6 +811,69 @@ export default function CrawlerAnalysisPage() {
                       </ResponsiveContainer>
                     )}
                   </div>
+
+                  {/* IP对应的用户信息（仅IP详情显示） */}
+                  {detailType === 'ip' && detailData.ipUsers && detailData.ipUsers.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">使用该IP的登录用户</h3>
+                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户信息</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">占比</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {detailData.ipUsers.map((ipUser) => {
+                                const totalCalls = detailData.ipUsers!.reduce((sum, user) => sum + user.callCount, 0)
+                                const percentage = totalCalls > 0 ? (ipUser.callCount / totalCalls) * 100 : 0
+                                
+                                return (
+                                  <tr key={ipUser.userId} className="hover:bg-gray-50 transition-colors">
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {ipUser.userName || ipUser.userNickname || '未设置名称'}
+                                      </div>
+                                      {ipUser.userNickname && ipUser.userName && ipUser.userNickname !== ipUser.userName && (
+                                        <div className="text-sm text-gray-500">
+                                          ({ipUser.userNickname})
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                      {ipUser.userEmail}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <span className="text-sm font-semibold text-orange-600">
+                                        {ipUser.callCount.toLocaleString()}
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden max-w-[100px]">
+                                          <div 
+                                            className="bg-orange-600 h-2 rounded-full transition-all"
+                                            style={{ width: `${percentage}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-xs font-semibold text-gray-700 min-w-[45px]">
+                                          {percentage.toFixed(1)}%
+                                        </span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* 调用模型分布 */}
                   <div className="bg-gray-50 rounded-lg p-6">

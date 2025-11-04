@@ -41,10 +41,25 @@ interface DailyData {
   count: number
 }
 
+interface TotalStats {
+  totalCalls: number
+  authenticatedCalls: number
+  unauthenticatedCalls: number
+}
+
+interface DailyTrend {
+  date: string
+  total: number
+  authenticated: number
+  unauthenticated: number
+}
+
 interface StatsResponse {
   timeRange: TimeRange
   modelStats: ModelStat[]
   dailyData: DailyData[]
+  totalStats: TotalStats
+  dailyTrend: DailyTrend[]
 }
 
 // 为不同模型定义清晰的颜色方案（参考网站橙色系主题）
@@ -412,6 +427,248 @@ export default function AnalyticsPage() {
               </div>
             ) : (
               <>
+                {/* 总计模块 */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                    {timeRange === 'today' ? '今日总计' : timeRange === 'week' ? '最近一周总计' : timeRange === 'month' ? '最近一月总计' : '全部总计'}
+                  </h2>
+                  
+                  {/* 总计卡片 */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-6 border border-orange-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600 mb-1">总调用次数</p>
+                          <p className="text-3xl font-bold text-orange-600">
+                            {stats.totalStats.totalCalls.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-orange-100 rounded-lg">
+                          <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-6 border border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-600 mb-1">登录用户调用</p>
+                          <p className="text-3xl font-bold text-blue-600 mb-2">
+                            {stats.totalStats.authenticatedCalls.toLocaleString()}
+                          </p>
+                          {stats.totalStats.totalCalls > 0 && (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-blue-100 rounded-full h-2 overflow-hidden">
+                                <div 
+                                  className="bg-blue-600 h-2 rounded-full transition-all"
+                                  style={{ 
+                                    width: `${(stats.totalStats.authenticatedCalls / stats.totalStats.totalCalls) * 100}%` 
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-blue-700">
+                                {((stats.totalStats.authenticatedCalls / stats.totalStats.totalCalls) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3 bg-blue-100 rounded-lg ml-4">
+                          <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-gray-50 to-slate-50 rounded-lg p-6 border border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-600 mb-1">未登录用户调用</p>
+                          <p className="text-3xl font-bold text-gray-600 mb-2">
+                            {stats.totalStats.unauthenticatedCalls.toLocaleString()}
+                          </p>
+                          {stats.totalStats.totalCalls > 0 && (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                                <div 
+                                  className="bg-gray-600 h-2 rounded-full transition-all"
+                                  style={{ 
+                                    width: `${(stats.totalStats.unauthenticatedCalls / stats.totalStats.totalCalls) * 100}%` 
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-gray-700">
+                                {((stats.totalStats.unauthenticatedCalls / stats.totalStats.totalCalls) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3 bg-gray-100 rounded-lg ml-4">
+                          <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 占比饼图 */}
+                  {stats.totalStats.totalCalls > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                      <h3 className="text-md font-semibold text-gray-900 mb-4">调用占比分布</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                        <div className="flex justify-center">
+                          <ResponsiveContainer width="100%" height={250}>
+                            <PieChart>
+                              <Pie
+                                data={[
+                                  { name: '登录用户', value: stats.totalStats.authenticatedCalls },
+                                  { name: '未登录用户', value: stats.totalStats.unauthenticatedCalls },
+                                ]}
+                                cx="50%"
+                                cy="50%"
+                                labelLine={false}
+                                label={(entry: any) => {
+                                  const { name, percent } = entry
+                                  return `${name}: ${(percent * 100).toFixed(1)}%`
+                                }}
+                                outerRadius={80}
+                                fill="#8884d8"
+                                dataKey="value"
+                                stroke="#fff"
+                                strokeWidth={2}
+                              >
+                                <Cell fill="#3b82f6" />
+                                <Cell fill="#6b7280" />
+                              </Pie>
+                              <Tooltip 
+                                contentStyle={{
+                                  backgroundColor: 'white',
+                                  border: '1px solid #e5e7eb',
+                                  borderRadius: '8px',
+                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                  padding: '8px 12px'
+                                }}
+                                formatter={(value: number) => [
+                                  `${value.toLocaleString()} 次`,
+                                  '调用次数'
+                                ]}
+                              />
+                              <Legend 
+                                wrapperStyle={{ paddingTop: '20px' }}
+                                iconType="circle"
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                            <div className="flex items-center gap-3">
+                              <div className="w-4 h-4 rounded-full bg-blue-600"></div>
+                              <span className="text-sm font-medium text-gray-900">登录用户</span>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-blue-600">
+                                {stats.totalStats.authenticatedCalls.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {((stats.totalStats.authenticatedCalls / stats.totalStats.totalCalls) * 100).toFixed(1)}%
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                            <div className="flex items-center gap-3">
+                              <div className="w-4 h-4 rounded-full bg-gray-600"></div>
+                              <span className="text-sm font-medium text-gray-900">未登录用户</span>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-gray-600">
+                                {stats.totalStats.unauthenticatedCalls.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {((stats.totalStats.unauthenticatedCalls / stats.totalStats.totalCalls) * 100).toFixed(1)}%
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 趋势折线图（仅一周和一月显示） */}
+                  {(timeRange === 'week' || timeRange === 'month') && stats.dailyTrend && stats.dailyTrend.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-md font-semibold text-gray-900 mb-4">调用趋势</h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={stats.dailyTrend}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="date" 
+                            stroke="#6b7280"
+                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                            tickFormatter={(value) => {
+                              const date = new Date(value)
+                              return `${date.getMonth() + 1}/${date.getDate()}`
+                            }}
+                          />
+                          <YAxis 
+                            stroke="#6b7280"
+                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                          />
+                          <Tooltip 
+                            contentStyle={{
+                              backgroundColor: 'white',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                              padding: '8px 12px'
+                            }}
+                            labelStyle={{ color: '#111827', fontWeight: 600 }}
+                            itemStyle={{ color: '#374151' }}
+                            labelFormatter={(value) => {
+                              const date = new Date(value)
+                              return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+                            }}
+                          />
+                          <Legend 
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            iconType="line"
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="total"
+                            stroke="#f97316"
+                            strokeWidth={2.5}
+                            name="总调用次数"
+                            dot={{ fill: '#f97316', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="authenticated"
+                            stroke="#3b82f6"
+                            strokeWidth={2.5}
+                            name="登录用户调用"
+                            dot={{ fill: '#3b82f6', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="unauthenticated"
+                            stroke="#6b7280"
+                            strokeWidth={2.5}
+                            name="未登录用户调用"
+                            dot={{ fill: '#6b7280', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+
                 {/* 模型调用次数柱状图 */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">模型调用次数统计</h2>
