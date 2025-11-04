@@ -85,6 +85,33 @@ export async function POST(request: Request) {
     // 计算总响应时间（秒），包含排队延迟
     const responseTime = (Date.now() - totalStartTime) / 1000
 
+    // 获取客户端IP地址
+    const getClientIP = (request: Request): string | null => {
+      const forwarded = request.headers.get('x-forwarded-for')
+      const realIP = request.headers.get('x-real-ip')
+      const cfConnectingIP = request.headers.get('cf-connecting-ip') // Cloudflare
+      
+      let ip: string | null = null
+      
+      if (forwarded) {
+        // x-forwarded-for 可能包含多个IP，取第一个
+        ip = forwarded.split(',')[0].trim()
+      } else if (realIP) {
+        ip = realIP.trim()
+      } else if (cfConnectingIP) {
+        ip = cfConnectingIP.trim()
+      }
+      
+      // 处理本地回环地址：将 IPv6 的 ::1 转换为 IPv4 的 127.0.0.1，便于统一显示
+      if (ip === '::1' || ip === '::ffff:127.0.0.1') {
+        ip = '127.0.0.1'
+      }
+      
+      return ip
+    }
+
+    const clientIP = getClientIP(request)
+
     // 更新统计数据
     await db.update(siteStats)
       .set({
@@ -106,6 +133,7 @@ export async function POST(request: Request) {
         userId: session?.user?.id || null,
         responseTime,
         isAuthenticated: !!session?.user,
+        ipAddress: clientIP,
         createdAt: now,
       })
     } catch (error) {

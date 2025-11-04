@@ -74,5 +74,6 @@ export const modelUsageStats = pgTable("model_usage_stats", {
   userId: text("user_id"), // 用户ID，可以为null（未登录用户）
   responseTime: real("response_time").notNull(), // 响应时间（秒）
   isAuthenticated: boolean("is_authenticated").default(false).notNull(), // 是否已登录
+  ipAddress: text("ip_address"), // IP地址，用于爬虫分析
   createdAt: timestamp("created_at").defaultNow().notNull(), // 调用时间
 }); 
