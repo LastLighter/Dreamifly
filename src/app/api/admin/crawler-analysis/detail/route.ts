@@ -176,13 +176,15 @@ export async function GET(request: Request) {
         .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname)
         .orderBy(sql`count(*) DESC`)
 
-      ipUsers = ipUserStats.map((stat) => ({
-        userId: stat.userId,
-        userName: stat.userName,
-        userEmail: stat.userEmail,
-        userNickname: stat.userNickname,
-        callCount: Number(stat.callCount),
-      }))
+      ipUsers = ipUserStats
+        .filter((stat) => stat.userId !== null)
+        .map((stat) => ({
+          userId: stat.userId!,
+          userName: stat.userName,
+          userEmail: stat.userEmail,
+          userNickname: stat.userNickname,
+          callCount: Number(stat.callCount),
+        }))
     }
 
     return NextResponse.json(

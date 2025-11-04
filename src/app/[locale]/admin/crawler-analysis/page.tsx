@@ -3,7 +3,7 @@
 import { useSession } from '@/lib/auth-client'
 import { ExtendedUser } from '@/types/auth'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import AdminSidebar from '@/components/AdminSidebar'
 import Image from 'next/image'
 import { transferUrl } from '@/utils/locale'
@@ -15,7 +15,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -64,7 +63,6 @@ export default function CrawlerAnalysisPage() {
   // 详情模态框状态
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [detailType, setDetailType] = useState<'user' | 'ip'>('user')
-  const [detailIdentifier, setDetailIdentifier] = useState<string>('')
   const [detailTitle, setDetailTitle] = useState<string>('')
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailData, setDetailData] = useState<{
@@ -178,12 +176,12 @@ export default function CrawlerAnalysisPage() {
     if (isAdmin && !checkingAdmin) {
       fetchData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, checkingAdmin, timeRange])
 
   // 打开详情模态框
-  const openDetailModal = async (type: 'user' | 'ip', identifier: string, title: string) => {
+  const openDetailModal = useCallback(async (type: 'user' | 'ip', identifier: string, title: string) => {
     setDetailType(type)
-    setDetailIdentifier(identifier)
     setDetailTitle(title)
     setDetailModalOpen(true)
     setDetailLoading(true)
@@ -216,7 +214,7 @@ export default function CrawlerAnalysisPage() {
     } finally {
       setDetailLoading(false)
     }
-  }
+  }, [timeRange])
 
   // 格式化时间分布数据用于图表（按小时汇总）
   const formatTimeDistribution = () => {
