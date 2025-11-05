@@ -5,7 +5,7 @@ import { gte, sql, eq } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
-type TimeRange = 'today' | 'week' | 'month' | 'all'
+type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
 
 function getTimeRangeDate(range: TimeRange): Date {
   // 使用本地时区创建日期（中国时区 UTC+8）
@@ -13,6 +13,11 @@ function getTimeRangeDate(range: TimeRange): Date {
   const localNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }))
   
   switch (range) {
+    case 'hour':
+      // 一小时前（中国时区）
+      const hourAgo = new Date(localNow)
+      hourAgo.setHours(hourAgo.getHours() - 1)
+      return hourAgo
     case 'today':
       // 今天00:00:00（中国时区）
       const today = new Date(localNow)
@@ -88,16 +93,28 @@ export async function GET(request: Request) {
       .groupBy(modelUsageStats.modelName, modelUsageStats.isAuthenticated)
 
     // 按日期分组统计（用于图表显示）
-    const dailyStats = await db
-      .select({
-        date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::text`,
-        modelName: modelUsageStats.modelName,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(modelUsageStats)
-      .where(gte(modelUsageStats.createdAt, startDate))
-      .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, modelUsageStats.modelName)
-      .orderBy(modelUsageStats.modelName, sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+    // 对于hour范围，按分钟统计；其他范围按天统计
+    const dailyStats = timeRange === 'hour'
+      ? await db
+          .select({
+            date: sql<string>`date_trunc('minute', ${modelUsageStats.createdAt})::text`,
+            modelName: modelUsageStats.modelName,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(gte(modelUsageStats.createdAt, startDate))
+          .groupBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`, modelUsageStats.modelName)
+          .orderBy(modelUsageStats.modelName, sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
+      : await db
+          .select({
+            date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::text`,
+            modelName: modelUsageStats.modelName,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(gte(modelUsageStats.createdAt, startDate))
+          .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, modelUsageStats.modelName)
+          .orderBy(modelUsageStats.modelName, sql`date_trunc('day', ${modelUsageStats.createdAt})`)
 
     // 格式化数据
     const modelStats = callCounts.map((callCount) => {
@@ -136,9 +153,31 @@ export async function GET(request: Request) {
       .where(gte(modelUsageStats.createdAt, startDate))
 
     // 获取每日总计趋势（用于折线图）
+    // 对于hour范围，按分钟统计；week和month按天统计
     let dailyTrend: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
     
-    if (timeRange === 'week' || timeRange === 'month') {
+    if (timeRange === 'hour') {
+      // 按分钟统计
+      const minuteTrendData = await db
+        .select({
+          date: sql<string>`date_trunc('minute', ${modelUsageStats.createdAt})::text`,
+          total: sql<number>`count(*)::int`,
+          authenticated: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = true)::int`,
+          unauthenticated: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
+        })
+        .from(modelUsageStats)
+        .where(gte(modelUsageStats.createdAt, startDate))
+        .groupBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
+        .orderBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
+
+      dailyTrend = minuteTrendData.map((stat) => ({
+        date: stat.date,
+        total: Number(stat.total),
+        authenticated: Number(stat.authenticated),
+        unauthenticated: Number(stat.unauthenticated),
+      }))
+    } else if (timeRange === 'week' || timeRange === 'month') {
+      // 按天统计
       const dailyTrendData = await db
         .select({
           date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,

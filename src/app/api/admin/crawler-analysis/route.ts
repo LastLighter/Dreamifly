@@ -5,7 +5,7 @@ import { gte, sql, eq, isNotNull, and } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
-type TimeRange = 'today' | 'week' | 'month' | 'all'
+type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
 
 function getTimeRangeDate(range: TimeRange): Date {
   // 使用本地时区创建日期（中国时区 UTC+8）
@@ -13,6 +13,11 @@ function getTimeRangeDate(range: TimeRange): Date {
   const localNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }))
   
   switch (range) {
+    case 'hour':
+      // 一小时前（中国时区）
+      const hourAgo = new Date(localNow)
+      hourAgo.setHours(hourAgo.getHours() - 1)
+      return hourAgo
     case 'today':
       const today = new Date(localNow)
       today.setHours(0, 0, 0, 0)

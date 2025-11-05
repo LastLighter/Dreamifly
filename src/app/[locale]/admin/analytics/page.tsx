@@ -24,7 +24,7 @@ import {
   Cell,
 } from 'recharts'
 
-type TimeRange = 'today' | 'week' | 'month' | 'all'
+type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
 
 interface ModelStat {
   modelName: string
@@ -104,6 +104,7 @@ export default function AnalyticsPage() {
   const [syncing, setSyncing] = useState(false)
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [statsCache, setStatsCache] = useState<Record<TimeRange, StatsResponse | null>>({
+    hour: null,
     today: null,
     week: null,
     month: null,
@@ -218,7 +219,8 @@ export default function AnalyticsPage() {
       }
 
       // 并行获取所有时间范围的数据
-      const [todayData, weekData, monthData, allData] = await Promise.all([
+      const [hourData, todayData, weekData, monthData, allData] = await Promise.all([
+        fetchStatsForRange('hour'),
         fetchStatsForRange('today'),
         fetchStatsForRange('week'),
         fetchStatsForRange('month'),
@@ -227,6 +229,7 @@ export default function AnalyticsPage() {
 
       // 更新缓存
       const newCache = {
+        hour: hourData,
         today: todayData,
         week: weekData,
         month: monthData,
@@ -266,7 +269,10 @@ export default function AnalyticsPage() {
     const dateMap = new Map<string, { [key: string]: number }>()
 
     stats.dailyData.forEach((item) => {
-      const date = item.date.split('T')[0] // 只取日期部分
+      // 对于hour范围，保留完整时间戳（包括分钟）；其他范围只取日期部分
+      const date = timeRange === 'hour' 
+        ? item.date // 保留完整时间戳
+        : item.date.split('T')[0] // 只取日期部分
       if (!dateMap.has(date)) {
         dateMap.set(date, {})
       }
@@ -370,7 +376,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-gray-700">时间范围：</span>
                   <div className="flex gap-2">
-                    {(['today', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
+                    {(['hour', 'today', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
                       <button
                         key={range}
                         onClick={() => setTimeRange(range)}
@@ -380,7 +386,7 @@ export default function AnalyticsPage() {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        {range === 'today' ? '今天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
+                        {range === 'hour' ? '近一小时' : range === 'today' ? '今天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
                       </button>
                     ))}
                   </div>
@@ -430,7 +436,7 @@ export default function AnalyticsPage() {
                 {/* 总计模块 */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                    {timeRange === 'today' ? '今日总计' : timeRange === 'week' ? '最近一周总计' : timeRange === 'month' ? '最近一月总计' : '全部总计'}
+                    {timeRange === 'hour' ? '近一小时总计' : timeRange === 'today' ? '今日总计' : timeRange === 'week' ? '最近一周总计' : timeRange === 'month' ? '最近一月总计' : '全部总计'}
                   </h2>
                   
                   {/* 总计卡片 */}
@@ -597,8 +603,8 @@ export default function AnalyticsPage() {
                     </div>
                   )}
 
-                  {/* 趋势折线图（仅一周和一月显示） */}
-                  {(timeRange === 'week' || timeRange === 'month') && stats.dailyTrend && stats.dailyTrend.length > 0 && (
+                  {/* 趋势折线图（hour按分钟显示，week和month按天显示） */}
+                  {(timeRange === 'hour' || timeRange === 'week' || timeRange === 'month') && stats.dailyTrend && stats.dailyTrend.length > 0 && (
                     <div className="mt-6">
                       <h3 className="text-md font-semibold text-gray-900 mb-4">调用趋势</h3>
                       <ResponsiveContainer width="100%" height={300}>
@@ -610,7 +616,13 @@ export default function AnalyticsPage() {
                             tick={{ fill: '#6b7280', fontSize: 12 }}
                             tickFormatter={(value) => {
                               const date = new Date(value)
-                              return `${date.getMonth() + 1}/${date.getDate()}`
+                              if (timeRange === 'hour') {
+                                // 按分钟显示：HH:mm
+                                return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+                              } else {
+                                // 按天显示：M/D
+                                return `${date.getMonth() + 1}/${date.getDate()}`
+                              }
                             }}
                           />
                           <YAxis 
@@ -629,7 +641,19 @@ export default function AnalyticsPage() {
                             itemStyle={{ color: '#374151' }}
                             labelFormatter={(value) => {
                               const date = new Date(value)
-                              return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+                              if (timeRange === 'hour') {
+                                // 按分钟显示：完整日期时间
+                                return date.toLocaleString('zh-CN', { 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })
+                              } else {
+                                // 按天显示：完整日期
+                                return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+                              }
                             }}
                           />
                           <Legend 
@@ -718,6 +742,17 @@ export default function AnalyticsPage() {
                         dataKey="date" 
                         stroke="#6b7280"
                         tick={{ fill: '#6b7280', fontSize: 12 }}
+                        tickFormatter={(value) => {
+                          if (timeRange === 'hour') {
+                            // 按分钟显示：HH:mm
+                            const date = new Date(value)
+                            return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+                          } else {
+                            // 按天显示：M/D
+                            const date = new Date(value)
+                            return `${date.getMonth() + 1}/${date.getDate()}`
+                          }
+                        }}
                       />
                       <YAxis 
                         stroke="#6b7280"
@@ -733,6 +768,23 @@ export default function AnalyticsPage() {
                         }}
                         labelStyle={{ color: '#111827', fontWeight: 600 }}
                         itemStyle={{ color: '#374151' }}
+                        labelFormatter={(value) => {
+                          if (timeRange === 'hour') {
+                            // 按分钟显示：完整日期时间
+                            const date = new Date(value)
+                            return date.toLocaleString('zh-CN', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          } else {
+                            // 按天显示：完整日期
+                            const date = new Date(value)
+                            return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+                          }
+                        }}
                       />
                       <Legend 
                         wrapperStyle={{ paddingTop: '20px' }}

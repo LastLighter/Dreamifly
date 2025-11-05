@@ -21,7 +21,7 @@ import {
   Cell,
 } from 'recharts'
 
-type TimeRange = 'today' | 'week' | 'month' | 'all'
+type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
 
 interface UserCallRanking {
   userId: string
@@ -216,28 +216,42 @@ export default function CrawlerAnalysisPage() {
     }
   }, [timeRange])
 
-  // 格式化时间分布数据用于图表（按小时汇总）
+  // 格式化时间分布数据用于图表
+  // 对于hour范围，按分钟显示；其他范围按小时汇总显示
   const formatTimeDistribution = () => {
     if (!detailData?.timeDistribution) return []
 
-    // 按小时汇总所有日期的数据
-    const hourMap = new Map<number, number>()
-    
-    detailData.timeDistribution.forEach((item) => {
-      const currentCount = hourMap.get(item.hour) || 0
-      hourMap.set(item.hour, currentCount + item.count)
-    })
-
-    // 转换为数组格式，按小时排序
-    const result: Array<{ hour: string; count: number }> = []
-    for (let hour = 0; hour < 24; hour++) {
-      result.push({
-        hour: `${hour}时`,
-        count: hourMap.get(hour) || 0,
+    if (timeRange === 'hour') {
+      // 按分钟显示：直接使用数据，格式化为 HH:mm
+      return detailData.timeDistribution.map((item) => {
+        const date = new Date(item.date)
+        const hour = date.getHours()
+        const minute = item.hour // 在hour范围下，hour字段存储的是分钟数
+        return {
+          hour: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
+          count: item.count,
+        }
+      }).sort((a, b) => a.hour.localeCompare(b.hour))
+    } else {
+      // 按小时汇总所有日期的数据
+      const hourMap = new Map<number, number>()
+      
+      detailData.timeDistribution.forEach((item) => {
+        const currentCount = hourMap.get(item.hour) || 0
+        hourMap.set(item.hour, currentCount + item.count)
       })
-    }
 
-    return result
+      // 转换为数组格式，按小时排序
+      const result: Array<{ hour: string; count: number }> = []
+      for (let hour = 0; hour < 24; hour++) {
+        result.push({
+          hour: `${hour}时`,
+          count: hourMap.get(hour) || 0,
+        })
+      }
+
+      return result
+    }
   }
 
   // 模型颜色配置
@@ -323,7 +337,7 @@ export default function CrawlerAnalysisPage() {
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-gray-700">时间范围：</span>
                   <div className="flex gap-2">
-                    {(['today', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
+                    {(['hour', 'today', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
                       <button
                         key={range}
                         onClick={() => setTimeRange(range)}
@@ -333,7 +347,7 @@ export default function CrawlerAnalysisPage() {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        {range === 'today' ? '今天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
+                        {range === 'hour' ? '近一小时' : range === 'today' ? '今天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
                       </button>
                     ))}
                   </div>
@@ -775,7 +789,9 @@ export default function CrawlerAnalysisPage() {
                 <>
                   {/* 调用时间分布 */}
                   <div className="bg-gray-50 rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">调用时间分布（按小时）</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      {timeRange === 'hour' ? '调用时间分布（按分钟）' : '调用时间分布（按小时）'}
+                    </h3>
                     {detailData.timeDistribution.length === 0 ? (
                       <p className="text-gray-500 text-center py-8">暂无时间分布数据</p>
                     ) : (

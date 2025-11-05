@@ -42,6 +42,11 @@ export async function GET(request: Request) {
       const localNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }))
       
       switch (timeRange) {
+        case 'hour':
+          // 一小时前（中国时区）
+          startDate = new Date(localNow)
+          startDate.setHours(startDate.getHours() - 1)
+          break
         case 'today':
           startDate = new Date(localNow)
           startDate.setHours(0, 0, 0, 0)
@@ -63,23 +68,35 @@ export async function GET(request: Request) {
 
     if (type === 'user') {
       // 用户详情：按小时统计调用时间分布，按模型统计调用分布
+      // 对于hour范围，按分钟统计；其他范围按小时统计
       
-      // 1. 调用时间分布（按小时）
+      // 1. 调用时间分布
       const whereConditions = [eq(modelUsageStats.userId, identifier)]
       if (timeRange !== 'all') {
         whereConditions.push(gte(modelUsageStats.createdAt, startDate))
       }
 
-      const timeStats = await db
-        .select({
-          date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
-          hour: sql<number>`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})::int`,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(modelUsageStats)
-        .where(and(...whereConditions))
-        .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
-        .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+      const timeStats = timeRange === 'hour'
+        ? await db
+            .select({
+              date: sql<string>`date_trunc('minute', ${modelUsageStats.createdAt})::text`,
+              hour: sql<number>`EXTRACT(MINUTE FROM ${modelUsageStats.createdAt})::int`,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(modelUsageStats)
+            .where(and(...whereConditions))
+            .groupBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`, sql`EXTRACT(MINUTE FROM ${modelUsageStats.createdAt})`)
+            .orderBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`, sql`EXTRACT(MINUTE FROM ${modelUsageStats.createdAt})`)
+        : await db
+            .select({
+              date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+              hour: sql<number>`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})::int`,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(modelUsageStats)
+            .where(and(...whereConditions))
+            .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+            .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
 
       timeDistribution = timeStats.map((stat) => ({
         date: stat.date,
@@ -109,23 +126,35 @@ export async function GET(request: Request) {
       }))
     } else if (type === 'ip') {
       // IP详情：按小时统计调用时间分布，按模型统计调用分布
+      // 对于hour范围，按分钟统计；其他范围按小时统计
       
-      // 1. 调用时间分布（按小时）
+      // 1. 调用时间分布
       const ipTimeWhereConditions = [eq(modelUsageStats.ipAddress, identifier)]
       if (timeRange !== 'all') {
         ipTimeWhereConditions.push(gte(modelUsageStats.createdAt, startDate))
       }
 
-      const timeStats = await db
-        .select({
-          date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
-          hour: sql<number>`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})::int`,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(modelUsageStats)
-        .where(and(...ipTimeWhereConditions))
-        .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
-        .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+      const timeStats = timeRange === 'hour'
+        ? await db
+            .select({
+              date: sql<string>`date_trunc('minute', ${modelUsageStats.createdAt})::text`,
+              hour: sql<number>`EXTRACT(MINUTE FROM ${modelUsageStats.createdAt})::int`,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(modelUsageStats)
+            .where(and(...ipTimeWhereConditions))
+            .groupBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`, sql`EXTRACT(MINUTE FROM ${modelUsageStats.createdAt})`)
+            .orderBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`, sql`EXTRACT(MINUTE FROM ${modelUsageStats.createdAt})`)
+        : await db
+            .select({
+              date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+              hour: sql<number>`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})::int`,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(modelUsageStats)
+            .where(and(...ipTimeWhereConditions))
+            .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+            .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
 
       timeDistribution = timeStats.map((stat) => ({
         date: stat.date,
