@@ -7,6 +7,7 @@ import TabNavigation from './TabNavigation'
 import PromptInput from './PromptInput'
 import { optimizePrompt } from '../utils/promptOptimizer'
 import { useSession } from '@/lib/auth-client'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
@@ -187,11 +188,14 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
 
       const makeRequest = async () => {
         try {
+          // 获取动态token（使用服务器时间）
+          const token = await generateDynamicTokenWithServerTime()
+          
           const res = await fetch('/api/generate', {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_API_KEY}`
+              'Authorization': `Bearer ${token}`
             },
               body: JSON.stringify({
               prompt: finalPrompt, // 使用优化后的prompt或原始prompt
@@ -336,11 +340,15 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
     
     try {
       const startTime = Date.now();
+      
+      // 获取动态token（使用服务器时间）
+      const token = await generateDynamicTokenWithServerTime()
+      
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_API_KEY}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           prompt: stylePrompt,
