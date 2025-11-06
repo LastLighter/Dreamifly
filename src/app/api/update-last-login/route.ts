@@ -17,11 +17,11 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 更新用户的 lastLoginAt 字段为当前时间戳
+    // 更新用户的 lastLoginAt 字段为当前时间（UTC）并存为无时区
     await db
       .update(user)
       .set({
-        lastLoginAt: sql`NOW()`,
+        lastLoginAt: sql`(now() at time zone 'UTC')`,
       })
       .where(eq(user.id, session.user.id));
 
@@ -44,11 +44,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 更新用户的 lastLoginAt 字段为当前时间戳
+    // 更新用户的 lastLoginAt 字段为当前时间（UTC）并存为无时区
     await db
       .update(user)
       .set({
-        lastLoginAt: sql`NOW()`,
+        lastLoginAt: sql`(now() at time zone 'UTC')`,
       })
       .where(eq(user.id, session.user.id));
 

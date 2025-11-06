@@ -84,8 +84,9 @@ export default async function LocaleLayout({
       db
         .update(user)
         .set({
-          lastLoginAt: sql`NOW()`, // 存储时间戳（PostgreSQL timestamp类型）
-          updatedAt: sql`NOW()`,
+          // 将当前时间转换为UTC并存为无时区
+          lastLoginAt: sql`(now() at time zone 'UTC')`,
+          updatedAt: sql`(now() at time zone 'UTC')`,
         })
         .where(eq(user.id, session.user.id))
         .then(() => {

@@ -259,48 +259,64 @@ export default function AdminPage() {
     setCurrentPage(1)
   }
 
-  // 格式化日期
-  // 数据库存储的是本地时间（东八区），直接解析字符串显示，不进行时区转换
+  // 格式化日期（固定按东八区展示，但不额外显示时区后缀）
   const formatDate = (date: Date | string | null) => {
     if (!date) return '-'
-    
-    // 如果是 Date 对象，直接使用本地时间方法格式化
-    if (date instanceof Date) {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hour = String(date.getHours()).padStart(2, '0')
-      const minute = String(date.getMinutes()).padStart(2, '0')
-      const second = String(date.getSeconds()).padStart(2, '0')
+    const formatInShanghai = (d: Date) => {
+      if (isNaN(d.getTime())) return '-'
+      const parts = new Intl.DateTimeFormat('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).formatToParts(d)
+      const get = (type: string) => parts.find(p => p.type === type)?.value || ''
+      const year = get('year')
+      const month = get('month')
+      const day = get('day')
+      const hour = get('hour')
+      const minute = get('minute')
+      const second = get('second')
       return `${year}/${month}/${day}, ${hour}:${minute}:${second}`
+    }
+    
+    // 如果是 Date 对象，按上海时区格式化
+    if (date instanceof Date) {
+      return formatInShanghai(date)
     }
     
     // 处理字符串格式
     const dateStr = date.toString().trim()
+    // 是否包含显式时区（Z、+HH、+HHMM、+HH:MM 等）
+    const hasExplicitTimezone = /([zZ]|[+-]\d{2}(:?\d{2})?)$/.test(dateStr)
+    if (hasExplicitTimezone) {
+      return formatInShanghai(new Date(dateStr))
+    }
     
-    // 检查是否是本地时间格式（如：2025-11-06 16:23:30.720884）
+    // 检查是否是无时区的UTC时间字符串（如：2025-11-06 16:23:30.720884）
     // 格式：YYYY-MM-DD HH:MM:SS 或 YYYY-MM-DD HH:MM:SS.mmm
     const localTimeMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/)
     
     if (localTimeMatch) {
-      // 直接提取年月日时分秒，不进行时区转换
-      const [, year, month, day, hour, minute, second] = localTimeMatch
-      return `${year}/${month}/${day}, ${hour}:${minute}:${second}`
+      // 将无时区字符串按 UTC 解释，再以上海时区显示
+      const [, y, m, d, hh, mm, ss] = localTimeMatch
+      const utcDate = new Date(Date.UTC(
+        parseInt(y, 10),
+        parseInt(m, 10) - 1,
+        parseInt(d, 10),
+        parseInt(hh, 10),
+        parseInt(mm, 10),
+        parseInt(ss, 10)
+      ))
+      return formatInShanghai(utcDate)
     }
     
-    // 如果是其他格式，使用 Date 对象解析
-    const d = new Date(dateStr)
-    if (isNaN(d.getTime())) return '-'
-    
-    // 使用本地时间方法获取（不进行时区转换）
-    const year = d.getFullYear()
-    const month = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    const hour = String(d.getHours()).padStart(2, '0')
-    const minute = String(d.getMinutes()).padStart(2, '0')
-    const second = String(d.getSeconds()).padStart(2, '0')
-    
-    return `${year}/${month}/${day}, ${hour}:${minute}:${second}`
+    // 其他可解析字符串：按上海时区格式化
+    return formatInShanghai(new Date(dateStr))
   }
 
   // 获取用户限额配置
