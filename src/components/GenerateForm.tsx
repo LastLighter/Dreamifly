@@ -828,51 +828,51 @@ export default function GenerateForm({
 
                   {/* 生成数量调节 - 仅登录用户可见 */}
                   {status === 'authenticated' && (
-                  <div>
-                    <label htmlFor="batch_size" className="flex items-center text-sm font-medium text-gray-900 mb-3">
-                      <img src="/form/generation-number.svg" alt="Batch Size" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-                      {t('form.batch_size.label')}
-                    </label>
-                    <div className="relative flex items-center bg-white/50 backdrop-blur-sm border border-amber-400/40 rounded-xl focus-within:ring-2 focus-within:ring-amber-400/50 focus-within:border-amber-400/50 shadow-inner transition-all duration-300">
-                      <input
-                        type="number"
-                        id="batch_size"
-                        value={batch_size}
-                        onChange={(e) => setBatchSize(Number(e.target.value))}
-                        className="w-full bg-transparent text-center text-gray-900 border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        min="1"
-                        max="2"
-                        disabled={status === 'loading'}
-                        ref={batchSizeRef}
-                      />
-                      <div className="flex items-center border-l border-orange-400/30">
-                        <button
-                          type="button"
-                          onClick={() => setBatchSize(Math.max(1, batch_size - 1))}
-                          className="px-3 text-gray-700 hover:text-gray-900 disabled:opacity-50 h-full flex items-center justify-center transition-colors"
-                          disabled={status === 'loading' || batch_size <= 1}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setBatchSize(Math.min(2, batch_size + 1))}
-                          className="px-3 text-gray-700 hover:text-gray-900 disabled:opacity-50 h-full flex items-center justify-center transition-colors"
-                          disabled={status === 'loading' || batch_size >= 2}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
+                    <div>
+                      <label htmlFor="batch_size" className="flex items-center text-sm font-medium text-gray-900 mb-3">
+                        <img src="/form/generation-number.svg" alt="Batch Size" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
+                        {t('form.batch_size.label')}
+                      </label>
+                      <div className="relative flex items-center bg-white/50 backdrop-blur-sm border border-amber-400/40 rounded-xl focus-within:ring-2 focus-within:ring-amber-400/50 focus-within:border-amber-400/50 shadow-inner transition-all duration-300">
+                        <input
+                          type="number"
+                          id="batch_size"
+                          value={batch_size}
+                          onChange={(e) => setBatchSize(Number(e.target.value))}
+                          className="w-full bg-transparent text-center text-gray-900 border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          min="1"
+                          max="2"
+                          disabled={isGenerating}
+                          ref={batchSizeRef}
+                        />
+                        <div className="flex items-center border-l border-orange-400/30">
+                          <button
+                            type="button"
+                            onClick={() => setBatchSize(Math.max(1, batch_size - 1))}
+                            className="px-3 text-gray-700 hover:text-gray-900 disabled:opacity-50 h-full flex items-center justify-center transition-colors"
+                            disabled={isGenerating || batch_size <= 1}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBatchSize(Math.min(2, batch_size + 1))}
+                            className="px-3 text-gray-700 hover:text-gray-900 disabled:opacity-50 h-full flex items-center justify-center transition-colors"
+                            disabled={isGenerating || batch_size >= 2}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
+                      <p className="mt-2 text-sm text-gray-600/80">{t('form.batch_size.hint')}</p>
+                      {batchSizeError && (
+                        <p className="mt-1 text-sm text-red-400">{batchSizeError}</p>
+                      )}
                     </div>
-                    <p className="mt-2 text-sm text-gray-600/80">{t('form.batch_size.hint')}</p>
-                    {batchSizeError && (
-                      <p className="mt-1 text-sm text-red-400">{batchSizeError}</p>
-                    )}
-                  </div>
                   )}
                 </div>
 

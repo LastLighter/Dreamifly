@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { user } from '@/db/schema';
@@ -6,7 +6,7 @@ import { eq, sql } from 'drizzle-orm';
 import { headers } from 'next/headers';
 
 // 更新用户最近登录时间
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // 验证用户身份
     const session = await auth.api.getSession({
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 }
 
 // 支持GET请求（用于客户端调用）
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // 验证用户身份
     const session = await auth.api.getSession({
