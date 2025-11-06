@@ -52,6 +52,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
   const [isQueuing, setIsQueuing] = useState(false);
   const [concurrencyError, setConcurrencyError] = useState<string | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorType, setErrorType] = useState<'concurrency' | 'daily_limit'>('concurrency');
   
   // 要设置为参考图片的生成图片 URL
   const [generatedImageToSetAsReference, setGeneratedImageToSetAsReference] = useState<string | null>(null);
@@ -217,14 +218,23 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
             }),
           });
 
-          // 处理并发限制错误
+          // 处理429错误（可能是并发限制或每日限额）
           if (res.status === 429) {
             const errorData = await res.json();
-            const errorMessage = errorData.error || '并发请求过多，请稍后重试';
+            const errorMessage = errorData.error || '请求过多，请稍后重试';
+            const errorCode = errorData.code;
+            
+            // 根据错误代码区分错误类型
+            if (errorCode === 'DAILY_LIMIT_EXCEEDED') {
+              setErrorType('daily_limit');
+            } else {
+              setErrorType('concurrency');
+            }
+            
             setConcurrencyError(errorMessage);
             setShowErrorModal(true);
             setIsGenerating(false);
-            throw new Error('CONCURRENCY_LIMIT');
+            throw new Error(errorCode === 'DAILY_LIMIT_EXCEEDED' ? 'DAILY_LIMIT' : 'CONCURRENCY_LIMIT');
           }
 
           if (res.status !== 200) {
@@ -259,13 +269,13 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
         } catch (err) {
           console.error(`生成图片失败 (尝试 ${retryCount + 1}/${maxRetries + 1}):`, err);
 
-          // 如果是并发限制错误，不进行重试
-          if (err instanceof Error && err.message === 'CONCURRENCY_LIMIT') {
+          // 如果是并发限制或每日限额错误，不进行重试
+          if (err instanceof Error && (err.message === 'CONCURRENCY_LIMIT' || err.message === 'DAILY_LIMIT')) {
             setImageStatuses(prev => {
               const newStatuses = [...prev];
               newStatuses[index] = ({
                 status: 'error',
-                message: '并发限制'
+                message: err.message === 'DAILY_LIMIT' ? '每日限额已满' : '并发限制'
               });
               return newStatuses;
             });
@@ -370,16 +380,25 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
         }),
       });
 
-      // 处理并发限制错误
+      // 处理429错误（可能是并发限制或每日限额）
       if (res.status === 429) {
         const errorData = await res.json();
-        const errorMessage = errorData.error || '并发请求过多，请稍后重试';
+        const errorMessage = errorData.error || '请求过多，请稍后重试';
+        const errorCode = errorData.code;
+        
+        // 根据错误代码区分错误类型
+        if (errorCode === 'DAILY_LIMIT_EXCEEDED') {
+          setErrorType('daily_limit');
+        } else {
+          setErrorType('concurrency');
+        }
+        
         setConcurrencyError(errorMessage);
         setShowErrorModal(true);
         setIsGenerating(false);
         setImageStatuses([{
           status: 'error',
-          message: '并发限制'
+          message: errorCode === 'DAILY_LIMIT_EXCEEDED' ? '每日限额已满' : '并发限制'
         }]);
         return;
       }
@@ -547,7 +566,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
         </div>
       </div>
 
-      {/* 并发限制错误模态框 */}
+      {/* 错误模态框（并发限制或每日限额） */}
       {showErrorModal && concurrencyError && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeInUp"
@@ -566,7 +585,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
             
             {/* 标题 */}
             <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-              并发限制
+              {errorType === 'daily_limit' ? '每日限额已满' : '并发限制'}
             </h3>
             
             {/* 错误消息 */}
@@ -575,11 +594,19 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
             </p>
             
             {/* 提示信息 */}
-            <div className="bg-amber-50 border-l-4 border-amber-500 p-3 mb-6 rounded">
-              <p className="text-sm text-amber-800">
-                💡 提示：请等待其他标签页的生图任务完成后再试
-              </p>
-            </div>
+            {errorType === 'daily_limit' ? (
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-6 rounded">
+                <p className="text-sm text-blue-800">
+                  💡 提示：每日限额将在次日重置，请明天再试
+                </p>
+              </div>
+            ) : (
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-3 mb-6 rounded">
+                <p className="text-sm text-amber-800">
+                  💡 提示：请等待其他标签页的生图任务完成后再试
+                </p>
+              </div>
+            )}
             
             {/* 关闭按钮 */}
             <button

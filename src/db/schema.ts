@@ -79,4 +79,13 @@ export const modelUsageStats = pgTable("model_usage_stats", {
   isAuthenticated: boolean("is_authenticated").default(false).notNull(), // 是否已登录
   ipAddress: text("ip_address"), // IP地址，用于爬虫分析
   createdAt: timestamp("created_at").defaultNow().notNull(), // 调用时间
+});
+
+// 用户限额配置表
+export const userLimitConfig = pgTable("user_limit_config", {
+  id: integer("id").primaryKey().default(1), // 单例配置，id固定为1
+  regularUserDailyLimit: integer("regular_user_daily_limit"), // 普通用户每日限额，null表示使用环境变量
+  premiumUserDailyLimit: integer("premium_user_daily_limit"), // 优质用户每日限额，null表示使用环境变量
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }); 
