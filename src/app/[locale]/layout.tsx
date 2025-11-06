@@ -9,6 +9,11 @@ import '@/app/globals.css'
 import UmamiProvider from 'next-umami'
 import { AvatarProvider } from '@/contexts/AvatarContext'
 import VersionDisplay from '@/components/VersionDisplay'
+import { auth } from '@/lib/auth'
+import { headers } from 'next/headers'
+import { db } from '@/db'
+import { user } from '@/db/schema'
+import { eq, sql } from 'drizzle-orm'
 
 const inter = Inter({ subsets: ['latin'] })
 const umamiWebsiteId = "7fd99628-3822-4bae-a794-b2d1d8926678"
@@ -66,6 +71,46 @@ export default async function LocaleLayout({
 }) {
   const locale = (await Promise.resolve(params))?.locale || 'zh';
   const messages = await getMessages(locale)
+
+  // 更新用户最近登录时间（异步执行，不阻塞渲染）
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (session?.user) {
+      // 异步检查并更新登录时间，不等待结果
+      // 只有当lastLoginAt为空或距离上次更新超过1分钟时才更新，减少数据库写入
+      db
+        .select({ lastLoginAt: user.lastLoginAt })
+        .from(user)
+        .where(eq(user.id, session.user.id))
+        .limit(1)
+        .then((users) => {
+          const currentUser = users[0];
+          const now = new Date();
+          const shouldUpdate = !currentUser?.lastLoginAt || 
+            (currentUser.lastLoginAt && 
+             (now.getTime() - new Date(currentUser.lastLoginAt).getTime()) > 60 * 1000); // 1分钟
+
+          if (shouldUpdate) {
+            return db
+              .update(user)
+              .set({
+                lastLoginAt: sql`NOW()`,
+              })
+              .where(eq(user.id, session.user.id));
+          }
+        })
+        .catch((error) => {
+          // 静默处理错误，不影响页面渲染
+          console.error('Failed to update last login time:', error);
+        });
+    }
+  } catch (error) {
+    // 静默处理错误，不影响页面渲染
+    console.error('Failed to get session for updating last login time:', error);
+  }
 
   return (
     <html lang={locale}>

@@ -269,9 +269,11 @@ export default function AnalyticsPage() {
     const dateMap = new Map<string, { [key: string]: number }>()
 
     stats.dailyData.forEach((item) => {
-      // 对于hour范围，保留完整时间戳（包括分钟）；其他范围只取日期部分
+      // 对于hour范围，保留完整时间戳（包括分钟）；today范围保留小时信息；其他范围只取日期部分
       const date = timeRange === 'hour' 
         ? item.date // 保留完整时间戳
+        : timeRange === 'today'
+        ? item.date // 保留完整时间戳（包括小时）
         : item.date.split('T')[0] // 只取日期部分
       if (!dateMap.has(date)) {
         dateMap.set(date, {})
@@ -603,8 +605,8 @@ export default function AnalyticsPage() {
                     </div>
                   )}
 
-                  {/* 趋势折线图（hour按分钟显示，week和month按天显示） */}
-                  {(timeRange === 'hour' || timeRange === 'week' || timeRange === 'month') && stats.dailyTrend && stats.dailyTrend.length > 0 && (
+                  {/* 趋势折线图（hour按分钟显示，today按小时显示，week和month按天显示） */}
+                  {(timeRange === 'hour' || timeRange === 'today' || timeRange === 'week' || timeRange === 'month') && stats.dailyTrend && stats.dailyTrend.length > 0 && (
                     <div className="mt-6">
                       <h3 className="text-md font-semibold text-gray-900 mb-4">调用趋势</h3>
                       <ResponsiveContainer width="100%" height={300}>
@@ -619,6 +621,9 @@ export default function AnalyticsPage() {
                               if (timeRange === 'hour') {
                                 // 按分钟显示：HH:mm
                                 return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+                              } else if (timeRange === 'today') {
+                                // 按小时显示：HH:00
+                                return `${date.getHours().toString().padStart(2, '0')}:00`
                               } else {
                                 // 按天显示：M/D
                                 return `${date.getMonth() + 1}/${date.getDate()}`
@@ -649,6 +654,14 @@ export default function AnalyticsPage() {
                                   day: 'numeric',
                                   hour: '2-digit',
                                   minute: '2-digit'
+                                })
+                              } else if (timeRange === 'today') {
+                                // 按小时显示：完整日期和小时
+                                return date.toLocaleString('zh-CN', { 
+                                  year: 'numeric', 
+                                  month: 'long', 
+                                  day: 'numeric',
+                                  hour: '2-digit'
                                 })
                               } else {
                                 // 按天显示：完整日期
@@ -747,6 +760,10 @@ export default function AnalyticsPage() {
                             // 按分钟显示：HH:mm
                             const date = new Date(value)
                             return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+                          } else if (timeRange === 'today') {
+                            // 按小时显示：HH:00
+                            const date = new Date(value)
+                            return `${date.getHours().toString().padStart(2, '0')}:00`
                           } else {
                             // 按天显示：M/D
                             const date = new Date(value)
@@ -778,6 +795,15 @@ export default function AnalyticsPage() {
                               day: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit'
+                            })
+                          } else if (timeRange === 'today') {
+                            // 按小时显示：完整日期和小时
+                            const date = new Date(value)
+                            return date.toLocaleString('zh-CN', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric',
+                              hour: '2-digit'
                             })
                           } else {
                             // 按天显示：完整日期

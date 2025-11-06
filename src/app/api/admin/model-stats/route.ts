@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       .groupBy(modelUsageStats.modelName, modelUsageStats.isAuthenticated)
 
     // 按日期分组统计（用于图表显示）
-    // 对于hour范围，按分钟统计；其他范围按天统计
+    // 对于hour范围，按分钟统计；today范围按小时统计；其他范围按天统计
     const dailyStats = timeRange === 'hour'
       ? await db
           .select({
@@ -105,6 +105,17 @@ export async function GET(request: Request) {
           .where(gte(modelUsageStats.createdAt, startDate))
           .groupBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`, modelUsageStats.modelName)
           .orderBy(modelUsageStats.modelName, sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
+      : timeRange === 'today'
+      ? await db
+          .select({
+            date: sql<string>`date_trunc('hour', ${modelUsageStats.createdAt})::text`,
+            modelName: modelUsageStats.modelName,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(gte(modelUsageStats.createdAt, startDate))
+          .groupBy(sql`date_trunc('hour', ${modelUsageStats.createdAt})`, modelUsageStats.modelName)
+          .orderBy(modelUsageStats.modelName, sql`date_trunc('hour', ${modelUsageStats.createdAt})`)
       : await db
           .select({
             date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::text`,
@@ -153,7 +164,7 @@ export async function GET(request: Request) {
       .where(gte(modelUsageStats.createdAt, startDate))
 
     // 获取每日总计趋势（用于折线图）
-    // 对于hour范围，按分钟统计；week和month按天统计
+    // 对于hour范围，按分钟统计；today范围按小时统计；week和month按天统计
     let dailyTrend: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
     
     if (timeRange === 'hour') {
@@ -171,6 +182,26 @@ export async function GET(request: Request) {
         .orderBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
 
       dailyTrend = minuteTrendData.map((stat) => ({
+        date: stat.date,
+        total: Number(stat.total),
+        authenticated: Number(stat.authenticated),
+        unauthenticated: Number(stat.unauthenticated),
+      }))
+    } else if (timeRange === 'today') {
+      // 按小时统计
+      const hourTrendData = await db
+        .select({
+          date: sql<string>`date_trunc('hour', ${modelUsageStats.createdAt})::text`,
+          total: sql<number>`count(*)::int`,
+          authenticated: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = true)::int`,
+          unauthenticated: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
+        })
+        .from(modelUsageStats)
+        .where(gte(modelUsageStats.createdAt, startDate))
+        .groupBy(sql`date_trunc('hour', ${modelUsageStats.createdAt})`)
+        .orderBy(sql`date_trunc('hour', ${modelUsageStats.createdAt})`)
+
+      dailyTrend = hourTrendData.map((stat) => ({
         date: stat.date,
         total: Number(stat.total),
         authenticated: Number(stat.authenticated),
