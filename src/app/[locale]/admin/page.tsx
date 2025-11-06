@@ -260,16 +260,47 @@ export default function AdminPage() {
   }
 
   // 格式化日期
+  // 数据库存储的是本地时间（东八区），直接解析字符串显示，不进行时区转换
   const formatDate = (date: Date | string | null) => {
     if (!date) return '-'
-    const d = new Date(date)
-    return d.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    
+    // 如果是 Date 对象，直接使用本地时间方法格式化
+    if (date instanceof Date) {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hour = String(date.getHours()).padStart(2, '0')
+      const minute = String(date.getMinutes()).padStart(2, '0')
+      const second = String(date.getSeconds()).padStart(2, '0')
+      return `${year}/${month}/${day}, ${hour}:${minute}:${second}`
+    }
+    
+    // 处理字符串格式
+    const dateStr = date.toString().trim()
+    
+    // 检查是否是本地时间格式（如：2025-11-06 16:23:30.720884）
+    // 格式：YYYY-MM-DD HH:MM:SS 或 YYYY-MM-DD HH:MM:SS.mmm
+    const localTimeMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/)
+    
+    if (localTimeMatch) {
+      // 直接提取年月日时分秒，不进行时区转换
+      const [, year, month, day, hour, minute, second] = localTimeMatch
+      return `${year}/${month}/${day}, ${hour}:${minute}:${second}`
+    }
+    
+    // 如果是其他格式，使用 Date 对象解析
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return '-'
+    
+    // 使用本地时间方法获取（不进行时区转换）
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hour = String(d.getHours()).padStart(2, '0')
+    const minute = String(d.getMinutes()).padStart(2, '0')
+    const second = String(d.getSeconds()).padStart(2, '0')
+    
+    return `${year}/${month}/${day}, ${hour}:${minute}:${second}`
   }
 
   // 获取用户限额配置
@@ -357,8 +388,8 @@ export default function AdminPage() {
         const premiumValue = parseInt(limitInputs.premium, 10)
         if (isNaN(premiumValue) || premiumValue < 0) {
           showDialog('error', '验证失败', '优质用户限额必须是大于等于0的数字')
-          return
-        }
+      return
+    }
         body.premiumUserDailyLimit = premiumValue
       }
 
@@ -405,32 +436,32 @@ export default function AdminPage() {
       '确认操作',
       message,
       async () => {
-        try {
-          // 添加时间戳避免缓存
-          const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache',
-            },
-            body: JSON.stringify({
+    try {
+      // 添加时间戳避免缓存
+      const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+        body: JSON.stringify({
               userId: user.id,
-              isPremium,
-            }),
-          })
+          isPremium,
+        }),
+      })
 
-          if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || '更新失败')
-          }
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || '更新失败')
+      }
 
-          // 刷新用户列表
-          fetchUsers()
+      // 刷新用户列表
+      fetchUsers()
           showDialog('success', '操作成功', `用户 ${userInfo} 的角色已更新`)
-        } catch (error) {
-          console.error('Failed to update user role:', error)
+    } catch (error) {
+      console.error('Failed to update user role:', error)
           showDialog('error', '操作失败', error instanceof Error ? error.message : '更新用户角色失败')
-        }
+    }
       }
     )
   }

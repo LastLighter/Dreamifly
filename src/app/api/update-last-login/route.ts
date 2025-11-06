@@ -17,7 +17,7 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 更新用户的 lastLoginAt 字段为当前时间
+    // 更新用户的 lastLoginAt 字段为当前时间戳
     await db
       .update(user)
       .set({
@@ -44,7 +44,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 更新用户的 lastLoginAt 字段为当前时间
+    // 更新用户的 lastLoginAt 字段为当前时间戳
     await db
       .update(user)
       .set({

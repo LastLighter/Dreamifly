@@ -79,28 +79,17 @@ export default async function LocaleLayout({
     });
 
     if (session?.user) {
-      // 异步检查并更新登录时间，不等待结果
-      // 只有当lastLoginAt为空或距离上次更新超过1分钟时才更新，减少数据库写入
+      // 异步更新登录时间，不等待结果
+      // 每次页面加载都更新，确保刷新时能正确更新
       db
-        .select({ lastLoginAt: user.lastLoginAt })
-        .from(user)
+        .update(user)
+        .set({
+          lastLoginAt: sql`NOW()`, // 存储时间戳（PostgreSQL timestamp类型）
+          updatedAt: sql`NOW()`,
+        })
         .where(eq(user.id, session.user.id))
-        .limit(1)
-        .then((users) => {
-          const currentUser = users[0];
-          const now = new Date();
-          const shouldUpdate = !currentUser?.lastLoginAt || 
-            (currentUser.lastLoginAt && 
-             (now.getTime() - new Date(currentUser.lastLoginAt).getTime()) > 60 * 1000); // 1分钟
-
-          if (shouldUpdate) {
-            return db
-              .update(user)
-              .set({
-                lastLoginAt: sql`NOW()`,
-              })
-              .where(eq(user.id, session.user.id));
-          }
+        .then(() => {
+          // 更新成功
         })
         .catch((error) => {
           // 静默处理错误，不影响页面渲染

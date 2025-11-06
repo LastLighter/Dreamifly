@@ -23,7 +23,7 @@ export const user = pgTable("user", {
   avatar: text("avatar").default("/images/default-avatar.svg"), // 用户头像
   signature: text("signature"),
   isActive: boolean("is_active").default(true), // 数据库字段名: is_active
-  lastLoginAt: timestamp("last_login_at"), // 数据库字段名: last_login_at
+  lastLoginAt: timestamp("last_login_at"), // 数据库字段名: last_login_at，存储时间戳
   isAdmin: boolean("is_admin").default(false), // 数据库字段名: is_admin
   isPremium: boolean("is_premium").default(false), // 数据库字段名: is_premium，标记是否为优质用户
   dailyRequestCount: integer("daily_request_count").default(0), // 数据库字段名: daily_request_count，当日请求次数
