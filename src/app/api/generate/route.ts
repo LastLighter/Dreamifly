@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { generateImage } from '@/utils/comfyApi'
 import { db } from '@/db'
-import { siteStats, modelUsageStats } from '@/db/schema'
+import { siteStats, modelUsageStats, user } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       headers: await headers()
     })
     
-    // 如果用户已登录，检查并发限制
+    // 如果用户已登录，检查并发限制和每日请求次数
     if (session?.user) {
       const userId = session.user.id;
       const maxConcurrent = parseInt(process.env.MAX_CONCURRENT_GENERATIONS || '2', 10);
@@ -92,6 +92,79 @@ export async function POST(request: Request) {
           currentCount,
           maxConcurrent
         }, { status: 429 }) // 429 Too Many Requests
+      }
+
+      // 获取用户信息，检查每日请求次数限制
+      // 使用数据库原子操作来确保并发安全
+      const currentUser = await db.select()
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+
+      if (currentUser.length > 0) {
+        const userData = currentUser[0];
+        const isAdmin = userData.isAdmin || false;
+        const isPremium = userData.isPremium || false;
+
+        // 检查是否需要重置每日计数（如果上次重置日期不是今天）
+        const now = new Date();
+        const lastResetDate = userData.lastRequestResetDate ? new Date(userData.lastRequestResetDate) : null;
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const lastResetDay = lastResetDate ? new Date(lastResetDate.getFullYear(), lastResetDate.getMonth(), lastResetDate.getDate()) : null;
+
+        // 管理员不限次，其他用户检查次数限制
+        if (!isAdmin) {
+          // 先检查并重置（如果需要）
+          let currentCount = userData.dailyRequestCount || 0;
+          
+          // 如果上次重置日期不是今天，重置计数
+          if (!lastResetDay || lastResetDay.getTime() !== today.getTime()) {
+            currentCount = 0;
+            // 先重置计数
+            await db
+              .update(user)
+              .set({
+                dailyRequestCount: 0,
+                lastRequestResetDate: now,
+                updatedAt: now,
+              })
+              .where(eq(user.id, userId));
+          }
+
+          const maxDailyRequests = isPremium ? 500 : 200; // 优质用户500次，普通用户200次
+          
+          // 检查是否超过限制
+          if (currentCount >= maxDailyRequests) {
+            return NextResponse.json({ 
+              error: `您今日的生图次数已达上限（${maxDailyRequests}次）。${isPremium ? '优质用户' : '普通用户'}每日可使用${maxDailyRequests}次生图功能。`,
+              code: 'DAILY_LIMIT_EXCEEDED',
+              dailyCount: currentCount,
+              maxDailyRequests
+            }, { status: 429 });
+          }
+
+          // 使用原子操作增加计数（每次请求+1，不管batch_size）
+          // 这样可以确保并发请求时也能正确计数
+          await db
+            .update(user)
+            .set({
+              dailyRequestCount: sql`${user.dailyRequestCount} + 1`,
+              lastRequestResetDate: (!lastResetDay || lastResetDay.getTime() !== today.getTime()) ? now : sql`${user.lastRequestResetDate}`,
+              updatedAt: now,
+            })
+            .where(eq(user.id, userId));
+        } else {
+          // 管理员不计数，但更新重置日期（如果需要）
+          if (!lastResetDay || lastResetDay.getTime() !== today.getTime()) {
+            await db
+              .update(user)
+              .set({
+                lastRequestResetDate: now,
+                updatedAt: now,
+              })
+              .where(eq(user.id, userId));
+          }
+        }
       }
       
       // 开始跟踪这个生成请求

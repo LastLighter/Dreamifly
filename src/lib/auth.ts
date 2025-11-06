@@ -85,6 +85,20 @@ export const auth = betterAuth({
         required: false,
         defaultValue: false,
       },
+      isPremium: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+      },
+      dailyRequestCount: {
+        type: "number",
+        required: false,
+        defaultValue: 0,
+      },
+      lastRequestResetDate: {
+        type: "date",
+        required: false,
+      },
     },
   },
   session: {

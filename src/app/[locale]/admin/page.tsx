@@ -19,6 +19,8 @@ interface User {
   emailVerified: boolean
   isActive: boolean
   isAdmin: boolean
+  isPremium: boolean
+  dailyRequestCount: number
   createdAt: Date | string
   updatedAt: Date | string
   lastLoginAt: Date | string | null
@@ -235,6 +237,37 @@ export default function AdminPage() {
     })
   }
 
+  // 切换用户角色（普通/优质）
+  const handleTogglePremium = async (userId: string, isPremium: boolean) => {
+    if (!confirm(`确定要将用户${isPremium ? '设为优质用户' : '设为普通用户'}吗？`)) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          isPremium,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || '更新失败')
+      }
+
+      // 刷新用户列表
+      fetchUsers()
+    } catch (error) {
+      console.error('Failed to update user role:', error)
+      alert(error instanceof Error ? error.message : '更新用户角色失败')
+    }
+  }
+
   // 加载中或权限检查
   if (sessionLoading || checkingAdmin || !isAdmin) {
     return (
@@ -388,10 +421,16 @@ export default function AdminPage() {
                           状态
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          角色/次数
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           注册时间
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           最后登录
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          操作
                         </th>
                       </tr>
                     </thead>
@@ -457,11 +496,45 @@ export default function AdminPage() {
                               )}
                             </div>
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex flex-col gap-1">
+                              {user.isAdmin ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
+                                  管理员
+                                </span>
+                              ) : user.isPremium ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  优质用户
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                                  普通用户
+                                </span>
+                              )}
+                              <span className="text-xs text-gray-600">
+                                今日: {user.dailyRequestCount || 0} / {user.isAdmin ? '∞' : user.isPremium ? '500' : '200'}
+                              </span>
+                            </div>
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {formatDate(user.createdAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {formatDate(user.lastLoginAt)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {!user.isAdmin && (
+                              <button
+                                onClick={() => handleTogglePremium(user.id, !user.isPremium)}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                  user.isPremium
+                                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                                }`}
+                              >
+                                {user.isPremium ? '设为普通' : '设为优质'}
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}

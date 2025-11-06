@@ -25,6 +25,9 @@ export const user = pgTable("user", {
   isActive: boolean("is_active").default(true), // 数据库字段名: is_active
   lastLoginAt: timestamp("last_login_at"), // 数据库字段名: last_login_at
   isAdmin: boolean("is_admin").default(false), // 数据库字段名: is_admin
+  isPremium: boolean("is_premium").default(false), // 数据库字段名: is_premium，标记是否为优质用户
+  dailyRequestCount: integer("daily_request_count").default(0), // 数据库字段名: daily_request_count，当日请求次数
+  lastRequestResetDate: timestamp("last_request_reset_date").defaultNow(), // 数据库字段名: last_request_reset_date，上次重置请求次数的日期
 });
 
 export const session = pgTable("session", {

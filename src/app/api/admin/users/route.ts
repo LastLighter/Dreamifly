@@ -96,6 +96,8 @@ export async function GET(request: NextRequest) {
       emailVerified: u.emailVerified,
       isActive: u.isActive,
       isAdmin: u.isAdmin || false,
+      isPremium: u.isPremium || false,
+      dailyRequestCount: u.dailyRequestCount || 0,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
       lastLoginAt: u.lastLoginAt,
@@ -114,6 +116,63 @@ export async function GET(request: NextRequest) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
       { error: '获取用户列表失败' },
+      { status: 500 }
+    );
+  }
+}
+
+// 更新用户角色（普通用户/优质用户）
+export async function PATCH(request: NextRequest) {
+  try {
+    // 验证管理员权限
+    const session = await auth.api.getSession({
+      headers: await headers()
+    });
+
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: '未授权，请先登录' },
+        { status: 401 }
+      );
+    }
+
+    // 检查是否为管理员
+    const currentUser = await db.select()
+      .from(user)
+      .where(eq(user.id, session.user.id))
+      .limit(1);
+
+    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
+      return NextResponse.json(
+        { error: '无权限访问，需要管理员权限' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { userId, isPremium } = body;
+
+    if (!userId || typeof isPremium !== 'boolean') {
+      return NextResponse.json(
+        { error: '参数错误：需要userId和isPremium' },
+        { status: 400 }
+      );
+    }
+
+    // 更新用户角色
+    await db
+      .update(user)
+      .set({
+        isPremium: isPremium,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, userId));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    return NextResponse.json(
+      { error: '更新用户角色失败' },
       { status: 500 }
     );
   }
