@@ -8,35 +8,44 @@ import { headers } from 'next/headers'
 type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
 
 function getTimeRangeDate(range: TimeRange): Date {
-  // 使用本地时区创建日期（中国时区 UTC+8）
   const now = new Date()
-  const localNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }))
   
   switch (range) {
     case 'hour':
-      // 一小时前（中国时区）
-      const hourAgo = new Date(localNow)
-      hourAgo.setHours(hourAgo.getHours() - 1)
-      return hourAgo
+      // 一小时前（UTC时间，与数据库存储的timestamp类型一致）
+      return new Date(now.getTime() - 60 * 60 * 1000)
     case 'today':
-      // 今天00:00:00（中国时区）
-      const today = new Date(localNow)
-      today.setHours(0, 0, 0, 0)
-      return today
+      // 今天00:00:00（中国时区 UTC+8）
+      // 使用 Intl API 获取中国时区的当前日期组件
+      const shanghaiDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(now)
+      
+      const year = parseInt(shanghaiDate.find(p => p.type === 'year')!.value)
+      const month = parseInt(shanghaiDate.find(p => p.type === 'month')!.value) - 1
+      const day = parseInt(shanghaiDate.find(p => p.type === 'day')!.value)
+      
+      // 创建中国时区今天00:00:00的Date对象，然后转换为UTC
+      // 中国时区是UTC+8，所以需要减去8小时
+      const todayInShanghai = new Date(Date.UTC(year, month, day, 0, 0, 0, 0))
+      return new Date(todayInShanghai.getTime() - 8 * 60 * 60 * 1000)
     case 'week':
-      // 7天前（中国时区）
-      const weekAgo = new Date(localNow)
+      // 7天前（UTC时间）
+      const weekAgo = new Date(now)
       weekAgo.setDate(weekAgo.getDate() - 7)
       return weekAgo
     case 'month':
-      // 30天前（中国时区）
-      const monthAgo = new Date(localNow)
+      // 30天前（UTC时间）
+      const monthAgo = new Date(now)
       monthAgo.setMonth(monthAgo.getMonth() - 1)
       return monthAgo
     case 'all':
       return new Date(0) // 从1970年开始
     default:
-      const defaultDate = new Date(localNow)
+      const defaultDate = new Date(now)
       defaultDate.setHours(0, 0, 0, 0)
       return defaultDate
   }
