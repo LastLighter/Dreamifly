@@ -253,9 +253,9 @@ export default function AdminPage() {
       <AdminSidebar />
 
       {/* 主内容区域 */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 pt-16 lg:pt-0">
         {/* 顶部导航栏 */}
-        <header className="bg-gradient-to-r from-white to-gray-50 border-b border-orange-200/50 shadow-sm sticky top-0 z-30">
+        <header className="bg-gradient-to-r from-white to-gray-50 border-b border-orange-200/50 shadow-sm sticky top-0 z-30 lg:static">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">

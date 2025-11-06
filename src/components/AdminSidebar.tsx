@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { useSession } from '@/lib/auth-client'
 import { useAvatar } from '@/contexts/AvatarContext'
 import { ExtendedUser } from '@/types/auth'
+import { useState } from 'react'
 
 export default function AdminSidebar() {
   const params = useParams()
@@ -14,6 +15,7 @@ export default function AdminSidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const { avatar: globalAvatar } = useAvatar()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   const isActive = (path: string) => {
     const fullPath = transferUrl(path, locale)
@@ -24,11 +26,67 @@ export default function AdminSidebar() {
     return pathname === fullPath || pathname?.startsWith(fullPath + '/')
   }
 
+  // 处理点击遮罩层关闭菜单
+  const handleOverlayClick = () => {
+    setIsMobileMenuOpen(false)
+  }
+
+  // 处理点击菜单按钮
+  const handleMenuClick = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen)
+  }
+
+  // 处理点击导航项（移动端点击后关闭菜单）
+  const handleNavClick = () => {
+    setIsMobileMenuOpen(false)
+  }
+
   return (
-    <div className="fixed left-0 top-0 bottom-0 w-64 bg-gray-100/80 backdrop-blur-md border-r border-orange-400/20 z-40" data-admin-sidebar="true">
+    <>
+      {/* 移动端顶部导航栏 */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-gray-100/80 backdrop-blur-md border-b border-orange-400/20 z-40 flex items-center px-4">
+        <button
+          onClick={handleMenuClick}
+          className="p-2 text-gray-700 hover:text-gray-900 transition-colors"
+          aria-label="Toggle menu"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <div className="flex items-center ml-4">
+          <Image
+            src="/images/dreamifly-logo.jpg"
+            alt="Dreamifly Logo"
+            width={32}
+            height={32}
+            className="rounded-xl shadow-lg border border-orange-400/30"
+          />
+          <span className="ml-2 text-lg font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
+            后台管理
+          </span>
+        </div>
+      </div>
+
+      {/* 遮罩层 */}
+      {isMobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-gray-100/50 backdrop-blur-sm z-40 transition-opacity duration-300"
+          onClick={handleOverlayClick}
+        />
+      )}
+
+      {/* 侧边栏 */}
+      <div 
+        className={`fixed left-0 top-0 bottom-0 w-64 bg-gray-100/80 backdrop-blur-md border-r border-orange-400/20 z-50 transition-transform duration-300
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isMobileMenuOpen ? 'shadow-2xl' : ''}
+        `}
+        data-admin-sidebar="true"
+      >
       <div className="flex flex-col h-full py-8">
-        {/* Logo 部分 */}
-        <div className="flex flex-col items-center mb-12 px-4">
+        {/* Logo 部分 - 在移动端隐藏，因为已经在顶部栏显示 */}
+        <div className="hidden lg:flex flex-col items-center mb-12 px-4">
           <Link 
             href={transferUrl('/', locale)} 
             className="relative transform transition-all duration-300 hover:scale-110 mb-3"
@@ -48,9 +106,10 @@ export default function AdminSidebar() {
         </div>
 
         {/* 导航菜单 */}
-        <div className="flex-1 flex flex-col items-center space-y-4 w-full px-4">
+        <div className="flex-1 flex flex-col items-center space-y-4 w-full px-4 pt-8 lg:pt-0">
           <Link
             href={transferUrl('/admin', locale)}
+            onClick={handleNavClick}
             className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 ${
               isActive('/admin') && !isActive('/admin/analytics')
                 ? 'bg-gradient-to-r from-orange-400/20 to-amber-400/20 border border-orange-400/40'
@@ -73,6 +132,7 @@ export default function AdminSidebar() {
 
           <Link
             href={transferUrl('/admin/analytics', locale)}
+            onClick={handleNavClick}
             className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 ${
               isActive('/admin/analytics')
                 ? 'bg-gradient-to-r from-orange-400/20 to-amber-400/20 border border-orange-400/40'
@@ -95,6 +155,7 @@ export default function AdminSidebar() {
 
           <Link
             href={transferUrl('/admin/crawler-analysis', locale)}
+            onClick={handleNavClick}
             className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 ${
               isActive('/admin/crawler-analysis')
                 ? 'bg-gradient-to-r from-orange-400/20 to-amber-400/20 border border-orange-400/40'
@@ -143,6 +204,7 @@ export default function AdminSidebar() {
         </div>
       </div>
     </div>
+    </>
   )
 }
 
