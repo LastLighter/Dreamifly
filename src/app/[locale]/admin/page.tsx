@@ -51,7 +51,8 @@ export default function AdminPage() {
       if (!session?.user) return
       
       try {
-        const response = await fetch('/api/admin/users')
+        // 添加时间戳避免缓存
+        const response = await fetch(`/api/admin/users?t=${Date.now()}`)
         if (response.ok) {
           const data = await response.json()
           const currentUser = data.users?.find((u: User) => u.id === session.user.id)
@@ -145,6 +146,7 @@ export default function AdminPage() {
         page: currentPage.toString(),
         limit: '20',
         ...(searchTerm && { search: searchTerm }),
+        t: Date.now().toString(), // 添加时间戳避免缓存
       })
 
       const response = await fetch(`/api/admin/users?${params}`)
@@ -244,10 +246,12 @@ export default function AdminPage() {
     }
 
     try {
-      const response = await fetch('/api/admin/users', {
+      // 添加时间戳避免缓存
+      const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
         },
         body: JSON.stringify({
           userId,
