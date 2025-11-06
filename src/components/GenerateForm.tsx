@@ -826,6 +826,8 @@ export default function GenerateForm({
                     )}
                   </div>
 
+                  {/* 生成数量调节 - 仅登录用户可见 */}
+                  {status === 'authenticated' && (
                   <div>
                     <label htmlFor="batch_size" className="flex items-center text-sm font-medium text-gray-900 mb-3">
                       <img src="/form/generation-number.svg" alt="Batch Size" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
@@ -871,6 +873,7 @@ export default function GenerateForm({
                       <p className="mt-1 text-sm text-red-400">{batchSizeError}</p>
                     )}
                   </div>
+                  )}
                 </div>
 
                 {/* Denoising strength input removed as requested */}

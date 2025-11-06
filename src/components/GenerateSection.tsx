@@ -59,6 +59,13 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
   // 用户认证状态
   const authStatus = isPending ? 'loading' : (session?.user ? 'authenticated' : 'unauthenticated') as 'loading' | 'authenticated' | 'unauthenticated';
 
+  // 当用户未登录时，强制将生成数量设置为1
+  useEffect(() => {
+    if (authStatus === 'unauthenticated' && batch_size > 1) {
+      setBatchSize(1);
+    }
+  }, [authStatus, batch_size]);
+
   // 处理画同款功能
   const handleGenerateSame = (promptText: string) => {
     setPrompt(promptText);
