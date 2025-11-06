@@ -112,25 +112,25 @@ export async function POST(request: Request) {
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const lastResetDay = lastResetDate ? new Date(lastResetDate.getFullYear(), lastResetDate.getMonth(), lastResetDate.getDate()) : null;
 
+        // 先检查并重置（如果需要）- 所有用户都需要统计
+        let currentCount = userData.dailyRequestCount || 0;
+        
+        // 如果上次重置日期不是今天，重置计数
+        if (!lastResetDay || lastResetDay.getTime() !== today.getTime()) {
+          currentCount = 0;
+          // 先重置计数
+          await db
+            .update(user)
+            .set({
+              dailyRequestCount: 0,
+              lastRequestResetDate: now,
+              updatedAt: now,
+            })
+            .where(eq(user.id, userId));
+        }
+
         // 管理员不限次，其他用户检查次数限制
         if (!isAdmin) {
-          // 先检查并重置（如果需要）
-          let currentCount = userData.dailyRequestCount || 0;
-          
-          // 如果上次重置日期不是今天，重置计数
-          if (!lastResetDay || lastResetDay.getTime() !== today.getTime()) {
-            currentCount = 0;
-            // 先重置计数
-            await db
-              .update(user)
-              .set({
-                dailyRequestCount: 0,
-                lastRequestResetDate: now,
-                updatedAt: now,
-              })
-              .where(eq(user.id, userId));
-          }
-
           // 获取用户限额配置（优先使用数据库配置，否则使用环境变量）
           let maxDailyRequests: number;
           try {
@@ -171,29 +171,18 @@ export async function POST(request: Request) {
               maxDailyRequests
             }, { status: 429 });
           }
-
-          // 使用原子操作增加计数（每次请求+1，不管batch_size）
-          // 这样可以确保并发请求时也能正确计数
-          await db
-            .update(user)
-            .set({
-              dailyRequestCount: sql`${user.dailyRequestCount} + 1`,
-              lastRequestResetDate: (!lastResetDay || lastResetDay.getTime() !== today.getTime()) ? now : sql`${user.lastRequestResetDate}`,
-              updatedAt: now,
-            })
-            .where(eq(user.id, userId));
-        } else {
-          // 管理员不计数，但更新重置日期（如果需要）
-          if (!lastResetDay || lastResetDay.getTime() !== today.getTime()) {
-            await db
-              .update(user)
-              .set({
-                lastRequestResetDate: now,
-                updatedAt: now,
-              })
-              .where(eq(user.id, userId));
-          }
         }
+
+        // 使用原子操作增加计数（每次请求+1，不管batch_size）
+        // 这样可以确保并发请求时也能正确计数（包括管理员）
+        await db
+          .update(user)
+          .set({
+            dailyRequestCount: sql`${user.dailyRequestCount} + 1`,
+            lastRequestResetDate: (!lastResetDay || lastResetDay.getTime() !== today.getTime()) ? now : sql`${user.lastRequestResetDate}`,
+            updatedAt: now,
+          })
+          .where(eq(user.id, userId));
       }
       
       // 开始跟踪这个生成请求

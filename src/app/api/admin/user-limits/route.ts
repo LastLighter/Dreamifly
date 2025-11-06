@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { headers } from 'next/headers';
 
 // 获取用户限额配置
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // 验证管理员权限
     const session = await auth.api.getSession({
@@ -126,7 +126,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // 检查配置是否存在
-    let config = await db.select()
+    const config = await db.select()
       .from(userLimitConfig)
       .where(eq(userLimitConfig.id, 1))
       .limit(1);

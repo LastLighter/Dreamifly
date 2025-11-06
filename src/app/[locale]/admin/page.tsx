@@ -91,7 +91,6 @@ export default function AdminPage() {
     envRegularLimit: 200,
     envPremiumLimit: 500,
   })
-  const [limitConfigLoading, setLimitConfigLoading] = useState(true)
   const [showLimitSettings, setShowLimitSettings] = useState(false)
   const [limitInputs, setLimitInputs] = useState({
     regular: '',
@@ -276,7 +275,6 @@ export default function AdminPage() {
   // 获取用户限额配置
   const fetchLimitConfig = async () => {
     try {
-      setLimitConfigLoading(true)
       const response = await fetch('/api/admin/user-limits')
       if (response.ok) {
         const data = await response.json()
@@ -290,8 +288,6 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Failed to fetch limit config:', error)
-    } finally {
-      setLimitConfigLoading(false)
     }
   }
 
