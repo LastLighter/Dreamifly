@@ -100,6 +100,21 @@ export default function AdminPage() {
     useEnvPremium: false,
   })
 
+  // 对话框状态
+  const [dialogState, setDialogState] = useState<{
+    show: boolean
+    type: 'confirm' | 'success' | 'error' | 'info'
+    title: string
+    message: string
+    onConfirm?: () => void
+    onCancel?: () => void
+  }>({
+    show: false,
+    type: 'info',
+    title: '',
+    message: '',
+  })
+
   // 隐藏父级 layout 的 Navbar 和 Footer
   useEffect(() => {
     // 隐藏 Navbar 和 Footer
@@ -280,6 +295,50 @@ export default function AdminPage() {
     }
   }
 
+  // 显示对话框的辅助函数
+  const showDialog = (
+    type: 'confirm' | 'success' | 'error' | 'info',
+    title: string,
+    message: string,
+    onConfirm?: () => void,
+    onCancel?: () => void
+  ) => {
+    setDialogState({
+      show: true,
+      type,
+      title,
+      message,
+      onConfirm,
+      onCancel,
+    })
+  }
+
+  // 关闭对话框
+  const closeDialog = () => {
+    setDialogState({
+      show: false,
+      type: 'info',
+      title: '',
+      message: '',
+    })
+  }
+
+  // 确认对话框
+  const handleDialogConfirm = () => {
+    if (dialogState.onConfirm) {
+      dialogState.onConfirm()
+    }
+    closeDialog()
+  }
+
+  // 取消对话框
+  const handleDialogCancel = () => {
+    if (dialogState.onCancel) {
+      dialogState.onCancel()
+    }
+    closeDialog()
+  }
+
   // 更新用户限额配置
   const handleUpdateLimitConfig = async () => {
     try {
@@ -290,7 +349,7 @@ export default function AdminPage() {
       } else {
         const regularValue = parseInt(limitInputs.regular, 10)
         if (isNaN(regularValue) || regularValue < 0) {
-          alert('普通用户限额必须是大于等于0的数字')
+          showDialog('error', '验证失败', '普通用户限额必须是大于等于0的数字')
           return
         }
         body.regularUserDailyLimit = regularValue
@@ -301,7 +360,7 @@ export default function AdminPage() {
       } else {
         const premiumValue = parseInt(limitInputs.premium, 10)
         if (isNaN(premiumValue) || premiumValue < 0) {
-          alert('优质用户限额必须是大于等于0的数字')
+          showDialog('error', '验证失败', '优质用户限额必须是大于等于0的数字')
           return
         }
         body.premiumUserDailyLimit = premiumValue
@@ -323,44 +382,61 @@ export default function AdminPage() {
       // 刷新配置
       await fetchLimitConfig()
       setShowLimitSettings(false)
-      alert('限额配置已更新')
+      showDialog('success', '操作成功', '限额配置已更新')
     } catch (error) {
       console.error('Failed to update limit config:', error)
-      alert(error instanceof Error ? error.message : '更新限额配置失败')
+      showDialog('error', '操作失败', error instanceof Error ? error.message : '更新限额配置失败')
     }
   }
 
   // 切换用户角色（普通/优质）
-  const handleTogglePremium = async (userId: string, isPremium: boolean) => {
-    if (!confirm(`确定要将用户${isPremium ? '设为优质用户' : '设为普通用户'}吗？`)) {
-      return
+  const handleTogglePremium = (user: User, isPremium: boolean) => {
+    // 构建用户信息显示文本
+    const userInfoParts: string[] = []
+    if (user.name) userInfoParts.push(`"${user.name}"`)
+    if (user.nickname) userInfoParts.push(`"${user.nickname}"`)
+    if (user.uid) userInfoParts.push(`ID: ${user.uid}`)
+    if (userInfoParts.length === 0) {
+      userInfoParts.push(`邮箱: ${user.email}`)
     }
+    const userInfo = userInfoParts.join(' ')
+    
+    const actionText = isPremium ? '设为优质用户' : '设为普通用户'
+    const message = `确定要将用户 ${userInfo} ${actionText}吗？`
+    
+    showDialog(
+      'confirm',
+      '确认操作',
+      message,
+      async () => {
+        try {
+          // 添加时间戳避免缓存
+          const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache',
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              isPremium,
+            }),
+          })
 
-    try {
-      // 添加时间戳避免缓存
-      const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-        },
-        body: JSON.stringify({
-          userId,
-          isPremium,
-        }),
-      })
+          if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.error || '更新失败')
+          }
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || '更新失败')
+          // 刷新用户列表
+          fetchUsers()
+          showDialog('success', '操作成功', `用户 ${userInfo} 的角色已更新`)
+        } catch (error) {
+          console.error('Failed to update user role:', error)
+          showDialog('error', '操作失败', error instanceof Error ? error.message : '更新用户角色失败')
+        }
       }
-
-      // 刷新用户列表
-      fetchUsers()
-    } catch (error) {
-      console.error('Failed to update user role:', error)
-      alert(error instanceof Error ? error.message : '更新用户角色失败')
-    }
+    )
   }
 
   // 加载中或权限检查
@@ -740,7 +816,7 @@ export default function AdminPage() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             {!user.isAdmin && (
                               <button
-                                onClick={() => handleTogglePremium(user.id, !user.isPremium)}
+                                onClick={() => handleTogglePremium(user, !user.isPremium)}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                                   user.isPremium
                                     ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -791,6 +867,84 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {/* 自定义对话框 */}
+      {dialogState.show && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          style={{ animation: 'fadeInUp 0.2s ease-out forwards' }}
+          onClick={dialogState.type === 'confirm' ? () => {} : closeDialog}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            style={{ animation: 'scaleIn 0.15s ease-out forwards' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 图标 */}
+            <div className={`flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full ${
+              dialogState.type === 'success' ? 'bg-green-100' :
+              dialogState.type === 'error' ? 'bg-red-100' :
+              dialogState.type === 'confirm' ? 'bg-blue-100' :
+              'bg-gray-100'
+            }`}>
+              {dialogState.type === 'success' ? (
+                <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : dialogState.type === 'error' ? (
+                <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : dialogState.type === 'confirm' ? (
+                <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ) : (
+                <svg className="w-10 h-10 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+            </div>
+            
+            {/* 标题 */}
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              {dialogState.title}
+            </h3>
+            
+            {/* 消息 */}
+            <p className="text-gray-600 text-center mb-6">
+              {dialogState.message}
+            </p>
+            
+            {/* 按钮 */}
+            <div className="flex gap-3">
+              {dialogState.type === 'confirm' ? (
+                <>
+                  <button
+                    onClick={handleDialogCancel}
+                    className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-all duration-200"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleDialogConfirm}
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    确认
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={closeDialog}
+                  className="w-full px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  我知道了
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
