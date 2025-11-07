@@ -106,25 +106,53 @@ export async function POST(request: Request) {
         const isAdmin = userData.isAdmin || false;
         const isPremium = userData.isPremium || false;
 
-        // 检查是否需要重置每日计数（如果上次重置日期不是今天）
+        // 检查是否需要重置每日计数（使用东八区时区判断）
+        // 辅助函数：获取指定日期在东八区的年月日
+        const getShanghaiDate = (date: Date) => {
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Shanghai',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).formatToParts(date);
+          
+          return {
+            year: parseInt(parts.find(p => p.type === 'year')!.value),
+            month: parseInt(parts.find(p => p.type === 'month')!.value) - 1,
+            day: parseInt(parts.find(p => p.type === 'day')!.value)
+          };
+        };
+
         const now = new Date();
+        const todayShanghai = getShanghaiDate(now);
+        // 创建东八区今天的UTC日期对象（用于比较）
+        const todayShanghaiDate = new Date(Date.UTC(
+          todayShanghai.year,
+          todayShanghai.month,
+          todayShanghai.day
+        ));
+
         const lastResetDate = userData.lastRequestResetDate ? new Date(userData.lastRequestResetDate) : null;
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const lastResetDay = lastResetDate ? new Date(lastResetDate.getFullYear(), lastResetDate.getMonth(), lastResetDate.getDate()) : null;
+        const lastResetDayShanghai = lastResetDate ? getShanghaiDate(lastResetDate) : null;
+        const lastResetDayShanghaiDate = lastResetDayShanghai ? new Date(Date.UTC(
+          lastResetDayShanghai.year,
+          lastResetDayShanghai.month,
+          lastResetDayShanghai.day
+        )) : null;
 
         // 先检查并重置（如果需要）- 所有用户都需要统计
         let currentCount = userData.dailyRequestCount || 0;
         
-        // 如果上次重置日期不是今天，重置计数
-        if (!lastResetDay || lastResetDay.getTime() !== today.getTime()) {
+        // 如果上次重置日期不是今天（东八区），重置计数
+        if (!lastResetDayShanghaiDate || lastResetDayShanghaiDate.getTime() !== todayShanghaiDate.getTime()) {
           currentCount = 0;
-          // 先重置计数
+          // 先重置计数，使用东八区时间（转换为UTC存储）
           await db
             .update(user)
             .set({
               dailyRequestCount: 0,
-              lastRequestResetDate: now,
-              updatedAt: now,
+              lastRequestResetDate: sql`(now() at time zone 'Asia/Shanghai')`,
+              updatedAt: sql`(now() at time zone 'Asia/Shanghai')`,
             })
             .where(eq(user.id, userId));
         }
@@ -179,8 +207,8 @@ export async function POST(request: Request) {
           .update(user)
           .set({
             dailyRequestCount: sql`${user.dailyRequestCount} + 1`,
-            lastRequestResetDate: (!lastResetDay || lastResetDay.getTime() !== today.getTime()) ? now : sql`${user.lastRequestResetDate}`,
-            updatedAt: now,
+            lastRequestResetDate: (!lastResetDayShanghaiDate || lastResetDayShanghaiDate.getTime() !== todayShanghaiDate.getTime()) ? sql`(now() at time zone 'Asia/Shanghai')` : sql`${user.lastRequestResetDate}`,
+            updatedAt: sql`(now() at time zone 'Asia/Shanghai')`,
           })
           .where(eq(user.id, userId));
       }
