@@ -116,7 +116,9 @@ export default function ProfilePage() {
           body: formData,
         })
         if (!uploadResponse.ok) {
-          throw new Error('Upload failed')
+          const errorData = await uploadResponse.json().catch(() => ({}))
+          const errorMessage = errorData.error || 'Upload failed'
+          throw new Error(errorMessage)
         }
         const uploadData = await uploadResponse.json()
         avatarUrlToSave = uploadData.url
@@ -152,7 +154,9 @@ export default function ProfilePage() {
       }, 1000)
     } catch (err) {
       console.error('Update error:', err)
-      setError(t('error.updateFailed'))
+      // 显示具体错误消息，如果是审核失败等，会显示服务器返回的具体消息
+      const errorMessage = err instanceof Error ? err.message : t('error.updateFailed')
+      setError(errorMessage)
     } finally {
       setSaving(false)
       setUploading(false)
