@@ -88,4 +88,13 @@ export const userLimitConfig = pgTable("user_limit_config", {
   premiumUserDailyLimit: integer("premium_user_daily_limit"), // 优质用户每日限额，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// IP并发记录表
+export const ipConcurrency = pgTable("ip_concurrency", {
+  ipAddress: text("ip_address").primaryKey(), // IP地址作为主键
+  currentConcurrency: integer("current_concurrency").default(0).notNull(), // 当前并发量
+  maxConcurrency: integer("max_concurrency"), // 最大并发量，null表示不限（管理员）
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 最后更新时间
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
 }); 

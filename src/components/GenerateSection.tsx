@@ -189,6 +189,9 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
     setImageStatuses(Array(batch_size).fill({ status: 'pending', message: t('preview.generating') }))
     const images: string[] = Array(batch_size).fill('')
 
+    // 判断是否需要间隔发送请求（登录用户且batch_size > 1）
+    const shouldStaggerRequests = authStatus === 'authenticated' && batch_size > 1;
+    
     const requests = Array(batch_size).fill(null).map((_, index) => {
       const startTime = Date.now();
       let retryCount = 0;
@@ -196,6 +199,11 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
 
       const makeRequest = async () => {
         try {
+          // 如果是登录用户且需要间隔发送，第一个请求后等待0秒
+          if (shouldStaggerRequests && index > 0) {
+            await new Promise(resolve => setTimeout(resolve, 0 * index));
+          }
+          
           // 获取动态token（使用服务器时间）
           const token = await generateDynamicTokenWithServerTime()
           

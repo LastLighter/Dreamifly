@@ -6,6 +6,7 @@ import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { concurrencyManager } from '@/utils/concurrencyManager'
+import { ipConcurrencyManager } from '@/utils/ipConcurrencyManager'
 import { randomUUID, createHash } from 'crypto'
 
 /**
@@ -52,8 +53,34 @@ function validateDynamicToken(providedToken: string): boolean {
   return false
 }
 
+// 获取客户端IP地址
+function getClientIP(request: Request): string | null {
+  const forwarded = request.headers.get('x-forwarded-for')
+  const realIP = request.headers.get('x-real-ip')
+  const cfConnectingIP = request.headers.get('cf-connecting-ip') // Cloudflare
+  
+  let ip: string | null = null
+  
+  if (forwarded) {
+    // x-forwarded-for 可能包含多个IP，取第一个
+    ip = forwarded.split(',')[0].trim()
+  } else if (realIP) {
+    ip = realIP.trim()
+  } else if (cfConnectingIP) {
+    ip = cfConnectingIP.trim()
+  }
+  
+  // 处理本地回环地址：将 IPv6 的 ::1 转换为 IPv4 的 127.0.0.1，便于统一显示
+  if (ip === '::1' || ip === '::ffff:127.0.0.1') {
+    ip = '127.0.0.1'
+  }
+  
+  return ip
+}
+
 export async function POST(request: Request) {
   let generationId: string | null = null;
+  const clientIP = getClientIP(request)
   
   try {
     // 记录总开始时间（包含排队延迟）
@@ -78,23 +105,48 @@ export async function POST(request: Request) {
       headers: await headers()
     })
     
-    // 如果用户已登录，检查并发限制和每日请求次数
+    // 获取用户信息（用于IP并发控制）
+    let isAdmin = false
+    let isPremium = false
+    let currentUserId: string | null = null
+    
+    if (session?.user) {
+      currentUserId = session.user.id
+      const currentUser = await db.select()
+        .from(user)
+        .where(eq(user.id, currentUserId))
+        .limit(1)
+      
+      if (currentUser.length > 0) {
+        isAdmin = currentUser[0].isAdmin || false
+        isPremium = currentUser[0].isPremium || false
+      }
+    }
+    
+    // 检查IP并发限制（在所有其他检查之前）
+    if (clientIP) {
+      const ipConcurrencyCheck = await ipConcurrencyManager.canStart(
+        clientIP,
+        currentUserId,
+        isAdmin,
+        isPremium
+      )
+      
+      if (!ipConcurrencyCheck.canStart) {
+        return NextResponse.json({
+          error: `当前有 ${ipConcurrencyCheck.currentConcurrency} 个生图任务正在执行，请等待其他任务执行完成后再试。`,
+          code: 'IP_CONCURRENCY_LIMIT_EXCEEDED',
+          currentConcurrency: ipConcurrencyCheck.currentConcurrency,
+          maxConcurrency: ipConcurrencyCheck.maxConcurrency
+        }, { status: 429 })
+      }
+    }
+    
+    // 如果用户已登录，检查用户并发限制和每日请求次数
     if (session?.user) {
       const userId = session.user.id;
-      const maxConcurrent = parseInt(process.env.MAX_CONCURRENT_GENERATIONS || '2', 10);
       
-      // 检查是否超过并发限制
-      if (!concurrencyManager.canStart(userId, maxConcurrent)) {
-        const currentCount = concurrencyManager.getCurrentCount(userId);
-        return NextResponse.json({ 
-          error: `您当前有 ${currentCount} 个生图任务正在进行，最多允许 ${maxConcurrent} 个任务同时进行。请等待其中一个完成后再试。`,
-          code: 'CONCURRENCY_LIMIT_EXCEEDED',
-          currentCount,
-          maxConcurrent
-        }, { status: 429 }) // 429 Too Many Requests
-      }
-
-      // 获取用户信息，检查每日请求次数限制
+      // 先获取用户信息，检查是否是管理员
       // 使用数据库原子操作来确保并发安全
       const currentUser = await db.select()
         .from(user)
@@ -103,8 +155,25 @@ export async function POST(request: Request) {
 
       if (currentUser.length > 0) {
         const userData = currentUser[0];
-        const isAdmin = userData.isAdmin || false;
-        const isPremium = userData.isPremium || false;
+        // 更新isAdmin和isPremium（如果之前没有获取到）
+        if (!isAdmin) isAdmin = userData.isAdmin || false;
+        if (!isPremium) isPremium = userData.isPremium || false;
+        
+        // 管理员不受用户并发限制
+        if (!isAdmin) {
+          const maxConcurrent = parseInt(process.env.MAX_CONCURRENT_GENERATIONS || '2', 10);
+          
+          // 检查是否超过用户并发限制
+          if (!concurrencyManager.canStart(userId, maxConcurrent)) {
+            const currentCount = concurrencyManager.getCurrentCount(userId);
+            return NextResponse.json({ 
+              error: `您当前有 ${currentCount} 个生图任务正在进行，最多允许 ${maxConcurrent} 个任务同时进行。请等待其中一个完成后再试。`,
+              code: 'CONCURRENCY_LIMIT_EXCEEDED',
+              currentCount,
+              maxConcurrent
+            }, { status: 429 }) // 429 Too Many Requests
+          }
+        }
 
         // 检查是否需要重置每日计数（使用东八区时区判断）
         // 辅助函数：获取指定日期在东八区的年月日
@@ -213,11 +282,16 @@ export async function POST(request: Request) {
           .where(eq(user.id, userId));
       }
       
-      // 开始跟踪这个生成请求
+      // 开始跟踪这个生成请求（用户并发）
       generationId = concurrencyManager.start(userId);
-    } else {
-      // 如果用户未登录，添加延迟（未登录用户不受并发限制）
-      // 这个延迟时间会被计入总响应时间
+    }
+    
+    // 注意：IP并发计数已经在 canStart 中原子性地增加了
+    // 这里不需要再次调用 start，因为计数已经在检查时完成
+    
+    // 如果用户未登录，添加延迟（未登录用户不受用户并发限制）
+    // 延迟期间已经占用了IP并发槽位，所以排队时间也算在并发时间内
+    if (!session?.user) {
       const unauthDelay = parseInt(process.env.UNAUTHENTICATED_USER_DELAY || '20', 10)
       await new Promise(resolve => setTimeout(resolve, unauthDelay * 1000))
     }
@@ -248,33 +322,6 @@ export async function POST(request: Request) {
 
     // 计算总响应时间（秒），包含排队延迟
     const responseTime = (Date.now() - totalStartTime) / 1000
-
-    // 获取客户端IP地址
-    const getClientIP = (request: Request): string | null => {
-      const forwarded = request.headers.get('x-forwarded-for')
-      const realIP = request.headers.get('x-real-ip')
-      const cfConnectingIP = request.headers.get('cf-connecting-ip') // Cloudflare
-      
-      let ip: string | null = null
-      
-      if (forwarded) {
-        // x-forwarded-for 可能包含多个IP，取第一个
-        ip = forwarded.split(',')[0].trim()
-      } else if (realIP) {
-        ip = realIP.trim()
-      } else if (cfConnectingIP) {
-        ip = cfConnectingIP.trim()
-      }
-      
-      // 处理本地回环地址：将 IPv6 的 ::1 转换为 IPv4 的 127.0.0.1，便于统一显示
-      if (ip === '::1' || ip === '::ffff:127.0.0.1') {
-        ip = '127.0.0.1'
-      }
-      
-      return ip
-    }
-
-    const clientIP = getClientIP(request)
 
     // 更新统计数据
     await db.update(siteStats)
@@ -309,6 +356,11 @@ export async function POST(request: Request) {
     if (generationId) {
       concurrencyManager.end(generationId);
     }
+    
+    // 清理IP并发跟踪
+    if (clientIP) {
+      await ipConcurrencyManager.end(clientIP)
+    }
 
     return NextResponse.json({ imageUrl })
   } catch (error) {
@@ -317,6 +369,13 @@ export async function POST(request: Request) {
     // 发生错误，清理并发跟踪
     if (generationId) {
       concurrencyManager.end(generationId);
+    }
+    
+    // 清理IP并发跟踪
+    if (clientIP) {
+      await ipConcurrencyManager.end(clientIP).catch(err => {
+        console.error('Error decrementing IP concurrency:', err)
+      })
     }
     
     return NextResponse.json(

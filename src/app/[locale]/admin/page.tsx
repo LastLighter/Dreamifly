@@ -82,7 +82,7 @@ export default function AdminPage() {
     totalPages: 1,
   })
 
-  // 用户限额配置状态
+  // 用户限额配置状态（仅用于显示）
   const [limitConfig, setLimitConfig] = useState({
     regularUserDailyLimit: 200,
     premiumUserDailyLimit: 500,
@@ -90,13 +90,6 @@ export default function AdminPage() {
     usingEnvPremium: false,
     envRegularLimit: 200,
     envPremiumLimit: 500,
-  })
-  const [showLimitSettings, setShowLimitSettings] = useState(false)
-  const [limitInputs, setLimitInputs] = useState({
-    regular: '',
-    premium: '',
-    useEnvRegular: false,
-    useEnvPremium: false,
   })
 
   // 对话框状态
@@ -319,19 +312,13 @@ export default function AdminPage() {
     return formatInShanghai(new Date(dateStr))
   }
 
-  // 获取用户限额配置
+  // 获取用户限额配置（仅用于显示）
   const fetchLimitConfig = async () => {
     try {
       const response = await fetch('/api/admin/user-limits')
       if (response.ok) {
         const data = await response.json()
         setLimitConfig(data)
-        setLimitInputs({
-          regular: data.usingEnvRegular ? '' : data.regularUserDailyLimit.toString(),
-          premium: data.usingEnvPremium ? '' : data.premiumUserDailyLimit.toString(),
-          useEnvRegular: data.usingEnvRegular,
-          useEnvPremium: data.usingEnvPremium,
-        })
       }
     } catch (error) {
       console.error('Failed to fetch limit config:', error)
@@ -382,55 +369,6 @@ export default function AdminPage() {
     closeDialog()
   }
 
-  // 更新用户限额配置
-  const handleUpdateLimitConfig = async () => {
-    try {
-      const body: any = {}
-      
-      if (limitInputs.useEnvRegular) {
-        body.useEnvForRegular = true
-      } else {
-        const regularValue = parseInt(limitInputs.regular, 10)
-        if (isNaN(regularValue) || regularValue < 0) {
-          showDialog('error', '验证失败', '普通用户限额必须是大于等于0的数字')
-          return
-        }
-        body.regularUserDailyLimit = regularValue
-      }
-
-      if (limitInputs.useEnvPremium) {
-        body.useEnvForPremium = true
-      } else {
-        const premiumValue = parseInt(limitInputs.premium, 10)
-        if (isNaN(premiumValue) || premiumValue < 0) {
-          showDialog('error', '验证失败', '优质用户限额必须是大于等于0的数字')
-      return
-    }
-        body.premiumUserDailyLimit = premiumValue
-      }
-
-      const response = await fetch('/api/admin/user-limits', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || '更新失败')
-      }
-
-      // 刷新配置
-      await fetchLimitConfig()
-      setShowLimitSettings(false)
-      showDialog('success', '操作成功', '限额配置已更新')
-    } catch (error) {
-      console.error('Failed to update limit config:', error)
-      showDialog('error', '操作失败', error instanceof Error ? error.message : '更新限额配置失败')
-    }
-  }
 
   // 切换用户角色（普通/优质）
   const handleTogglePremium = (user: User, isPremium: boolean) => {
@@ -555,127 +493,13 @@ export default function AdminPage() {
         <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)]">
           <div className="flex-shrink-0 p-4 lg:p-8 pb-2">
             <div className="max-w-7xl mx-auto">
-              {/* 限额设置卡片 */}
-              {showLimitSettings && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">用户限额设置</h3>
-                    <button
-                      onClick={() => setShowLimitSettings(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {/* 普通用户限额 */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        普通用户每日限额
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={limitInputs.useEnvRegular}
-                            onChange={(e) => {
-                              setLimitInputs({
-                                ...limitInputs,
-                                useEnvRegular: e.target.checked,
-                                regular: e.target.checked ? '' : limitConfig.regularUserDailyLimit.toString(),
-                              })
-                            }}
-                            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                          />
-                          <span className="text-sm text-gray-600">使用环境变量 ({limitConfig.envRegularLimit})</span>
-                        </label>
-                        {!limitInputs.useEnvRegular && (
-                          <input
-                            type="number"
-                            value={limitInputs.regular}
-                            onChange={(e) => setLimitInputs({ ...limitInputs, regular: e.target.value })}
-                            placeholder="输入限额"
-                            min="0"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 优质用户限额 */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        优质用户每日限额
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={limitInputs.useEnvPremium}
-                            onChange={(e) => {
-                              setLimitInputs({
-                                ...limitInputs,
-                                useEnvPremium: e.target.checked,
-                                premium: e.target.checked ? '' : limitConfig.premiumUserDailyLimit.toString(),
-                              })
-                            }}
-                            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                          />
-                          <span className="text-sm text-gray-600">使用环境变量 ({limitConfig.envPremiumLimit})</span>
-                        </label>
-                        {!limitInputs.useEnvPremium && (
-                          <input
-                            type="number"
-                            value={limitInputs.premium}
-                            onChange={(e) => setLimitInputs({ ...limitInputs, premium: e.target.value })}
-                            placeholder="输入限额"
-                            min="0"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 操作按钮 */}
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={handleUpdateLimitConfig}
-                        className="px-4 py-2 bg-gradient-to-r from-orange-400 to-amber-400 text-white font-semibold rounded-lg hover:from-orange-500 hover:to-amber-500 transition-all"
-                      >
-                        保存设置
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowLimitSettings(false)
-                          fetchLimitConfig() // 重置输入
-                        }}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                      >
-                        取消
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* 搜索栏 - 固定位置 */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mb-2">
                 <div className="flex items-center gap-2 mb-2">
-                  <button
-                    onClick={() => setShowLimitSettings(!showLimitSettings)}
-                    className="px-3 py-1.5 text-sm font-medium text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
-                  >
-                    {showLimitSettings ? '隐藏限额设置' : '显示限额设置'}
-                  </button>
-                  {!showLimitSettings && (
-                    <div className="text-sm text-gray-600">
-                      当前限额: 普通用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
-                      优质用户 {limitConfig.usingEnvPremium ? `(环境变量: ${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit} 次
-                    </div>
-                  )}
+                  <div className="text-sm text-gray-600">
+                    当前限额: 普通用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
+                    优质用户 {limitConfig.usingEnvPremium ? `(环境变量: ${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit} 次
+                  </div>
                 </div>
                 <form onSubmit={handleSearch} className="flex gap-2">
                   <input
