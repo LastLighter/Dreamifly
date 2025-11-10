@@ -121,8 +121,8 @@ async function decrementConcurrency(ipAddress: string): Promise<void> {
 
 export const ipConcurrencyManager = {
   /**
-   * 原子操作：检查IP是否可以开始新的生成请求，如果可以则立即增加并发计数
-   * 使用数据库原子更新来避免竞态条件
+   * 检查IP是否可以开始新的生成请求（不增加计数）
+   * 注意：此方法只进行检查，不会增加并发计数
    * @param ipAddress IP地址
    * @param currentUserId 当前用户ID（如果已登录）
    * @param isAdmin 当前用户是否为管理员
@@ -148,25 +148,50 @@ export const ipConcurrencyManager = {
     // 更新最大并发量（确保始终是最新的）
     await updateMaxConcurrency(ipAddress, maxConcurrency)
 
-    // 如果最大并发量为null（管理员），直接增加计数并允许开始
+    // 获取当前并发信息
+    const ipRecord = await getOrCreateIPRecord(ipAddress)
+
+    // 如果最大并发量为null（管理员），直接允许开始
+    if (maxConcurrency === null) {
+      return { canStart: true, currentConcurrency: ipRecord.currentConcurrency, maxConcurrency: null }
+    }
+
+    // 检查是否还有空位（不增加计数）
+    return {
+      canStart: ipRecord.currentConcurrency < maxConcurrency,
+      currentConcurrency: ipRecord.currentConcurrency,
+      maxConcurrency,
+    }
+  },
+
+  /**
+   * 原子性地开始一个新的生成请求（增加并发计数）
+   * 只有在还有空位时才会增加计数，使用数据库原子更新来避免竞态条件
+   * @param ipAddress IP地址
+   * @param maxConcurrency 最大并发数（如果为null表示管理员，不限）
+   * @returns 是否成功增加计数
+   */
+  async start(ipAddress: string, maxConcurrency: number | null): Promise<boolean> {
+    if (!ipAddress) {
+      return false
+    }
+
+    // 如果最大并发为null（管理员），直接增加计数
     if (maxConcurrency === null) {
       await incrementConcurrency(ipAddress)
-      const ipRecord = await getOrCreateIPRecord(ipAddress)
-      return { canStart: true, currentConcurrency: ipRecord.currentConcurrency, maxConcurrency: null }
+      return true
     }
 
     // 使用原子更新：只有在 current_concurrency < max_concurrency 时才增加计数
     // 这样可以避免竞态条件
-    // 先获取当前值
     const beforeUpdate = await getOrCreateIPRecord(ipAddress)
     const expectedNewValue = beforeUpdate.currentConcurrency + 1
-    
+
     // 原子更新：只有在 current_concurrency < max_concurrency 时才增加
     await db
       .update(ipConcurrency)
       .set({
         currentConcurrency: sql`${ipConcurrency.currentConcurrency} + 1`,
-        maxConcurrency,
         updatedAt: new Date(),
       })
       .where(
@@ -178,35 +203,9 @@ export const ipConcurrencyManager = {
 
     // 重新查询以获取更新后的值
     const afterUpdate = await getOrCreateIPRecord(ipAddress)
-    
+
     // 如果 currentConcurrency 等于预期的新值，说明更新成功
-    if (afterUpdate.currentConcurrency === expectedNewValue) {
-      return {
-        canStart: true,
-        currentConcurrency: afterUpdate.currentConcurrency,
-        maxConcurrency,
-      }
-    }
-
-    // 更新失败，说明已经超过限制（可能被其他请求抢先更新了）
-    return {
-      canStart: false,
-      currentConcurrency: afterUpdate.currentConcurrency,
-      maxConcurrency,
-    }
-  },
-
-  /**
-   * 开始一个新的生成请求（增加并发计数）
-   * 注意：这个方法现在主要用于向后兼容，实际计数已经在 canStart 中完成
-   * @param ipAddress IP地址
-   */
-  async start(ipAddress: string): Promise<void> {
-    // 计数已经在 canStart 中原子性地增加了，这里不需要再做任何操作
-    // 保留这个方法是为了向后兼容，但实际上不会执行任何操作
-    if (!ipAddress) {
-      return
-    }
+    return afterUpdate.currentConcurrency === expectedNewValue
   },
 
   /**

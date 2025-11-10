@@ -123,7 +123,8 @@ export async function POST(request: Request) {
       }
     }
     
-    // 检查IP并发限制（在所有其他检查之前）
+    // 检查IP并发限制（在所有其他检查之前，但不增加计数）
+    let ipMaxConcurrency: number | null = null
     if (clientIP) {
       const ipConcurrencyCheck = await ipConcurrencyManager.canStart(
         clientIP,
@@ -140,6 +141,9 @@ export async function POST(request: Request) {
           maxConcurrency: ipConcurrencyCheck.maxConcurrency
         }, { status: 429 })
       }
+      
+      // 保存最大并发数，用于后续增加计数
+      ipMaxConcurrency = ipConcurrencyCheck.maxConcurrency
     }
     
     // 如果用户已登录，检查用户并发限制和每日请求次数
@@ -286,11 +290,7 @@ export async function POST(request: Request) {
       generationId = concurrencyManager.start(userId);
     }
     
-    // 注意：IP并发计数已经在 canStart 中原子性地增加了
-    // 这里不需要再次调用 start，因为计数已经在检查时完成
-    
     // 如果用户未登录，添加延迟（未登录用户不受用户并发限制）
-    // 延迟期间已经占用了IP并发槽位，所以排队时间也算在并发时间内
     if (!session?.user) {
       const unauthDelay = parseInt(process.env.UNAUTHENTICATED_USER_DELAY || '20', 10)
       await new Promise(resolve => setTimeout(resolve, unauthDelay * 1000))
@@ -305,6 +305,11 @@ export async function POST(request: Request) {
     }
     if (steps < 5 || steps > 32) {
       return NextResponse.json({ error: 'Invalid steps value' }, { status: 400 })
+    }
+
+    // 所有检查都通过后，原子性地增加IP并发计数
+    if (clientIP) {
+      await ipConcurrencyManager.start(clientIP, ipMaxConcurrency)
     }
 
     // 调用 ComfyUI API
