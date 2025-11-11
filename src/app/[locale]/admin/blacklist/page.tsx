@@ -127,11 +127,6 @@ export default function BlacklistPage() {
     }
   }, [ipCurrentPage, ipSearchTerm])
 
-  // 刷新列表的辅助函数
-  const refreshIPBlacklist = useCallback(() => {
-    fetchIPBlacklist(ipCurrentPage, ipSearchTerm)
-  }, [fetchIPBlacklist, ipCurrentPage, ipSearchTerm])
-
   // 当标签页切换到IP黑名单或搜索条件改变时，重新获取数据
   useEffect(() => {
     if (activeTab === 'ip' && isAdmin && !checkingAdmin) {

@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
 
     // 获取所有IP黑名单记录
-    let query = db.select().from(ipBlacklist).orderBy(desc(ipBlacklist.createdAt));
+    const query = db.select().from(ipBlacklist).orderBy(desc(ipBlacklist.createdAt));
 
     const allRecords = await query;
 
