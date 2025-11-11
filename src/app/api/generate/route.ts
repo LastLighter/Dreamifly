@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { generateImage } from '@/utils/comfyApi'
 import { db } from '@/db'
-import { siteStats, modelUsageStats, user, userLimitConfig } from '@/db/schema'
+import { siteStats, modelUsageStats, user, userLimitConfig, ipBlacklist } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
@@ -75,6 +75,11 @@ function getClientIP(request: Request): string | null {
     ip = '127.0.0.1'
   }
   
+  // 处理IPv4映射的IPv6格式（::ffff:192.168.1.1 -> 192.168.1.1）
+  if (ip && ip.startsWith('::ffff:')) {
+    ip = ip.substring(7) // 移除 '::ffff:' 前缀
+  }
+  
   return ip
 }
 
@@ -85,6 +90,21 @@ export async function POST(request: Request) {
   try {
     // 记录总开始时间（包含排队延迟）
     const totalStartTime = Date.now()
+    
+    // 首先检查IP黑名单（在所有其他检查之前）
+    if (clientIP) {
+      const blacklistedIP = await db.select()
+        .from(ipBlacklist)
+        .where(eq(ipBlacklist.ipAddress, clientIP))
+        .limit(1)
+      
+      if (blacklistedIP.length > 0) {
+        return NextResponse.json({ 
+          error: '您的IP地址已被加入黑名单，无法使用此服务',
+          code: 'IP_BLACKLISTED'
+        }, { status: 403 })
+      }
+    }
     
     // 验证认证头
     const authHeader = request.headers.get('Authorization')

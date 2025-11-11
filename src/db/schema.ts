@@ -97,4 +97,14 @@ export const ipConcurrency = pgTable("ip_concurrency", {
   maxConcurrency: integer("max_concurrency"), // 最大并发量，null表示不限（管理员）
   updatedAt: timestamp("updated_at").defaultNow().notNull(), // 最后更新时间
   createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+});
+
+// IP黑名单表
+export const ipBlacklist = pgTable("ip_blacklist", {
+  id: text("id").primaryKey(), // 使用UUID作为主键
+  ipAddress: text("ip_address").notNull().unique(), // IP地址，唯一
+  reason: text("reason"), // 拉黑原因
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+  createdBy: text("created_by"), // 创建者（管理员ID）
 }); 

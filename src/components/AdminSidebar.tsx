@@ -177,6 +177,29 @@ export default function AdminSidebar() {
           </Link>
 
           <Link
+            href={transferUrl('/admin/blacklist', locale)}
+            onClick={handleNavClick}
+            className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 ${
+              isActive('/admin/blacklist')
+                ? 'bg-gradient-to-r from-orange-400/20 to-amber-400/20 border border-orange-400/40'
+                : 'bg-gray-200/50 hover:bg-gray-300/50'
+            }`}
+          >
+            <svg className={`w-6 h-6 flex-shrink-0 ${
+              isActive('/admin/blacklist')
+                ? 'text-orange-600 group-hover:text-orange-700'
+                : 'text-gray-700 group-hover:text-gray-900'
+            }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <span className={`text-sm font-medium ${
+              isActive('/admin/blacklist')
+                ? 'text-orange-700 group-hover:text-orange-800'
+                : 'text-gray-900 group-hover:text-gray-800'
+            }`}>黑名单</span>
+          </Link>
+
+          <Link
             href={transferUrl('/admin/settings', locale)}
             onClick={handleNavClick}
             className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 ${
