@@ -104,6 +104,7 @@ export default function BlacklistPage() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '20',
+        _t: Date.now().toString(), // 添加时间戳防止缓存
       })
       if (currentSearch) {
         params.append('search', currentSearch)
@@ -182,7 +183,7 @@ export default function BlacklistPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/blacklist/ip?id=${id}`, {
+      const response = await fetch(`/api/admin/blacklist/ip?id=${id}&_t=${Date.now()}`, {
         method: 'DELETE',
       })
 
