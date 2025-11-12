@@ -105,6 +105,7 @@ export async function GET(request: Request) {
         callCount: sql<number>`count(*)::int`,
         authenticatedCount: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = true)::int`,
         unauthenticatedCount: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
+        userCount: sql<number>`count(distinct ${modelUsageStats.userId}) filter (where ${modelUsageStats.isAuthenticated} = true and ${modelUsageStats.userId} is not null)::int`,
       })
       .from(modelUsageStats)
       .where(
@@ -122,6 +123,7 @@ export async function GET(request: Request) {
       .select({
         ipAddress: modelUsageStats.ipAddress,
         callCount: sql<number>`count(*)::int`,
+        userCount: sql<number>`count(distinct ${modelUsageStats.userId}) filter (where ${modelUsageStats.userId} is not null)::int`,
       })
       .from(modelUsageStats)
       .where(
@@ -168,10 +170,12 @@ export async function GET(request: Request) {
           callCount: Number(item.callCount),
           authenticatedCount: Number(item.authenticatedCount),
           unauthenticatedCount: Number(item.unauthenticatedCount),
+          userCount: Number(item.userCount),
         })),
         authenticatedIPRanking: authenticatedIPRanking.map((item) => ({
           ipAddress: item.ipAddress,
           callCount: Number(item.callCount),
+          userCount: Number(item.userCount),
         })),
         unauthenticatedIPRanking: unauthenticatedIPRanking.map((item) => ({
           ipAddress: item.ipAddress,

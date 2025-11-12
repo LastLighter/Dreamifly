@@ -39,6 +39,7 @@ interface IPRanking {
   callCount: number
   authenticatedCount?: number
   unauthenticatedCount?: number
+  userCount?: number
 }
 
 interface CrawlerAnalysisData {
@@ -542,13 +543,14 @@ export default function CrawlerAnalysisPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">总调用次数</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登录用户调用</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">未登录用户调用</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登录用户数量</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {data.allIPRanking.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                                 暂无数据
                               </td>
                             </tr>
@@ -589,6 +591,11 @@ export default function CrawlerAnalysisPage() {
                                   {ip.unauthenticatedCount?.toLocaleString() || 0}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className="text-sm font-semibold text-blue-600">
+                                    {ip.userCount?.toLocaleString() || 0}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
                                   <button
                                     onClick={() => openDetailModal('ip', ip.ipAddress || '', `${ip.ipAddress || '未知IP'} - 详情`)}
                                     className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors flex items-center gap-1"
@@ -623,13 +630,14 @@ export default function CrawlerAnalysisPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排名</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP地址</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登录用户数量</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {data.authenticatedIPRanking.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                                 暂无数据
                               </td>
                             </tr>
@@ -661,6 +669,11 @@ export default function CrawlerAnalysisPage() {
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span className="text-sm font-semibold text-orange-600">
                                     {ip.callCount.toLocaleString()}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className="text-sm font-semibold text-blue-600">
+                                    {ip.userCount?.toLocaleString() || 0}
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
