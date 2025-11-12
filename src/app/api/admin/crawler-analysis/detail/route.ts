@@ -80,8 +80,8 @@ export async function GET(request: Request) {
     let timeDistribution: Array<{ date: string; hour: number; count: number }> = []
     let modelDistribution: Array<{ modelName: string; count: number }> = []
     let ipUsers: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; callCount: number }> = []
-    let dailyDistribution: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
-    let dailyHourlyDistribution: Array<{ date: string; hour: number; total: number; authenticated?: number; unauthenticated?: number }> = []
+    const dailyDistribution: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
+    const dailyHourlyDistribution: Array<{ date: string; hour: number; total: number; authenticated?: number; unauthenticated?: number }> = []
 
     if (type === 'user') {
       // 用户详情：按小时统计调用时间分布，按模型统计调用分布
