@@ -81,6 +81,13 @@ export default function AdminPage() {
     total: 0,
     totalPages: 1,
   })
+  
+  // 排序和筛选状态
+  const [sortBy, setSortBy] = useState<'uid' | 'lastLoginAt' | 'dailyRequestCount' | 'createdAt'>('createdAt')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [emailVerifiedFilter, setEmailVerifiedFilter] = useState<string>('') // '', 'true', 'false'
+  const [emailTypeFilter, setEmailTypeFilter] = useState<string>('all') // all, gmail, outlook, qq, 163, other
+  const [roleFilter, setRoleFilter] = useState<string>('all') // all, admin, premium, regular
 
   // 用户限额配置状态（仅用于显示）
   const [limitConfig, setLimitConfig] = useState({
@@ -171,6 +178,11 @@ export default function AdminPage() {
         page: currentPage.toString(),
         limit: '20',
         ...(searchTerm && { search: searchTerm }),
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        ...(emailVerifiedFilter && { emailVerified: emailVerifiedFilter }),
+        emailType: emailTypeFilter,
+        role: roleFilter,
         t: Date.now().toString(), // 添加时间戳避免缓存
       })
 
@@ -234,7 +246,7 @@ export default function AdminPage() {
       fetchLimitConfig()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, checkingAdmin, currentPage, searchTerm])
+  }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter])
 
   // 处理搜索（保留手动搜索功能，用于回车键提交）
   const handleSearch = (e: React.FormEvent) => {
@@ -539,6 +551,120 @@ export default function AdminPage() {
                     </button>
                   )}
                 </form>
+                
+                {/* 筛选和排序控件 */}
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                    {/* 排序字段 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">排序字段</label>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => {
+                          setSortBy(e.target.value as any)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="createdAt">注册时间</option>
+                        <option value="uid">UID</option>
+                        <option value="lastLoginAt">最后登录</option>
+                        <option value="dailyRequestCount">今日使用次数</option>
+                      </select>
+                    </div>
+                    
+                    {/* 排序方向 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">排序方向</label>
+                      <select
+                        value={sortOrder}
+                        onChange={(e) => {
+                          setSortOrder(e.target.value as any)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="desc">降序</option>
+                        <option value="asc">升序</option>
+                      </select>
+                    </div>
+                    
+                    {/* 邮箱验证状态筛选 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">邮箱验证</label>
+                      <select
+                        value={emailVerifiedFilter}
+                        onChange={(e) => {
+                          setEmailVerifiedFilter(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="">全部</option>
+                        <option value="true">已验证</option>
+                        <option value="false">未验证</option>
+                      </select>
+                    </div>
+                    
+                    {/* 邮箱类型筛选 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">邮箱类型</label>
+                      <select
+                        value={emailTypeFilter}
+                        onChange={(e) => {
+                          setEmailTypeFilter(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="all">全部</option>
+                        <option value="gmail">Gmail</option>
+                        <option value="outlook">Outlook/Hotmail</option>
+                        <option value="qq">QQ邮箱</option>
+                        <option value="163">163/126邮箱</option>
+                        <option value="other">其他</option>
+                      </select>
+                    </div>
+                    
+                    {/* 角色筛选 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">角色</label>
+                      <select
+                        value={roleFilter}
+                        onChange={(e) => {
+                          setRoleFilter(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="all">全部</option>
+                        <option value="admin">管理员</option>
+                        <option value="premium">优质用户</option>
+                        <option value="regular">普通用户</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* 重置筛选按钮 */}
+                  {(sortBy !== 'createdAt' || sortOrder !== 'desc' || emailVerifiedFilter || emailTypeFilter !== 'all' || roleFilter !== 'all') && (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('createdAt')
+                          setSortOrder('desc')
+                          setEmailVerifiedFilter('')
+                          setEmailTypeFilter('all')
+                          setRoleFilter('all')
+                          setCurrentPage(1)
+                        }}
+                        className="px-4 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        重置筛选
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* 错误提示 */}
