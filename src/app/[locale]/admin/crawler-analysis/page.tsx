@@ -40,6 +40,7 @@ interface IPRanking {
   authenticatedCount?: number
   unauthenticatedCount?: number
   userCount?: number
+  maxHourlyCallCount?: number
 }
 
 interface CrawlerAnalysisData {
@@ -711,13 +712,16 @@ export default function CrawlerAnalysisPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排名</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP地址</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
+                            {data.timeRange === 'today' && (
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">单小时最高调用次数</th>
+                            )}
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {data.unauthenticatedIPRanking.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={data.timeRange === 'today' ? 5 : 4} className="px-6 py-8 text-center text-gray-500">
                                 暂无数据
                               </td>
                             </tr>
@@ -751,6 +755,13 @@ export default function CrawlerAnalysisPage() {
                                     {ip.callCount.toLocaleString()}
                                   </span>
                                 </td>
+                                {data.timeRange === 'today' && (
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className="text-sm font-semibold text-red-600">
+                                      {ip.maxHourlyCallCount?.toLocaleString() || 0}
+                                    </span>
+                                  </td>
+                                )}
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <button
                                     onClick={() => openDetailModal('ip', ip.ipAddress || '', `${ip.ipAddress || '未知IP'} - 详情`)}

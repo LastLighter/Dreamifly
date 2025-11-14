@@ -155,6 +155,35 @@ export async function GET(request: Request) {
       .orderBy(sql`count(*) DESC`)
       .limit(100)
 
+    // 5. 当timeRange为'today'时，计算未登录用户IP的单小时最高调用次数
+    const maxHourlyCallCountMap: Record<string, number> = {}
+    if (timeRange === 'today') {
+      const hourlyStats = await db
+        .select({
+          ipAddress: modelUsageStats.ipAddress,
+          hourBucket: sql<string>`date_trunc('hour', ${modelUsageStats.createdAt})::text`,
+          callCount: sql<number>`count(*)::int`,
+        })
+        .from(modelUsageStats)
+        .where(
+          and(
+            gte(modelUsageStats.createdAt, startDate),
+            isNotNull(modelUsageStats.ipAddress),
+            eq(modelUsageStats.isAuthenticated, false)
+          )
+        )
+        .groupBy(modelUsageStats.ipAddress, sql`date_trunc('hour', ${modelUsageStats.createdAt})`)
+      
+      // 计算每个IP的单小时最高调用次数
+      hourlyStats.forEach((stat) => {
+        const ip = stat.ipAddress || ''
+        const count = Number(stat.callCount)
+        if (!maxHourlyCallCountMap[ip] || count > maxHourlyCallCountMap[ip]) {
+          maxHourlyCallCountMap[ip] = count
+        }
+      })
+    }
+
     return NextResponse.json(
       {
         timeRange,
@@ -180,6 +209,7 @@ export async function GET(request: Request) {
         unauthenticatedIPRanking: unauthenticatedIPRanking.map((item) => ({
           ipAddress: item.ipAddress,
           callCount: Number(item.callCount),
+          maxHourlyCallCount: timeRange === 'today' ? (maxHourlyCallCountMap[item.ipAddress || ''] || 0) : undefined,
         })),
       },
       {
