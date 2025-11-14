@@ -143,7 +143,7 @@ export async function POST(request: Request) {
       }
     }
     
-    // 检查IP并发限制（在所有其他检查之前，但不增加计数）
+    // 检查IP并发限制（在所有其他检查之前）
     let ipMaxConcurrency: number | null = null
     if (clientIP) {
       const ipConcurrencyCheck = await ipConcurrencyManager.canStart(
@@ -164,6 +164,22 @@ export async function POST(request: Request) {
       
       // 保存最大并发数，用于后续增加计数
       ipMaxConcurrency = ipConcurrencyCheck.maxConcurrency
+      
+      // 对于未登录用户，在进入排队前就增加IP并发计数，避免多个请求同时排队
+      // 已登录用户的IP并发计数在后续统一增加（在用户并发检查之后）
+      if (!session?.user) {
+        const ipStartSuccess = await ipConcurrencyManager.start(clientIP, ipMaxConcurrency)
+        if (!ipStartSuccess) {
+          // 如果增加计数失败（可能因为并发冲突），返回错误
+          const currentInfo = await ipConcurrencyManager.getInfo(clientIP)
+          return NextResponse.json({
+            error: `当前有 ${currentInfo?.currentConcurrency || 0} 个生图任务正在执行，请等待其他任务执行完成后再试。`,
+            code: 'IP_CONCURRENCY_LIMIT_EXCEEDED',
+            currentConcurrency: currentInfo?.currentConcurrency || 0,
+            maxConcurrency: ipMaxConcurrency
+          }, { status: 429 })
+        }
+      }
     }
     
     // 如果用户已登录，检查用户并发限制和每日请求次数
@@ -311,6 +327,7 @@ export async function POST(request: Request) {
     }
     
     // 如果用户未登录，添加延迟（未登录用户不受用户并发限制）
+    // 注意：未登录用户的IP并发计数已在前面增加，所以排队期间也算IP并发
     if (!session?.user) {
       const unauthDelay = parseInt(process.env.UNAUTHENTICATED_USER_DELAY || '20', 10)
       await new Promise(resolve => setTimeout(resolve, unauthDelay * 1000))
@@ -321,15 +338,41 @@ export async function POST(request: Request) {
 
     // 验证输入
     if (width < 64 || width > 1440 || height < 64 || height > 1440) {
+      // 如果输入验证失败，需要清理已增加的IP并发计数（仅未登录用户）
+      if (!session?.user && clientIP) {
+        await ipConcurrencyManager.end(clientIP).catch(err => {
+          console.error('Error decrementing IP concurrency after validation error:', err)
+        })
+      }
       return NextResponse.json({ error: 'Invalid image dimensions' }, { status: 400 })
     }
     if (steps < 5 || steps > 32) {
+      // 如果输入验证失败，需要清理已增加的IP并发计数（仅未登录用户）
+      if (!session?.user && clientIP) {
+        await ipConcurrencyManager.end(clientIP).catch(err => {
+          console.error('Error decrementing IP concurrency after validation error:', err)
+        })
+      }
       return NextResponse.json({ error: 'Invalid steps value' }, { status: 400 })
     }
 
-    // 所有检查都通过后，原子性地增加IP并发计数
-    if (clientIP) {
-      await ipConcurrencyManager.start(clientIP, ipMaxConcurrency)
+    // 对于已登录用户，在所有检查都通过后，原子性地增加IP并发计数
+    // 未登录用户的IP并发计数已在前面增加
+    if (clientIP && session?.user) {
+      const ipStartSuccess = await ipConcurrencyManager.start(clientIP, ipMaxConcurrency)
+      if (!ipStartSuccess) {
+        // 如果增加计数失败，需要清理用户并发跟踪
+        if (generationId) {
+          concurrencyManager.end(generationId)
+        }
+        const currentInfo = await ipConcurrencyManager.getInfo(clientIP)
+        return NextResponse.json({
+          error: `当前有 ${currentInfo?.currentConcurrency || 0} 个生图任务正在执行，请等待其他任务执行完成后再试。`,
+          code: 'IP_CONCURRENCY_LIMIT_EXCEEDED',
+          currentConcurrency: currentInfo?.currentConcurrency || 0,
+          maxConcurrency: ipMaxConcurrency
+        }, { status: 429 })
+      }
     }
 
     // 调用 ComfyUI API
