@@ -183,12 +183,8 @@ export const ipConcurrencyManager = {
     }
 
     // 使用原子更新：只有在 current_concurrency < max_concurrency 时才增加计数
-    // 这样可以避免竞态条件
-    const beforeUpdate = await getOrCreateIPRecord(ipAddress)
-    const expectedNewValue = beforeUpdate.currentConcurrency + 1
-
-    // 原子更新：只有在 current_concurrency < max_concurrency 时才增加
-    await db
+    // 使用 RETURNING 子句来获取更新后的值，确保原子性
+    const result = await db
       .update(ipConcurrency)
       .set({
         currentConcurrency: sql`${ipConcurrency.currentConcurrency} + 1`,
@@ -200,12 +196,17 @@ export const ipConcurrencyManager = {
           sql`${ipConcurrency.currentConcurrency} < ${maxConcurrency}`
         )
       )
+      .returning({ currentConcurrency: ipConcurrency.currentConcurrency })
 
-    // 重新查询以获取更新后的值
-    const afterUpdate = await getOrCreateIPRecord(ipAddress)
+    // 如果更新成功，result 会包含更新后的记录
+    // 如果更新失败（条件不满足），result 为空数组
+    if (result.length === 0) {
+      // 更新失败，说明当前并发数已经达到或超过最大值
+      return false
+    }
 
-    // 如果 currentConcurrency 等于预期的新值，说明更新成功
-    return afterUpdate.currentConcurrency === expectedNewValue
+    // 更新成功，返回 true
+    return true
   },
 
   /**

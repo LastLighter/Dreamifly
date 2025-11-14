@@ -338,20 +338,28 @@ export async function POST(request: Request) {
 
     // 验证输入
     if (width < 64 || width > 1440 || height < 64 || height > 1440) {
-      // 如果输入验证失败，需要清理已增加的IP并发计数（仅未登录用户）
+      // 如果输入验证失败，需要清理已增加的并发计数
       if (!session?.user && clientIP) {
+        // 未登录用户：清理IP并发计数
         await ipConcurrencyManager.end(clientIP).catch(err => {
           console.error('Error decrementing IP concurrency after validation error:', err)
         })
+      } else if (session?.user && generationId) {
+        // 已登录用户：清理用户并发跟踪（IP并发计数此时还未增加）
+        concurrencyManager.end(generationId)
       }
       return NextResponse.json({ error: 'Invalid image dimensions' }, { status: 400 })
     }
     if (steps < 5 || steps > 32) {
-      // 如果输入验证失败，需要清理已增加的IP并发计数（仅未登录用户）
+      // 如果输入验证失败，需要清理已增加的并发计数
       if (!session?.user && clientIP) {
+        // 未登录用户：清理IP并发计数
         await ipConcurrencyManager.end(clientIP).catch(err => {
           console.error('Error decrementing IP concurrency after validation error:', err)
         })
+      } else if (session?.user && generationId) {
+        // 已登录用户：清理用户并发跟踪（IP并发计数此时还未增加）
+        concurrencyManager.end(generationId)
       }
       return NextResponse.json({ error: 'Invalid steps value' }, { status: 400 })
     }
