@@ -12,13 +12,14 @@ import { useTranslations } from 'next-intl'
 import { useState, useEffect } from 'react'
 import { useSession, signOut } from '@/lib/auth-client'
 import { useAvatar } from '@/contexts/AvatarContext'
+import AvatarWithFrame from './AvatarWithFrame'
 
 export default function Navbar() {
   const { locale } = useParams()
   const t = useTranslations('nav')
   const tAuth = useTranslations('auth')
   const { data: session } = useSession()
-  const { avatar: globalAvatar, nickname: globalNickname } = useAvatar()
+  const { avatar: globalAvatar, nickname: globalNickname, avatarFrameId } = useAvatar()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
@@ -119,12 +120,11 @@ export default function Navbar() {
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-200/50 transition-colors"
               >
-                <Image
-                  src={globalAvatar}
-                  alt="Avatar"
-                  width={32}
-                  height={32}
-                  className="rounded-full border-2 border-orange-400/30"
+                <AvatarWithFrame
+                  avatar={globalAvatar}
+                  avatarFrameId={avatarFrameId}
+                  size={32}
+                  className="border-2 border-orange-400/30"
                 />
               </button>
               {showUserMenu && (
@@ -264,12 +264,11 @@ export default function Navbar() {
                       onClick={() => setShowUserMenu(!showUserMenu)}
                       className="w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
                     >
-                      <Image
-                        src={globalAvatar}
-                        alt="Avatar"
-                        width={40}
-                        height={40}
-                        className="rounded-full border-2 border-orange-400/30 flex-shrink-0"
+                      <AvatarWithFrame
+                        avatar={globalAvatar}
+                        avatarFrameId={avatarFrameId}
+                        size={40}
+                        className="border-2 border-orange-400/30 flex-shrink-0"
                       />
                       <div className="flex-1 text-left overflow-hidden">
                         <p className="text-sm font-medium text-gray-900 truncate">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { user } from '@/db/schema';
+import { user, avatarFrame } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { headers } from 'next/headers';
 
@@ -180,6 +180,7 @@ export async function GET(request: NextRequest) {
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
       lastLoginAt: u.lastLoginAt,
+      avatarFrameId: u.avatarFrameId ?? null,
     }));
 
     return NextResponse.json({
@@ -229,22 +230,65 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, isPremium } = body;
+    const { userId, isPremium, avatarFrameId } = body;
 
-    if (!userId || typeof isPremium !== 'boolean') {
+    if (!userId) {
       return NextResponse.json(
-        { error: '参数错误：需要userId和isPremium' },
+        { error: '参数错误：需要userId' },
         { status: 400 }
       );
     }
 
-    // 更新用户角色
+    // 构建更新数据
+    const updateData: {
+      isPremium?: boolean;
+      avatarFrameId?: number | null;
+      updatedAt: Date;
+    } = {
+      updatedAt: new Date(),
+    };
+
+    // 如果提供了isPremium，更新角色
+    if (typeof isPremium === 'boolean') {
+      updateData.isPremium = isPremium;
+    }
+
+    // 如果提供了avatarFrameId，验证并更新
+    if (avatarFrameId !== undefined) {
+      // 如果avatarFrameId为null，直接设置为null
+      if (avatarFrameId === null) {
+        updateData.avatarFrameId = null;
+      } else {
+        // 验证头像框是否存在
+        const frameId = typeof avatarFrameId === 'string' ? parseInt(avatarFrameId, 10) : avatarFrameId;
+        if (isNaN(frameId) || frameId <= 0) {
+          return NextResponse.json(
+            { error: '头像框ID必须是正整数' },
+            { status: 400 }
+          );
+        }
+
+        const frame = await db
+          .select()
+          .from(avatarFrame)
+          .where(eq(avatarFrame.id, frameId))
+          .limit(1);
+
+        if (frame.length === 0) {
+          return NextResponse.json(
+            { error: '头像框不存在' },
+            { status: 400 }
+          );
+        }
+
+        updateData.avatarFrameId = frameId;
+      }
+    }
+
+    // 更新用户
     await db
       .update(user)
-      .set({
-        isPremium: isPremium,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(user.id, userId));
 
     return NextResponse.json({ success: true });

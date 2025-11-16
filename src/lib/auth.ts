@@ -99,6 +99,10 @@ export const auth = betterAuth({
         type: "date",
         required: false,
       },
+      avatarFrameId: {
+        type: "number",
+        required: false,
+      },
     },
   },
   session: {

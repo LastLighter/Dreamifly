@@ -4,16 +4,16 @@ import { useState, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSession, changePassword, signOut } from '@/lib/auth-client'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { ExtendedUser } from '@/types/auth'
 import { useAvatar } from '@/contexts/AvatarContext'
 import AvatarCropper from '@/components/AvatarCropper'
+import AvatarWithFrame from '@/components/AvatarWithFrame'
 
 export default function ProfilePage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { data: session, isPending } = useSession()
-  const { avatar: globalAvatar, nickname: globalNickname, updateProfile } = useAvatar()
+  const { avatar: globalAvatar, nickname: globalNickname, avatarFrameId, updateProfile } = useAvatar()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [nickname, setNickname] = useState('')
@@ -296,12 +296,11 @@ export default function ProfilePage() {
             </label>
             <div className="flex items-center gap-6">
               <div className="relative">
-                <Image
-                  src={avatarPreview || avatar}
-                  alt="Avatar"
-                  width={100}
-                  height={100}
-                  className="rounded-full object-cover border-4 border-orange-200"
+                <AvatarWithFrame
+                  avatar={avatarPreview || avatar}
+                  avatarFrameId={avatarFrameId}
+                  size={100}
+                  className="border-4 border-orange-200"
                 />
                 {uploading && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
