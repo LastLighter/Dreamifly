@@ -14,6 +14,7 @@ import { headers } from 'next/headers'
 import { db } from '@/db'
 import { user } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
+import { locales, defaultLocale } from '@/config'
 
 const inter = Inter({ subsets: ['latin'] })
 const umamiWebsiteId = "7fd99628-3822-4bae-a794-b2d1d8926678"
@@ -21,6 +22,12 @@ const umamiSrc = "https://umami.suanleme.cn:3000/script.js"
 
 // 可以选择性地设置缓存时间
 async function getMessages(locale: string) {
+  // 验证 locale 是否有效
+  if (!locales.includes(locale as any)) {
+    // 如果 locale 无效，使用默认 locale
+    locale = defaultLocale
+  }
+  
   try {
     return (await import(`@/messages/${locale}.json`)).default
   } catch (error) {
@@ -69,7 +76,13 @@ export default async function LocaleLayout({
   children: React.ReactNode
   params: Promise<{ locale: string }> | undefined
 }) {
-  const locale = (await Promise.resolve(params))?.locale || 'zh';
+  let locale = (await Promise.resolve(params))?.locale || defaultLocale;
+  
+  // 验证 locale 是否有效，如果无效则使用默认 locale
+  if (!locales.includes(locale as any)) {
+    locale = defaultLocale
+  }
+  
   const messages = await getMessages(locale)
 
   // 更新用户最近登录时间（异步执行，不阻塞渲染）

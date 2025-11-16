@@ -7,8 +7,10 @@ import { ExtendedUser } from '@/types/auth'
 interface AvatarContextType {
   avatar: string
   nickname: string
+  avatarFrameId: number | null
   setAvatar: (avatar: string) => void
   setNickname: (nickname: string) => void
+  setAvatarFrameId: (frameId: number | null) => void
   updateAvatar: (newAvatar: string) => void
   updateNickname: (newNickname: string) => void
   updateProfile: (avatar: string, nickname: string) => void
@@ -20,13 +22,15 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession()
   const [avatar, setAvatar] = useState('/images/default-avatar.svg')
   const [nickname, setNickname] = useState('')
+  const [avatarFrameId, setAvatarFrameId] = useState<number | null>(null)
 
-  // 监听session变化，更新头像和昵称
+  // 监听session变化，更新头像、昵称和头像框
   useEffect(() => {
     if (session?.user) {
       const user = session.user as ExtendedUser
       setAvatar(user.avatar || '/images/default-avatar.svg')
       setNickname(user.nickname || user.name || '')
+      setAvatarFrameId(user.avatarFrameId ?? null)
     }
   }, [session?.user])
 
@@ -50,9 +54,11 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
   return (
     <AvatarContext.Provider value={{ 
       avatar, 
-      nickname, 
+      nickname,
+      avatarFrameId,
       setAvatar, 
-      setNickname, 
+      setNickname,
+      setAvatarFrameId,
       updateAvatar, 
       updateNickname, 
       updateProfile 

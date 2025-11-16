@@ -82,6 +82,11 @@ export async function generateImage(params: GenerateParams): Promise<string> {
     setWaiSDXLV150T2IorkflowParams(workflow, params);
   }
 
+  // 检查baseUrl是否配置
+  if (!baseUrl) {
+    throw new Error(`模型 ${params.model} 的服务URL未配置，请检查环境变量`);
+  }
+
   try {
     // 2. 发送提示请求并等待响应
     const response = await fetch(`${baseUrl}/prompt`, {
@@ -92,19 +97,46 @@ export async function generateImage(params: GenerateParams): Promise<string> {
       body: JSON.stringify({ prompt: workflow }),
     });
 
+    // 检查HTTP响应状态
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`ComfyUI服务错误 (${response.status}): ${errorText || '未知错误'}`);
+    }
+
     let base64Image: string = '';
     let text = ''
     try {
       text = await response.text();
+      
+      // 检查响应是否为"no healthy upstream"错误
+      if (text.includes('no healthy upstream') || text.includes('upstream')) {
+        throw new Error(`ComfyUI服务不可用: ${text}。请检查服务是否正常运行`);
+      }
+      
       const data = JSON.parse(text) as ComfyUIResponse;
+      
+      // 检查响应数据格式
+      if (!data || !data.images || !Array.isArray(data.images) || data.images.length === 0) {
+        throw new Error(`无效的响应格式: 缺少images数据`);
+      }
+      
       base64Image = "data:image/png;base64," + data.images[0];
-    } catch {
-      throw new Error(`Invalid JSON response: ${text}`);
+    } catch (parseError) {
+      // 如果已经是Error对象，直接抛出
+      if (parseError instanceof Error) {
+        throw parseError;
+      }
+      // 否则包装为错误
+      throw new Error(`无法解析ComfyUI响应: ${text.substring(0, 200)}`);
     }
 
     return base64Image;
   } catch (error) {
     console.error('Error generating image:', error);
+    // 如果是网络错误，提供更友好的错误信息
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(`无法连接到ComfyUI服务 (${baseUrl})。请检查服务是否正常运行`);
+    }
     throw error;
   }
 }

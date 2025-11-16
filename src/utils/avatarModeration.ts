@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 /**
  * 将图片Buffer编码为base64字符串
  */
-function encodeImageToBase64(buffer: Buffer, mimeType: string): string {
+function encodeImageToBase64(buffer: Buffer): string {
   return buffer.toString('base64')
 }
 
@@ -44,7 +44,7 @@ export async function moderateAvatar(
   try {
     // 编码图片为base64
     const mimeType = getMimeType(fileName)
-    const base64Image = encodeImageToBase64(imageBuffer, mimeType)
+    const base64Image = encodeImageToBase64(imageBuffer)
 
     // 创建OpenAI客户端
     const client = new OpenAI({
@@ -73,6 +73,12 @@ export async function moderateAvatar(
 
     // 解析返回结果
     const result = response.choices[0]?.message?.content?.trim().toLowerCase()
+    
+    // 如果结果为空，默认不通过（安全起见）
+    if (!result) {
+      console.warn('审核结果为空')
+      return false
+    }
     
     // 判断是否通过审核（返回"是"或包含"通过"等关键词表示通过）
     if (result === '是' || result === 'yes' || result.includes('通过') || result.includes('pass')) {

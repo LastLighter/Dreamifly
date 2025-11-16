@@ -19,6 +19,9 @@ import {
   PieChart,
   Pie,
   Cell,
+  LineChart,
+  Line,
+  Legend,
 } from 'recharts'
 
 type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
@@ -36,6 +39,8 @@ interface IPRanking {
   callCount: number
   authenticatedCount?: number
   unauthenticatedCount?: number
+  userCount?: number
+  maxHourlyCallCount?: number
 }
 
 interface CrawlerAnalysisData {
@@ -69,7 +74,10 @@ export default function CrawlerAnalysisPage() {
     timeDistribution: Array<{ date: string; hour: number; count: number }>
     modelDistribution: Array<{ modelName: string; count: number }>
     ipUsers?: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; callCount: number }>
+    dailyDistribution?: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }>
+    dailyHourlyDistribution?: Array<{ date: string; hour: number; total: number; authenticated?: number; unauthenticated?: number }>
   } | null>(null)
+  const [detailActiveTab, setDetailActiveTab] = useState<'users' | 'all-ip' | 'auth-ip' | 'unauth-ip'>('users')
 
   // 获取当前用户完整信息（包括头像）
   useEffect(() => {
@@ -186,6 +194,7 @@ export default function CrawlerAnalysisPage() {
     setDetailModalOpen(true)
     setDetailLoading(true)
     setDetailData(null)
+    setDetailActiveTab(activeTab) // 保存当前激活的tab
 
     try {
       const response = await fetch(
@@ -208,13 +217,15 @@ export default function CrawlerAnalysisPage() {
         timeDistribution: detailResponse.timeDistribution || [],
         modelDistribution: detailResponse.modelDistribution || [],
         ipUsers: detailResponse.ipUsers || [],
+        dailyDistribution: detailResponse.dailyDistribution || [],
+        dailyHourlyDistribution: detailResponse.dailyHourlyDistribution || [],
       })
     } catch (error) {
       console.error('Error fetching detail:', error)
     } finally {
       setDetailLoading(false)
     }
-  }, [timeRange])
+  }, [timeRange, activeTab])
 
   // 格式化时间分布数据用于图表
   // 对于hour范围，按分钟显示；其他范围按小时汇总显示
@@ -533,13 +544,14 @@ export default function CrawlerAnalysisPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">总调用次数</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登录用户调用</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">未登录用户调用</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登录用户数量</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {data.allIPRanking.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                                 暂无数据
                               </td>
                             </tr>
@@ -580,6 +592,11 @@ export default function CrawlerAnalysisPage() {
                                   {ip.unauthenticatedCount?.toLocaleString() || 0}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className="text-sm font-semibold text-blue-600">
+                                    {ip.userCount?.toLocaleString() || 0}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
                                   <button
                                     onClick={() => openDetailModal('ip', ip.ipAddress || '', `${ip.ipAddress || '未知IP'} - 详情`)}
                                     className="px-3 py-1.5 text-xs font-medium text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors flex items-center gap-1"
@@ -614,13 +631,14 @@ export default function CrawlerAnalysisPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排名</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP地址</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登录用户数量</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {data.authenticatedIPRanking.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                                 暂无数据
                               </td>
                             </tr>
@@ -652,6 +670,11 @@ export default function CrawlerAnalysisPage() {
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span className="text-sm font-semibold text-orange-600">
                                     {ip.callCount.toLocaleString()}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className="text-sm font-semibold text-blue-600">
+                                    {ip.userCount?.toLocaleString() || 0}
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
@@ -689,13 +712,16 @@ export default function CrawlerAnalysisPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排名</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP地址</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
+                            {data.timeRange === 'today' && (
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">单小时最高调用次数</th>
+                            )}
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {data.unauthenticatedIPRanking.length === 0 ? (
                             <tr>
-                              <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={data.timeRange === 'today' ? 5 : 4} className="px-6 py-8 text-center text-gray-500">
                                 暂无数据
                               </td>
                             </tr>
@@ -729,6 +755,13 @@ export default function CrawlerAnalysisPage() {
                                     {ip.callCount.toLocaleString()}
                                   </span>
                                 </td>
+                                {data.timeRange === 'today' && (
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className="text-sm font-semibold text-red-600">
+                                      {ip.maxHourlyCallCount?.toLocaleString() || 0}
+                                    </span>
+                                  </td>
+                                )}
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <button
                                     onClick={() => openDetailModal('ip', ip.ipAddress || '', `${ip.ipAddress || '未知IP'} - 详情`)}
@@ -787,6 +820,193 @@ export default function CrawlerAnalysisPage() {
                 </div>
               ) : (
                 <>
+                  {/* 最近一周每日调用趋势（折线图） */}
+                  {timeRange === 'week' && detailData.dailyDistribution && detailData.dailyDistribution.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">最近七天每日调用趋势</h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={detailData.dailyDistribution.map(item => ({
+                          date: new Date(item.date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
+                          total: item.total,
+                          authenticated: item.authenticated,
+                          unauthenticated: item.unauthenticated,
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="date" 
+                            stroke="#6b7280"
+                            tick={{ fill: '#6b7280', fontSize: 11 }}
+                          />
+                          <YAxis 
+                            stroke="#6b7280"
+                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                          />
+                          <Tooltip 
+                            contentStyle={{
+                              backgroundColor: 'white',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                              padding: '8px 12px'
+                            }}
+                          />
+                          <Legend />
+                          {detailType === 'ip' && detailActiveTab === 'all-ip' ? (
+                            <>
+                              <Line 
+                                type="monotone" 
+                                dataKey="total" 
+                                stroke="#f97316" 
+                                strokeWidth={2}
+                                name="总请求"
+                                dot={{ fill: '#f97316', r: 4 }}
+                              />
+                              <Line 
+                                type="monotone" 
+                                dataKey="authenticated" 
+                                stroke="#10b981" 
+                                strokeWidth={2}
+                                name="登录用户请求"
+                                dot={{ fill: '#10b981', r: 4 }}
+                              />
+                              <Line 
+                                type="monotone" 
+                                dataKey="unauthenticated" 
+                                stroke="#3b82f6" 
+                                strokeWidth={2}
+                                name="未登录用户请求"
+                                dot={{ fill: '#3b82f6', r: 4 }}
+                              />
+                            </>
+                          ) : (
+                            <Line 
+                              type="monotone" 
+                              dataKey="total" 
+                              stroke="#f97316" 
+                              strokeWidth={2}
+                              name="调用次数"
+                              dot={{ fill: '#f97316', r: 4 }}
+                            />
+                          )}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {/* 近七天每日按小时折线图 */}
+                  {timeRange === 'week' && detailData.dailyHourlyDistribution && detailData.dailyHourlyDistribution.length > 0 && (() => {
+                    // 按日期分组数据
+                    const dateMap = new Map<string, Array<{ hour: number; total: number; authenticated: number; unauthenticated: number }>>()
+                    
+                    detailData.dailyHourlyDistribution.forEach((item) => {
+                      if (!dateMap.has(item.date)) {
+                        dateMap.set(item.date, [])
+                      }
+                      dateMap.get(item.date)!.push({
+                        hour: item.hour,
+                        total: item.total,
+                        authenticated: item.authenticated || 0,
+                        unauthenticated: item.unauthenticated || 0,
+                      })
+                    })
+
+                    // 获取所有日期并排序
+                    const dates = Array.from(dateMap.keys()).sort()
+                    
+                    // 为每一天生成完整24小时的数据
+                    const dateDataMap = new Map<string, Array<{ hour: number; total: number; authenticated: number; unauthenticated: number }>>()
+                    
+                    dates.forEach((date) => {
+                      const hourlyData = new Map<number, { total: number; authenticated: number; unauthenticated: number }>()
+                      dateMap.get(date)!.forEach((item) => {
+                        hourlyData.set(item.hour, {
+                          total: item.total,
+                          authenticated: item.authenticated,
+                          unauthenticated: item.unauthenticated,
+                        })
+                      })
+                      
+                      // 生成24小时的完整数据
+                      const fullDayData = Array.from({ length: 24 }, (_, hour) => ({
+                        hour,
+                        total: hourlyData.get(hour)?.total || 0,
+                        authenticated: hourlyData.get(hour)?.authenticated || 0,
+                        unauthenticated: hourlyData.get(hour)?.unauthenticated || 0,
+                      }))
+                      
+                      dateDataMap.set(date, fullDayData)
+                    })
+
+                    // 定义7种颜色用于区分不同的日期
+                    const dateColors = [
+                      '#f97316', // 橙色
+                      '#3b82f6', // 蓝色
+                      '#10b981', // 绿色
+                      '#f59e0b', // 黄色
+                      '#8b5cf6', // 紫色
+                      '#ef4444', // 红色
+                      '#06b6d4', // 青色
+                    ]
+
+                    return (
+                      <div className="bg-gray-50 rounded-lg p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">近七天每日按小时调用趋势</h3>
+                        <ResponsiveContainer width="100%" height={400}>
+                          <LineChart>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                            <XAxis 
+                              dataKey="hour" 
+                              stroke="#6b7280"
+                              tick={{ fill: '#6b7280', fontSize: 11 }}
+                              label={{ value: '小时', position: 'insideBottom', offset: -5, style: { fill: '#6b7280' } }}
+                              type="number"
+                              domain={[0, 23]}
+                              ticks={[0, 4, 8, 12, 16, 20, 23]}
+                            />
+                            <YAxis 
+                              stroke="#6b7280"
+                              tick={{ fill: '#6b7280', fontSize: 12 }}
+                              label={{ value: '调用次数', angle: -90, position: 'insideLeft', style: { fill: '#6b7280' } }}
+                            />
+                            <Tooltip 
+                              contentStyle={{
+                                backgroundColor: 'white',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                padding: '8px 12px'
+                              }}
+                              formatter={(value: any) => value.toLocaleString()}
+                            />
+                            <Legend />
+                            {/* 每天显示一条线（总请求） */}
+                            {dates.map((date, dateIndex) => {
+                              const dateStr = new Date(date).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+                              const dayData = dateDataMap.get(date)!
+                              const color = dateColors[dateIndex % dateColors.length]
+                              
+                              return (
+                                <Line 
+                                  key={date}
+                                  type="monotone" 
+                                  dataKey="total" 
+                                  stroke={color}
+                                  strokeWidth={2}
+                                  name={dateStr}
+                                  dot={{ fill: color, r: 3 }}
+                                  data={dayData}
+                                />
+                              )
+                            })}
+                          </LineChart>
+                        </ResponsiveContainer>
+                        <p className="text-xs text-gray-500 mt-2 text-center">
+                          显示近七天每天在不同小时的调用次数，每天一条线（总请求）
+                        </p>
+                      </div>
+                    )
+                  })()}
+
                   {/* 调用时间分布 */}
                   <div className="bg-gray-50 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">

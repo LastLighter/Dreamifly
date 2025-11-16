@@ -31,6 +31,7 @@
     "postgres": "^3.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-easy-crop": "^5.5.3",
     "react-hook-form": "^7.51.0",
     "recharts": "^3.3.0",
     "resend": "^6.1.2",

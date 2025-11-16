@@ -4,15 +4,16 @@ import { useState, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSession, changePassword, signOut } from '@/lib/auth-client'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { ExtendedUser } from '@/types/auth'
 import { useAvatar } from '@/contexts/AvatarContext'
+import AvatarCropper from '@/components/AvatarCropper'
+import AvatarWithFrame from '@/components/AvatarWithFrame'
 
 export default function ProfilePage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { data: session, isPending } = useSession()
-  const { avatar: globalAvatar, nickname: globalNickname, updateProfile } = useAvatar()
+  const { avatar: globalAvatar, nickname: globalNickname, avatarFrameId, updateProfile } = useAvatar()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [nickname, setNickname] = useState('')
@@ -25,6 +26,9 @@ export default function ProfilePage() {
   // Local avatar selection state
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [showCropper, setShowCropper] = useState(false)
+  const [cropperImageSrc, setCropperImageSrc] = useState<string | null>(null)
+  const [isGifFile, setIsGifFile] = useState(false)
 
   // Password change state
   const [showPasswordForm, setShowPasswordForm] = useState(false)
@@ -80,8 +84,8 @@ export default function ProfilePage() {
       return
     }
 
-    // Validate file size (2MB)
-    if (file.size > 2 * 1024 * 1024) {
+    // Validate file size (10MB for original file, will be compressed after crop)
+    if (file.size > 10 * 1024 * 1024) {
       setError(t('error.fileTooLarge'))
       return
     }
@@ -89,13 +93,58 @@ export default function ProfilePage() {
     setError('')
     setSuccess('')
 
+    // Check if it's a GIF file
+    const isGif = file.type === 'image/gif'
+    setIsGifFile(isGif)
+
     // Revoke previous preview URL if exists
     if (avatarPreview) URL.revokeObjectURL(avatarPreview)
+    if (cropperImageSrc) URL.revokeObjectURL(cropperImageSrc)
 
-    // Set local preview and hold file for later upload on save
+    // Create object URL for cropper
     const objectUrl = URL.createObjectURL(file)
-    setAvatarPreview(objectUrl)
-    setPendingAvatarFile(file)
+    setCropperImageSrc(objectUrl)
+    setShowCropper(true)
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const handleCropComplete = (croppedBlob: Blob) => {
+    // Create a File from the Blob
+    const fileExtension = isGifFile ? 'gif' : 'jpg'
+    const croppedFile = new File([croppedBlob], `avatar.${fileExtension}`, { type: croppedBlob.type })
+    
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(croppedBlob)
+    
+    // Update states
+    setPendingAvatarFile(croppedFile)
+    setAvatarPreview(previewUrl)
+    setShowCropper(false)
+    
+    // Clean up cropper image URL
+    if (cropperImageSrc) {
+      URL.revokeObjectURL(cropperImageSrc)
+      setCropperImageSrc(null)
+    }
+  }
+
+  const handleCropCancel = () => {
+    setShowCropper(false)
+    
+    // Clean up cropper image URL
+    if (cropperImageSrc) {
+      URL.revokeObjectURL(cropperImageSrc)
+      setCropperImageSrc(null)
+    }
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const handleSaveProfile = async () => {
@@ -247,12 +296,11 @@ export default function ProfilePage() {
             </label>
             <div className="flex items-center gap-6">
               <div className="relative">
-                <Image
-                  src={avatarPreview || avatar}
-                  alt="Avatar"
-                  width={100}
-                  height={100}
-                  className="rounded-full object-cover border-4 border-orange-200"
+                <AvatarWithFrame
+                  avatar={avatarPreview || avatar}
+                  avatarFrameId={avatarFrameId}
+                  size={100}
+                  className="border-4 border-orange-200"
                 />
                 {uploading && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full">
@@ -432,6 +480,16 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* 头像裁剪器 */}
+      {showCropper && cropperImageSrc && (
+        <AvatarCropper
+          imageSrc={cropperImageSrc}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+          isGif={isGifFile}
+        />
+      )}
     </div>
   )
 }

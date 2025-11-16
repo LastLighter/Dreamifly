@@ -1,4 +1,5 @@
-import { pgTable, timestamp, integer, text, boolean, real } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, integer, text, boolean, real, serial } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 export const siteStats = pgTable('site_stats', {
   id: integer('id').primaryKey().default(1),
@@ -28,6 +29,7 @@ export const user = pgTable("user", {
   isPremium: boolean("is_premium").default(false), // 数据库字段名: is_premium，标记是否为优质用户
   dailyRequestCount: integer("daily_request_count").default(0), // 数据库字段名: daily_request_count，当日请求次数
   lastRequestResetDate: timestamp("last_request_reset_date").defaultNow(), // 数据库字段名: last_request_reset_date，上次重置请求次数的日期
+  avatarFrameId: integer("avatar_frame_id"), // 数据库字段名: avatar_frame_id，头像框ID，为null时使用默认头像框
 });
 
 export const session = pgTable("session", {
@@ -88,4 +90,40 @@ export const userLimitConfig = pgTable("user_limit_config", {
   premiumUserDailyLimit: integer("premium_user_daily_limit"), // 优质用户每日限额，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}); 
+});
+
+// IP并发记录表
+export const ipConcurrency = pgTable("ip_concurrency", {
+  ipAddress: text("ip_address").primaryKey(), // IP地址作为主键
+  currentConcurrency: integer("current_concurrency").default(0).notNull(), // 当前并发量
+  maxConcurrency: integer("max_concurrency"), // 最大并发量，null表示不限（管理员）
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 最后更新时间
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+});
+
+// IP黑名单表
+export const ipBlacklist = pgTable("ip_blacklist", {
+  id: text("id").primaryKey(), // 使用UUID作为主键
+  ipAddress: text("ip_address").notNull().unique(), // IP地址，唯一
+  reason: text("reason"), // 拉黑原因
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+  createdBy: text("created_by"), // 创建者（管理员ID）
+});
+
+// 头像框表
+export const avatarFrame = pgTable("avatar_frame", {
+  id: serial("id").primaryKey(), // 头像框ID，自增
+  category: text("category").notNull(), // 头像框分类
+  imageUrl: text("image_url"), // 头像框图片路径，如果为null则使用默认头像框
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+});
+
+// 用户与头像框的关系
+export const userRelations = relations(user, ({ one }) => ({
+  avatarFrame: one(avatarFrame, {
+    fields: [user.avatarFrameId],
+    references: [avatarFrame.id],
+  }),
+}));

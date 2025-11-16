@@ -8,6 +8,7 @@ import Image from 'next/image'
 import AdminSidebar from '@/components/AdminSidebar'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
+import AvatarWithFrame from '@/components/AvatarWithFrame'
 
 interface User {
   id: string
@@ -24,6 +25,7 @@ interface User {
   createdAt: Date | string
   updatedAt: Date | string
   lastLoginAt: Date | string | null
+  avatarFrameId: number | null
 }
 
 interface UserListResponse {
@@ -73,6 +75,7 @@ export default function AdminPage() {
   const [searchInput, setSearchInput] = useState('') // 输入框的值
   const [searchTerm, setSearchTerm] = useState('') // 实际用于查询的值
   const [currentPage, setCurrentPage] = useState(1)
+  const [pageInput, setPageInput] = useState('') // 页码输入框的值
   const [isAdmin, setIsAdmin] = useState(false)
   const [checkingAdmin, setCheckingAdmin] = useState(true)
   const [pagination, setPagination] = useState({
@@ -81,8 +84,15 @@ export default function AdminPage() {
     total: 0,
     totalPages: 1,
   })
+  
+  // 排序和筛选状态
+  const [sortBy, setSortBy] = useState<'uid' | 'lastLoginAt' | 'dailyRequestCount' | 'createdAt'>('createdAt')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [emailVerifiedFilter, setEmailVerifiedFilter] = useState<string>('') // '', 'true', 'false'
+  const [emailTypeFilter, setEmailTypeFilter] = useState<string>('all') // all, gmail, outlook, qq, 163, other
+  const [roleFilter, setRoleFilter] = useState<string>('all') // all, admin, premium, regular
 
-  // 用户限额配置状态
+  // 用户限额配置状态（仅用于显示）
   const [limitConfig, setLimitConfig] = useState({
     regularUserDailyLimit: 200,
     premiumUserDailyLimit: 500,
@@ -90,13 +100,6 @@ export default function AdminPage() {
     usingEnvPremium: false,
     envRegularLimit: 200,
     envPremiumLimit: 500,
-  })
-  const [showLimitSettings, setShowLimitSettings] = useState(false)
-  const [limitInputs, setLimitInputs] = useState({
-    regular: '',
-    premium: '',
-    useEnvRegular: false,
-    useEnvPremium: false,
   })
 
   // 对话框状态
@@ -113,6 +116,17 @@ export default function AdminPage() {
     title: '',
     message: '',
   })
+
+  // 用户操作模态框状态
+  const [showUserActionModal, setShowUserActionModal] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [avatarFrames, setAvatarFrames] = useState<Array<{ id: number; category: string; imageUrl: string | null }>>([])
+  const [avatarFrameCategories, setAvatarFrameCategories] = useState<string[]>([])
+  const [selectedRole, setSelectedRole] = useState<'regular' | 'premium'>('regular')
+  const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState<number | null>(null)
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
+  const [directFrameIdInput, setDirectFrameIdInput] = useState<string>('')
+  const [updatingUser, setUpdatingUser] = useState(false)
 
   // 隐藏父级 layout 的 Navbar 和 Footer
   useEffect(() => {
@@ -178,6 +192,11 @@ export default function AdminPage() {
         page: currentPage.toString(),
         limit: '20',
         ...(searchTerm && { search: searchTerm }),
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        ...(emailVerifiedFilter && { emailVerified: emailVerifiedFilter }),
+        emailType: emailTypeFilter,
+        role: roleFilter,
         t: Date.now().toString(), // 添加时间戳避免缓存
       })
 
@@ -239,9 +258,30 @@ export default function AdminPage() {
     if (isAdmin && !checkingAdmin) {
       fetchUsers()
       fetchLimitConfig()
+      fetchAvatarFrames()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, checkingAdmin, currentPage, searchTerm])
+  }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter])
+
+  // 获取头像框列表
+  const fetchAvatarFrames = async () => {
+    try {
+      const [framesResponse, categoriesResponse] = await Promise.all([
+        fetch(`/api/admin/avatar-frames?t=${Date.now()}`),
+        fetch(`/api/admin/avatar-frames/categories?t=${Date.now()}`)
+      ])
+      if (framesResponse.ok) {
+        const framesData = await framesResponse.json()
+        setAvatarFrames(framesData.frames || [])
+      }
+      if (categoriesResponse.ok) {
+        const categoriesData = await categoriesResponse.json()
+        setAvatarFrameCategories(categoriesData.categories || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch avatar frames:', error)
+    }
+  }
 
   // 处理搜索（保留手动搜索功能，用于回车键提交）
   const handleSearch = (e: React.FormEvent) => {
@@ -257,6 +297,13 @@ export default function AdminPage() {
       setSearchTerm('')
     }
     setCurrentPage(1)
+  }
+
+  // 截断文本并添加省略号
+  const truncateText = (text: string | null, maxLength: number = 20): string => {
+    if (!text) return ''
+    if (text.length <= maxLength) return text
+    return text.substring(0, maxLength) + '...'
   }
 
   // 格式化日期（固定按东八区展示，但不额外显示时区后缀）
@@ -319,19 +366,13 @@ export default function AdminPage() {
     return formatInShanghai(new Date(dateStr))
   }
 
-  // 获取用户限额配置
+  // 获取用户限额配置（仅用于显示）
   const fetchLimitConfig = async () => {
     try {
       const response = await fetch('/api/admin/user-limits')
       if (response.ok) {
         const data = await response.json()
         setLimitConfig(data)
-        setLimitInputs({
-          regular: data.usingEnvRegular ? '' : data.regularUserDailyLimit.toString(),
-          premium: data.usingEnvPremium ? '' : data.premiumUserDailyLimit.toString(),
-          useEnvRegular: data.usingEnvRegular,
-          useEnvPremium: data.usingEnvPremium,
-        })
       }
     } catch (error) {
       console.error('Failed to fetch limit config:', error)
@@ -382,78 +423,64 @@ export default function AdminPage() {
     closeDialog()
   }
 
-  // 更新用户限额配置
-  const handleUpdateLimitConfig = async () => {
-    try {
-      const body: any = {}
-      
-      if (limitInputs.useEnvRegular) {
-        body.useEnvForRegular = true
-      } else {
-        const regularValue = parseInt(limitInputs.regular, 10)
-        if (isNaN(regularValue) || regularValue < 0) {
-          showDialog('error', '验证失败', '普通用户限额必须是大于等于0的数字')
-          return
-        }
-        body.regularUserDailyLimit = regularValue
-      }
 
-      if (limitInputs.useEnvPremium) {
-        body.useEnvForPremium = true
-      } else {
-        const premiumValue = parseInt(limitInputs.premium, 10)
-        if (isNaN(premiumValue) || premiumValue < 0) {
-          showDialog('error', '验证失败', '优质用户限额必须是大于等于0的数字')
+  // 打开用户操作模态框
+  const handleOpenUserActionModal = (user: User) => {
+    setSelectedUser(user)
+    setSelectedRole(user.isPremium ? 'premium' : 'regular')
+    setSelectedAvatarFrameId(user.avatarFrameId)
+    setSelectedCategoryFilter('all')
+    setDirectFrameIdInput(user.avatarFrameId?.toString() || '')
+    setShowUserActionModal(true)
+  }
+
+  // 关闭用户操作模态框
+  const handleCloseUserActionModal = () => {
+    setShowUserActionModal(false)
+    setSelectedUser(null)
+    setSelectedRole('regular')
+    setSelectedAvatarFrameId(null)
+    setSelectedCategoryFilter('all')
+    setDirectFrameIdInput('')
+    setUpdatingUser(false)
+  }
+
+  // 处理直接输入头像框ID
+  const handleDirectFrameIdChange = (value: string) => {
+    setDirectFrameIdInput(value)
+    const trimmedValue = value.trim()
+    if (trimmedValue === '') {
+      setSelectedAvatarFrameId(null)
       return
     }
-        body.premiumUserDailyLimit = premiumValue
+    const parsed = parseInt(trimmedValue, 10)
+    if (!isNaN(parsed) && parsed > 0) {
+      // 检查ID是否存在
+      const frameExists = avatarFrames.some(f => f.id === parsed)
+      if (frameExists) {
+        setSelectedAvatarFrameId(parsed)
+      } else {
+        // ID不存在，但仍然设置（允许设置不存在的ID）
+        setSelectedAvatarFrameId(parsed)
       }
-
-      const response = await fetch('/api/admin/user-limits', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || '更新失败')
-      }
-
-      // 刷新配置
-      await fetchLimitConfig()
-      setShowLimitSettings(false)
-      showDialog('success', '操作成功', '限额配置已更新')
-    } catch (error) {
-      console.error('Failed to update limit config:', error)
-      showDialog('error', '操作失败', error instanceof Error ? error.message : '更新限额配置失败')
+    } else {
+      setSelectedAvatarFrameId(null)
     }
   }
 
-  // 切换用户角色（普通/优质）
-  const handleTogglePremium = (user: User, isPremium: boolean) => {
-    // 构建用户信息显示文本
-    const userInfoParts: string[] = []
-    if (user.name) userInfoParts.push(`"${user.name}"`)
-    if (user.nickname) userInfoParts.push(`"${user.nickname}"`)
-    if (user.uid) userInfoParts.push(`ID: ${user.uid}`)
-    if (userInfoParts.length === 0) {
-      userInfoParts.push(`邮箱: ${user.email}`)
-    }
-    const userInfo = userInfoParts.join(' ')
-    
-    const actionText = isPremium ? '设为优质用户' : '设为普通用户'
-    const message = `确定要将用户 ${userInfo} ${actionText}吗？`
-    
-    showDialog(
-      'confirm',
-      '确认操作',
-      message,
-      async () => {
+  // 根据分类筛选头像框
+  const filteredAvatarFrames = selectedCategoryFilter === 'all'
+    ? avatarFrames
+    : avatarFrames.filter(frame => frame.category === selectedCategoryFilter)
+
+  // 保存用户设置
+  const handleSaveUserSettings = async () => {
+    if (!selectedUser) return
+
+    setUpdatingUser(true)
     try {
-      // 添加时间戳避免缓存
+      const isPremium = selectedRole === 'premium'
+      
       const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
         method: 'PATCH',
         headers: {
@@ -461,8 +488,9 @@ export default function AdminPage() {
           'Cache-Control': 'no-cache',
         },
         body: JSON.stringify({
-              userId: user.id,
+          userId: selectedUser.id,
           isPremium,
+          avatarFrameId: selectedAvatarFrameId,
         }),
       })
 
@@ -472,14 +500,26 @@ export default function AdminPage() {
       }
 
       // 刷新用户列表
-      fetchUsers()
-          showDialog('success', '操作成功', `用户 ${userInfo} 的角色已更新`)
-    } catch (error) {
-      console.error('Failed to update user role:', error)
-          showDialog('error', '操作失败', error instanceof Error ? error.message : '更新用户角色失败')
-    }
+      await fetchUsers()
+      handleCloseUserActionModal()
+      
+      // 构建用户信息显示文本
+      const userInfoParts: string[] = []
+      if (selectedUser.name) userInfoParts.push(`"${selectedUser.name}"`)
+      if (selectedUser.nickname) userInfoParts.push(`"${selectedUser.nickname}"`)
+      if (selectedUser.uid) userInfoParts.push(`ID: ${selectedUser.uid}`)
+      if (userInfoParts.length === 0) {
+        userInfoParts.push(`邮箱: ${selectedUser.email}`)
       }
-    )
+      const userInfo = userInfoParts.join(' ')
+      
+      showDialog('success', '操作成功', `用户 ${userInfo} 的设置已更新`)
+    } catch (error) {
+      console.error('Failed to update user settings:', error)
+      showDialog('error', '操作失败', error instanceof Error ? error.message : '更新用户设置失败')
+    } finally {
+      setUpdatingUser(false)
+    }
   }
 
   // 加载中或权限检查
@@ -555,127 +595,13 @@ export default function AdminPage() {
         <div className="flex flex-col h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)]">
           <div className="flex-shrink-0 p-4 lg:p-8 pb-2">
             <div className="max-w-7xl mx-auto">
-              {/* 限额设置卡片 */}
-              {showLimitSettings && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">用户限额设置</h3>
-                    <button
-                      onClick={() => setShowLimitSettings(false)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {/* 普通用户限额 */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        普通用户每日限额
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={limitInputs.useEnvRegular}
-                            onChange={(e) => {
-                              setLimitInputs({
-                                ...limitInputs,
-                                useEnvRegular: e.target.checked,
-                                regular: e.target.checked ? '' : limitConfig.regularUserDailyLimit.toString(),
-                              })
-                            }}
-                            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                          />
-                          <span className="text-sm text-gray-600">使用环境变量 ({limitConfig.envRegularLimit})</span>
-                        </label>
-                        {!limitInputs.useEnvRegular && (
-                          <input
-                            type="number"
-                            value={limitInputs.regular}
-                            onChange={(e) => setLimitInputs({ ...limitInputs, regular: e.target.value })}
-                            placeholder="输入限额"
-                            min="0"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 优质用户限额 */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        优质用户每日限额
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={limitInputs.useEnvPremium}
-                            onChange={(e) => {
-                              setLimitInputs({
-                                ...limitInputs,
-                                useEnvPremium: e.target.checked,
-                                premium: e.target.checked ? '' : limitConfig.premiumUserDailyLimit.toString(),
-                              })
-                            }}
-                            className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-                          />
-                          <span className="text-sm text-gray-600">使用环境变量 ({limitConfig.envPremiumLimit})</span>
-                        </label>
-                        {!limitInputs.useEnvPremium && (
-                          <input
-                            type="number"
-                            value={limitInputs.premium}
-                            onChange={(e) => setLimitInputs({ ...limitInputs, premium: e.target.value })}
-                            placeholder="输入限额"
-                            min="0"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 操作按钮 */}
-                    <div className="flex gap-2 pt-2">
-                      <button
-                        onClick={handleUpdateLimitConfig}
-                        className="px-4 py-2 bg-gradient-to-r from-orange-400 to-amber-400 text-white font-semibold rounded-lg hover:from-orange-500 hover:to-amber-500 transition-all"
-                      >
-                        保存设置
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowLimitSettings(false)
-                          fetchLimitConfig() // 重置输入
-                        }}
-                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-                      >
-                        取消
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* 搜索栏 - 固定位置 */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mb-2">
                 <div className="flex items-center gap-2 mb-2">
-                  <button
-                    onClick={() => setShowLimitSettings(!showLimitSettings)}
-                    className="px-3 py-1.5 text-sm font-medium text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
-                  >
-                    {showLimitSettings ? '隐藏限额设置' : '显示限额设置'}
-                  </button>
-                  {!showLimitSettings && (
-                    <div className="text-sm text-gray-600">
-                      当前限额: 普通用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
-                      优质用户 {limitConfig.usingEnvPremium ? `(环境变量: ${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit} 次
-                    </div>
-                  )}
+                  <div className="text-sm text-gray-600">
+                    当前限额: 普通用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
+                    优质用户 {limitConfig.usingEnvPremium ? `(环境变量: ${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit} 次
+                  </div>
                 </div>
                 <form onSubmit={handleSearch} className="flex gap-2">
                   <input
@@ -715,6 +641,120 @@ export default function AdminPage() {
                     </button>
                   )}
                 </form>
+                
+                {/* 筛选和排序控件 */}
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                    {/* 排序字段 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">排序字段</label>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => {
+                          setSortBy(e.target.value as any)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="createdAt">注册时间</option>
+                        <option value="uid">UID</option>
+                        <option value="lastLoginAt">最后登录</option>
+                        <option value="dailyRequestCount">今日使用次数</option>
+                      </select>
+                    </div>
+                    
+                    {/* 排序方向 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">排序方向</label>
+                      <select
+                        value={sortOrder}
+                        onChange={(e) => {
+                          setSortOrder(e.target.value as any)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="desc">降序</option>
+                        <option value="asc">升序</option>
+                      </select>
+                    </div>
+                    
+                    {/* 邮箱验证状态筛选 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">邮箱验证</label>
+                      <select
+                        value={emailVerifiedFilter}
+                        onChange={(e) => {
+                          setEmailVerifiedFilter(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="">全部</option>
+                        <option value="true">已验证</option>
+                        <option value="false">未验证</option>
+                      </select>
+                    </div>
+                    
+                    {/* 邮箱类型筛选 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">邮箱类型</label>
+                      <select
+                        value={emailTypeFilter}
+                        onChange={(e) => {
+                          setEmailTypeFilter(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="all">全部</option>
+                        <option value="gmail">Gmail</option>
+                        <option value="outlook">Outlook/Hotmail</option>
+                        <option value="qq">QQ邮箱</option>
+                        <option value="163">163/126邮箱</option>
+                        <option value="other">其他</option>
+                      </select>
+                    </div>
+                    
+                    {/* 角色筛选 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">角色</label>
+                      <select
+                        value={roleFilter}
+                        onChange={(e) => {
+                          setRoleFilter(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="all">全部</option>
+                        <option value="admin">管理员</option>
+                        <option value="premium">优质用户</option>
+                        <option value="regular">普通用户</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* 重置筛选按钮 */}
+                  {(sortBy !== 'createdAt' || sortOrder !== 'desc' || emailVerifiedFilter || emailTypeFilter !== 'all' || roleFilter !== 'all') && (
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('createdAt')
+                          setSortOrder('desc')
+                          setEmailVerifiedFilter('')
+                          setEmailTypeFilter('all')
+                          setRoleFilter('all')
+                          setCurrentPage(1)
+                        }}
+                        className="px-4 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        重置筛选
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* 错误提示 */}
@@ -782,12 +822,12 @@ export default function AdminPage() {
                               />
                               <div className="ml-3">
                                 <div className="flex items-center gap-2">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {user.name || user.nickname || '未设置名称'}
+                                  <div className="text-sm font-medium text-gray-900" title={user.name || user.nickname || '未设置名称'}>
+                                    {truncateText(user.name || user.nickname || '未设置名称', 8)}
                                   </div>
                                   {user.nickname && user.name && user.nickname !== user.name && (
-                                    <span className="text-sm text-gray-500">
-                                      ({user.nickname})
+                                    <span className="text-sm text-gray-500" title={user.nickname}>
+                                      ({truncateText(user.nickname, 6)})
                                     </span>
                                   )}
                                   {user.isAdmin && (
@@ -803,7 +843,17 @@ export default function AdminPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{user.email}</div>
+                            <div className="text-sm text-gray-900 relative group">
+                              <span className="cursor-help">{truncateText(user.email, 20)}</span>
+                              {user.email && user.email.length > 20 && (
+                                <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50">
+                                  <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg whitespace-nowrap">
+                                    {user.email}
+                                    <div className="absolute left-4 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                             {!user.emailVerified && (
                               <div className="text-xs text-orange-600">未验证</div>
                             )}
@@ -857,18 +907,16 @@ export default function AdminPage() {
                             {formatDate(user.lastLoginAt)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {!user.isAdmin && (
-                              <button
-                                onClick={() => handleTogglePremium(user, !user.isPremium)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                                  user.isPremium
-                                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                                }`}
-                              >
-                                {user.isPremium ? '设为普通' : '设为优质'}
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleOpenUserActionModal(user)}
+                              className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-gray-100 text-gray-700 hover:bg-gray-200 flex items-center gap-1"
+                              title="更多操作"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                              </svg>
+                              更多
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -878,11 +926,11 @@ export default function AdminPage() {
 
                 {/* 分页 */}
                 {pagination.totalPages > 1 && (
-                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+                  <div className="bg-gray-50 px-6 py-4 border-t border-gray-200 flex items-center justify-between flex-wrap gap-4">
                     <div className="text-sm text-gray-700">
                       显示第 {(currentPage - 1) * pagination.limit + 1} - {Math.min(currentPage * pagination.limit, pagination.total)} 条，共 {pagination.total} 条
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
@@ -893,6 +941,41 @@ export default function AdminPage() {
                       <span className="px-4 py-2 text-sm text-gray-700 flex items-center">
                         第 {currentPage} / {pagination.totalPages} 页
                       </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-700">跳转到</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max={pagination.totalPages}
+                          value={pageInput}
+                          onChange={(e) => setPageInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const page = parseInt(pageInput, 10)
+                              if (!isNaN(page) && page >= 1 && page <= pagination.totalPages) {
+                                setCurrentPage(page)
+                                setPageInput('')
+                              }
+                            }
+                          }}
+                          placeholder={`${currentPage}`}
+                          className="w-16 px-2 py-2 border border-gray-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                        />
+                        <span className="text-sm text-gray-700">页</span>
+                        <button
+                          onClick={() => {
+                            const page = parseInt(pageInput, 10)
+                            if (!isNaN(page) && page >= 1 && page <= pagination.totalPages) {
+                              setCurrentPage(page)
+                              setPageInput('')
+                            }
+                          }}
+                          disabled={!pageInput || isNaN(parseInt(pageInput, 10)) || parseInt(pageInput, 10) < 1 || parseInt(pageInput, 10) > pagination.totalPages}
+                          className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          跳转
+                        </button>
+                      </div>
                       <button
                         onClick={() => setCurrentPage(p => Math.min(pagination.totalPages, p + 1))}
                         disabled={currentPage === pagination.totalPages}
@@ -910,6 +993,265 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      {/* 用户操作模态框 */}
+      {showUserActionModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">用户设置</h2>
+              <button
+                onClick={handleCloseUserActionModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 用户信息 */}
+            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <AvatarWithFrame
+                    avatar={selectedUser.avatar}
+                    avatarFrameId={selectedAvatarFrameId}
+                    size={60}
+                    className="border-2 border-gray-200"
+                  />
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-gray-900" title={selectedUser.name || selectedUser.nickname || '未设置名称'}>
+                    {truncateText(selectedUser.name || selectedUser.nickname || '未设置名称', 12)}
+                  </div>
+                  <div className="text-sm text-gray-600 relative group">
+                    <span className="cursor-help">{truncateText(selectedUser.email, 20)}</span>
+                    {selectedUser.email && selectedUser.email.length > 20 && (
+                      <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50">
+                        <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg whitespace-nowrap">
+                          {selectedUser.email}
+                          <div className="absolute left-4 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">UID: {selectedUser.uid || '-'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* 设置用户角色 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                用户角色
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="userRole"
+                    value="regular"
+                    checked={selectedRole === 'regular'}
+                    onChange={(e) => setSelectedRole(e.target.value as 'regular' | 'premium')}
+                    disabled={selectedUser.isAdmin || updatingUser}
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">普通用户</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="userRole"
+                    value="premium"
+                    checked={selectedRole === 'premium'}
+                    onChange={(e) => setSelectedRole(e.target.value as 'regular' | 'premium')}
+                    disabled={selectedUser.isAdmin || updatingUser}
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">优质用户</span>
+                </label>
+              </div>
+              {selectedUser.isAdmin && (
+                <p className="mt-2 text-xs text-gray-500">管理员角色无法修改</p>
+              )}
+            </div>
+
+            {/* 设置用户头像框 */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  头像框
+                </label>
+                {selectedUser.avatarFrameId && (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    当前ID: {selectedUser.avatarFrameId}
+                  </span>
+                )}
+              </div>
+
+              {/* 直接输入头像框ID */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  直接输入头像框ID
+                </label>
+                <input
+                  type="text"
+                  value={directFrameIdInput}
+                  onChange={(e) => handleDirectFrameIdChange(e.target.value)}
+                  placeholder="输入头像框ID（留空为无头像框）"
+                  disabled={updatingUser}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                />
+                {selectedAvatarFrameId && !avatarFrames.some(f => f.id === selectedAvatarFrameId) && (
+                  <p className="mt-1 text-xs text-orange-600">
+                    注意：ID {selectedAvatarFrameId} 不存在于当前头像框列表中
+                  </p>
+                )}
+              </div>
+
+              {/* 分类筛选 */}
+              {avatarFrameCategories.length > 0 && (
+                <div className="mb-4">
+                  <label className="block text-xs font-medium text-gray-600 mb-2">
+                    按分类筛选
+                  </label>
+                  <select
+                    value={selectedCategoryFilter}
+                    onChange={(e) => {
+                      setSelectedCategoryFilter(e.target.value)
+                      // 如果当前选中的头像框不在筛选后的列表中，清除选择
+                      if (e.target.value !== 'all' && selectedAvatarFrameId) {
+                        const frame = avatarFrames.find(f => f.id === selectedAvatarFrameId)
+                        if (!frame || frame.category !== e.target.value) {
+                          setSelectedAvatarFrameId(null)
+                          setDirectFrameIdInput('')
+                        }
+                      }
+                    }}
+                    disabled={updatingUser}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                  >
+                    <option value="all">全部分类 ({avatarFrames.length})</option>
+                    {avatarFrameCategories.map(cat => {
+                      const count = avatarFrames.filter(f => f.category === cat).length
+                      return (
+                        <option key={cat} value={cat}>
+                          {cat} ({count})
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+              )}
+
+              {/* 头像框选择列表 */}
+              <div className="mb-2">
+                <label className="block text-xs font-medium text-gray-600 mb-2">
+                  从列表选择
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-2 border border-gray-200 rounded-lg">
+                  <label className="relative cursor-pointer">
+                    <input
+                      type="radio"
+                      name="avatarFrame"
+                      value=""
+                      checked={selectedAvatarFrameId === null}
+                      onChange={() => {
+                        setSelectedAvatarFrameId(null)
+                        setDirectFrameIdInput('')
+                      }}
+                      disabled={updatingUser}
+                      className="sr-only"
+                    />
+                    <div className={`p-2 border-2 rounded-lg transition-all ${
+                      selectedAvatarFrameId === null
+                        ? 'border-orange-500 bg-orange-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}>
+                      <div className="aspect-square bg-gray-100 rounded flex items-center justify-center">
+                        <span className="text-xs text-gray-500">无头像框</span>
+                      </div>
+                    </div>
+                  </label>
+                  {filteredAvatarFrames.map((frame) => (
+                    <label key={frame.id} className="relative cursor-pointer">
+                      <input
+                        type="radio"
+                        name="avatarFrame"
+                        value={frame.id}
+                        checked={selectedAvatarFrameId === frame.id}
+                        onChange={() => {
+                          setSelectedAvatarFrameId(frame.id)
+                          setDirectFrameIdInput(frame.id.toString())
+                        }}
+                        disabled={updatingUser}
+                        className="sr-only"
+                      />
+                      <div className={`p-2 border-2 rounded-lg transition-all ${
+                        selectedAvatarFrameId === frame.id
+                          ? 'border-orange-500 bg-orange-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                        <div className="aspect-square bg-gray-100 rounded overflow-hidden">
+                          {frame.imageUrl ? (
+                            <Image
+                              src={frame.imageUrl}
+                              alt={`Frame ${frame.id}`}
+                              width={80}
+                              height={80}
+                              className="w-full h-full object-contain"
+                              unoptimized={frame.imageUrl.startsWith('http')}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-xs text-gray-400">无图片</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-1 text-xs text-center text-gray-600 truncate">
+                          ID: {frame.id}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              {filteredAvatarFrames.length === 0 && avatarFrames.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">该分类下暂无头像框</p>
+              )}
+              {avatarFrames.length === 0 && (
+                <p className="mt-2 text-xs text-gray-500">暂无头像框，请先在装饰管理中添加</p>
+              )}
+            </div>
+
+            {/* 操作按钮 */}
+            <div className="flex gap-3 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleCloseUserActionModal}
+                disabled={updatingUser}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveUserSettings}
+                disabled={updatingUser}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {updatingUser ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>保存中...</span>
+                  </>
+                ) : (
+                  '保存'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 自定义对话框 */}
       {dialogState.show && (

@@ -80,6 +80,8 @@ export async function GET(request: Request) {
     let timeDistribution: Array<{ date: string; hour: number; count: number }> = []
     let modelDistribution: Array<{ modelName: string; count: number }> = []
     let ipUsers: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; callCount: number }> = []
+    const dailyDistribution: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
+    const dailyHourlyDistribution: Array<{ date: string; hour: number; total: number; authenticated?: number; unauthenticated?: number }> = []
 
     if (type === 'user') {
       // 用户详情：按小时统计调用时间分布，按模型统计调用分布
@@ -139,6 +141,72 @@ export async function GET(request: Request) {
         modelName: stat.modelName,
         count: Number(stat.count),
       }))
+
+      // 3. 当timeRange为week时，添加按天统计的数据
+      if (timeRange === 'week') {
+        const dailyStats = await db
+          .select({
+            date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(and(...whereConditions))
+          .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+
+        // 生成前7天的完整数据
+        const now = new Date()
+        const dailyMap = new Map<string, number>()
+        dailyStats.forEach((stat) => {
+          dailyMap.set(stat.date, Number(stat.count))
+        })
+
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now)
+          date.setDate(date.getDate() - i)
+          const dateStr = date.toISOString().split('T')[0]
+          dailyDistribution.push({
+            date: dateStr,
+            total: dailyMap.get(dateStr) || 0,
+            authenticated: dailyMap.get(dateStr) || 0, // 用户详情只有登录用户
+            unauthenticated: 0,
+          })
+        }
+
+        // 4. 添加近七天每日按小时的数据
+        const dailyHourlyStats = await db
+          .select({
+            date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+            hour: sql<number>`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})::int`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(and(...whereConditions))
+          .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+
+        // 生成前7天每天24小时的完整数据
+        const hourlyMap = new Map<string, number>()
+        dailyHourlyStats.forEach((stat) => {
+          const key = `${stat.date}-${stat.hour}`
+          hourlyMap.set(key, Number(stat.count))
+        })
+
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now)
+          date.setDate(date.getDate() - i)
+          const dateStr = date.toISOString().split('T')[0]
+          
+          for (let hour = 0; hour < 24; hour++) {
+            const key = `${dateStr}-${hour}`
+            dailyHourlyDistribution.push({
+              date: dateStr,
+              hour: hour,
+              total: hourlyMap.get(key) || 0,
+            })
+          }
+        }
+      }
     } else if (type === 'ip') {
       // IP详情：按小时统计调用时间分布，按模型统计调用分布
       // 对于hour范围，按分钟统计；其他范围按小时统计
@@ -229,6 +297,162 @@ export async function GET(request: Request) {
           userNickname: stat.userNickname,
           callCount: Number(stat.callCount),
         }))
+
+      // 3. 当timeRange为week时，添加按天统计的数据（区分登录/未登录用户）
+      if (timeRange === 'week') {
+        // 总请求按天统计
+        const dailyTotalStats = await db
+          .select({
+            date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(and(...ipTimeWhereConditions))
+          .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+
+        // 登录用户按天统计
+        const dailyAuthStats = await db
+          .select({
+            date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(
+            and(
+              ...ipTimeWhereConditions,
+              eq(modelUsageStats.isAuthenticated, true)
+            )
+          )
+          .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+
+        // 未登录用户按天统计
+        const dailyUnauthStats = await db
+          .select({
+            date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(
+            and(
+              ...ipTimeWhereConditions,
+              eq(modelUsageStats.isAuthenticated, false)
+            )
+          )
+          .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+
+        // 生成前7天的完整数据
+        const now = new Date()
+        const totalMap = new Map<string, number>()
+        const authMap = new Map<string, number>()
+        const unauthMap = new Map<string, number>()
+
+        dailyTotalStats.forEach((stat) => {
+          totalMap.set(stat.date, Number(stat.count))
+        })
+        dailyAuthStats.forEach((stat) => {
+          authMap.set(stat.date, Number(stat.count))
+        })
+        dailyUnauthStats.forEach((stat) => {
+          unauthMap.set(stat.date, Number(stat.count))
+        })
+
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now)
+          date.setDate(date.getDate() - i)
+          const dateStr = date.toISOString().split('T')[0]
+          dailyDistribution.push({
+            date: dateStr,
+            total: totalMap.get(dateStr) || 0,
+            authenticated: authMap.get(dateStr) || 0,
+            unauthenticated: unauthMap.get(dateStr) || 0,
+          })
+        }
+
+        // 4. 添加近七天每日按小时的数据（区分登录/未登录用户）
+        // 总请求按天按小时统计
+        const dailyHourlyTotalStats = await db
+          .select({
+            date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+            hour: sql<number>`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})::int`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(and(...ipTimeWhereConditions))
+          .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+
+        // 登录用户按天按小时统计
+        const dailyHourlyAuthStats = await db
+          .select({
+            date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+            hour: sql<number>`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})::int`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(
+            and(
+              ...ipTimeWhereConditions,
+              eq(modelUsageStats.isAuthenticated, true)
+            )
+          )
+          .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+
+        // 未登录用户按天按小时统计
+        const dailyHourlyUnauthStats = await db
+          .select({
+            date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+            hour: sql<number>`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})::int`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(modelUsageStats)
+          .where(
+            and(
+              ...ipTimeWhereConditions,
+              eq(modelUsageStats.isAuthenticated, false)
+            )
+          )
+          .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+          .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, sql`EXTRACT(HOUR FROM ${modelUsageStats.createdAt})`)
+
+        // 生成前7天每天24小时的完整数据
+        const totalHourlyMap = new Map<string, number>()
+        const authHourlyMap = new Map<string, number>()
+        const unauthHourlyMap = new Map<string, number>()
+
+        dailyHourlyTotalStats.forEach((stat) => {
+          const key = `${stat.date}-${stat.hour}`
+          totalHourlyMap.set(key, Number(stat.count))
+        })
+        dailyHourlyAuthStats.forEach((stat) => {
+          const key = `${stat.date}-${stat.hour}`
+          authHourlyMap.set(key, Number(stat.count))
+        })
+        dailyHourlyUnauthStats.forEach((stat) => {
+          const key = `${stat.date}-${stat.hour}`
+          unauthHourlyMap.set(key, Number(stat.count))
+        })
+
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now)
+          date.setDate(date.getDate() - i)
+          const dateStr = date.toISOString().split('T')[0]
+          
+          for (let hour = 0; hour < 24; hour++) {
+            const key = `${dateStr}-${hour}`
+            dailyHourlyDistribution.push({
+              date: dateStr,
+              hour: hour,
+              total: totalHourlyMap.get(key) || 0,
+              authenticated: authHourlyMap.get(key) || 0,
+              unauthenticated: unauthHourlyMap.get(key) || 0,
+            })
+          }
+        }
+      }
     }
 
     return NextResponse.json(
@@ -239,6 +463,8 @@ export async function GET(request: Request) {
         timeDistribution,
         modelDistribution,
         ipUsers: type === 'ip' ? ipUsers : undefined,
+        dailyDistribution: timeRange === 'week' ? dailyDistribution : undefined,
+        dailyHourlyDistribution: timeRange === 'week' ? dailyHourlyDistribution : undefined,
       },
       {
         headers: {
