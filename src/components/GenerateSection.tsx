@@ -1,4 +1,4 @@
-import { useState, useRef, forwardRef, useImperativeHandle, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import GenerateForm from './GenerateForm'
 import GeneratePreview from './GeneratePreview'
@@ -11,17 +11,14 @@ import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
+  initialPrompt?: string;
 }
 
-export interface GenerateSectionRef {
-  handleGenerateSame: (promptText: string) => void;
-}
-
-const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ communityWorks }, ref) => {
+const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps) => {
   const t = useTranslations('home.generate')
   const tHome = useTranslations('home')
   const { data: session, isPending } = useSession()
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState(initialPrompt || '');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [width, setWidth] = useState(1024);
   const [height, setHeight] = useState(1024);
@@ -42,7 +39,6 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'generate' | 'style-transfer'>('generate');
   const promptRef = useRef<HTMLTextAreaElement>(null);
-  const generateSectionRef = useRef<HTMLDivElement>(null);
   const [stepsError, setStepsError] = useState<string | null>(null);
   const [batchSizeError, setBatchSizeError] = useState<string | null>(null);
   const [imageCountError, setImageCountError] = useState<string | null>(null);
@@ -67,18 +63,9 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
     }
   }, [authStatus, batch_size]);
 
-  // 处理画同款功能
-  const handleGenerateSame = (promptText: string) => {
-    setPrompt(promptText);
-    if (generateSectionRef.current) {
-      generateSectionRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  // 暴露方法给父组件
-  useImperativeHandle(ref, () => ({
-    handleGenerateSame
-  }));
+  useEffect(() => {
+    setPrompt(initialPrompt || '');
+  }, [initialPrompt]);
 
   // 处理设置生成的图片为参考图片
   const handleSetGeneratedImageAsReference = async (imageUrl: string) => {
@@ -470,7 +457,7 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
 
   return (
-    <section id="generate-section" ref={generateSectionRef} className="py-10 sm:py-16 relative">
+    <section id="generate-section" className="py-10 sm:py-12 lg:py-6 relative">
       <div className="w-full max-w-[1260px] mx-auto relative px-3 sm:px-5">
         {/* Tab Navigation */}
         <TabNavigation 
@@ -669,8 +656,6 @@ const GenerateSection = forwardRef<GenerateSectionRef, GenerateSectionProps>(({ 
       )}
     </section>
   )
-})
-
-GenerateSection.displayName = 'GenerateSection';
+}
 
 export default GenerateSection 

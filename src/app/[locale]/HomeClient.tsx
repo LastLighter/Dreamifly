@@ -4,9 +4,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import { useParams, useRouter } from 'next/navigation'
 import community from './communityWorks'
 import SiteStats from '@/components/SiteStats'
-import GenerateSection, { GenerateSectionRef } from '@/components/GenerateSection'
+import { transferUrl } from '@/utils/locale'
 import TencentAds from '@/components/TencentAds'
 
 interface FAQItem {
@@ -19,8 +20,10 @@ export default function HomeClient() {
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const t = useTranslations('home')
   const tFriends = useTranslations('friends')
-  const generateSectionRef = useRef<GenerateSectionRef>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const params = useParams()
+  const locale = (params?.locale as string) || 'zh'
+  const router = useRouter()
 
 
   // 示例图片数组
@@ -74,10 +77,13 @@ export default function HomeClient() {
   // 模拟社区作品数据
   const communityWorks = community
 
+  const navigateToCreate = (promptText?: string) => {
+    const query = promptText ? `?prompt=${encodeURIComponent(promptText)}` : ''
+    router.push(transferUrl(`/create${query}`, locale))
+  }
+
   const handleGenerateSame = (promptText: string) => {
-    if (generateSectionRef.current) {
-      generateSectionRef.current.handleGenerateSame(promptText);
-    }
+    navigateToCreate(promptText)
   };
 
   return (
@@ -196,9 +202,7 @@ export default function HomeClient() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 animate-fadeInUp animation-delay-600">
                   <button
-                    onClick={() => {
-                      document.getElementById('generate-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }}
+                    onClick={() => navigateToCreate()}
                     className="group px-6 py-2.5 sm:px-9 sm:py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl hover:from-orange-400 hover:to-amber-400 transition-all duration-300 shadow-xl shadow-orange-500/20 hover:shadow-2xl hover:shadow-orange-500/30 hover:-translate-y-0.5 text-sm sm:text-base font-medium relative overflow-hidden"
                   >
                     <span className="relative z-10">{t('hero.startButton')}</span>
@@ -279,24 +283,6 @@ export default function HomeClient() {
           </div>
         </section>
 
-        {/* Tencent Ads - Top */}
-        <div className="relative py-6 px-5 sm:px-8 lg:px-40 z-20">
-          <div id="ad-top"></div>
-          <TencentAds placementId="5222868351048167" containerId="ad-top" />
-        </div>
-
-        {/* Generate Section */}
-        <GenerateSection 
-          communityWorks={communityWorks} 
-          ref={generateSectionRef}
-        />
-
-        {/* Tencent Ads - Below Generate Section */}
-        <div className="relative py-6 px-5 sm:px-8 lg:px-40 z-20">
-          <div id="ad-below-generate"></div>
-          <TencentAds placementId="8232358642752084" containerId="ad-below-generate" />
-        </div>
-
         {/* Stats Section - 改进响应式设计 */}
         <section id="site-stats" className="py-8 sm:py-12 px-5 sm:px-8 lg:px-40 bg-gray-200/80 backdrop-blur-md relative">
             
@@ -304,6 +290,12 @@ export default function HomeClient() {
             <SiteStats />
           </div>
         </section>
+
+        {/* Tencent Ads - Above Community Section */}
+        <div className="relative py-6 px-5 sm:px-8 lg:px-40 z-20">
+          <div id="home-ad-above-community"></div>
+          <TencentAds placementId="5222868351048167" containerId="home-ad-above-community" />
+        </div>
 
         {/* Community Showcase Section - 改进响应式设计 */}
         <section id="community-showcase" className="py-14 sm:py-20 px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 bg-gray-50/90 backdrop-blur-md relative">

@@ -10,6 +10,7 @@ import { useParams, usePathname, useRouter } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import { useTranslations } from 'next-intl'
 import { useState, useEffect } from 'react'
+import type { MouseEvent as ReactMouseEvent } from 'react'
 import { useSession, signOut } from '@/lib/auth-client'
 import { useAvatar } from '@/contexts/AvatarContext'
 import AvatarWithFrame from './AvatarWithFrame'
@@ -58,6 +59,34 @@ export default function Navbar() {
     setIsMobileMenuOpen(!isMobileMenuOpen)
   }
 
+  const handleQuickGenerateClick = () => {
+    setIsMobileMenuOpen(false)
+    router.push(transferUrl('/create', locale))
+  }
+
+  const scrollToTop = () => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
+  const handleLogoClick = (event?: ReactMouseEvent<HTMLAnchorElement | HTMLDivElement>) => {
+    event?.preventDefault()
+    setIsMobileMenuOpen(false)
+    const homePath = transferUrl('/', locale)
+    const isHome = pathname === `/${locale}` || pathname === `/${locale}/`
+
+    if (isHome) {
+      scrollToTop()
+      return
+    }
+
+    router.push(homePath)
+    setTimeout(() => {
+      scrollToTop()
+    }, 200)
+  }
+
   // 处理点击导航项
   const handleNavItemClick = (sectionId: string) => {
     const isHome = pathname === `/${locale}` || pathname === `/${locale}/`
@@ -99,7 +128,7 @@ export default function Navbar() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <div className="flex items-center ml-4">
+        <div className="flex items-center ml-4 cursor-pointer" onClick={() => handleLogoClick()}>
           <Image
             src="/images/dreamifly-logo.jpg"
             alt="Dreamifly Logo"
@@ -179,6 +208,7 @@ export default function Navbar() {
           <div className="hidden lg:flex flex-col items-center mb-12">
             <Link 
               href={transferUrl('/', locale)} 
+              onClick={handleLogoClick}
               className="relative transform transition-all duration-300 hover:scale-110 mb-3"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 rounded-2xl blur-xl opacity-50 animate-pulse"></div>
@@ -198,7 +228,7 @@ export default function Navbar() {
           {/* 导航菜单 */}
           <nav className="flex-1 flex flex-col items-center space-y-8 w-full px-4">
             <button
-              onClick={() => handleNavItemClick('generate-section')}
+              onClick={handleQuickGenerateClick}
               className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
             >
               <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
