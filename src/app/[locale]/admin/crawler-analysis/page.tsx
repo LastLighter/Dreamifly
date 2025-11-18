@@ -24,7 +24,7 @@ import {
   Legend,
 } from 'recharts'
 
-type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
+type TimeRange = 'hour' | 'today' | 'yesterday' | 'week' | 'month' | 'all'
 
 interface UserCallRanking {
   userId: string
@@ -348,7 +348,7 @@ export default function CrawlerAnalysisPage() {
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-gray-700">时间范围：</span>
                   <div className="flex gap-2">
-                    {(['hour', 'today', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
+                    {(['hour', 'today', 'yesterday', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
                       <button
                         key={range}
                         onClick={() => setTimeRange(range)}
@@ -358,7 +358,7 @@ export default function CrawlerAnalysisPage() {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        {range === 'hour' ? '近一小时' : range === 'today' ? '今天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
+                        {range === 'hour' ? '近一小时' : range === 'today' ? '今天' : range === 'yesterday' ? '昨天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
                       </button>
                     ))}
                   </div>

@@ -64,6 +64,25 @@ export async function GET(request: Request) {
           const todayInShanghai = new Date(Date.UTC(year, month, day, 0, 0, 0, 0))
           startDate = new Date(todayInShanghai.getTime() - 8 * 60 * 60 * 1000)
           break
+        case 'yesterday':
+          // 昨天00:00:00（中国时区 UTC+8）
+          // 使用 Intl API 获取中国时区的当前日期组件
+          const shanghaiDateYesterday = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Shanghai',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).formatToParts(now)
+          
+          const yearYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'year')!.value)
+          const monthYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'month')!.value) - 1
+          const dayYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'day')!.value)
+          
+          // 创建中国时区昨天00:00:00的Date对象，然后转换为UTC
+          // 中国时区是UTC+8，所以需要减去8小时
+          const yesterdayInShanghai = new Date(Date.UTC(yearYesterday, monthYesterday, dayYesterday - 1, 0, 0, 0, 0))
+          startDate = new Date(yesterdayInShanghai.getTime() - 8 * 60 * 60 * 1000)
+          break
         case 'week':
           // 7天前（UTC时间）
           startDate = new Date(now)
