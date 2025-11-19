@@ -188,7 +188,18 @@ export async function POST(request: Request) {
       
       // 先获取用户信息，检查是否是管理员
       // 使用数据库原子操作来确保并发安全
-      const currentUser = await db.select()
+      // 注意：查询时使用 AT TIME ZONE 'UTC' 确保读取的是UTC时间，避免时区转换问题
+      const currentUser = await db.select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        isPremium: user.isPremium,
+        dailyRequestCount: user.dailyRequestCount,
+        // 将 timestamptz 转换为 UTC 时间字符串，确保读取正确
+        lastRequestResetDate: sql<string | null>`${user.lastRequestResetDate} AT TIME ZONE 'UTC'`,
+        updatedAt: user.updatedAt,
+      })
         .from(user)
         .where(eq(user.id, userId))
         .limit(1);
@@ -241,7 +252,12 @@ export async function POST(request: Request) {
           todayShanghai.day
         ));
 
-        const lastResetDate = userData.lastRequestResetDate ? new Date(userData.lastRequestResetDate) : null;
+        // 由于查询时已经使用 AT TIME ZONE 'UTC' 转换为UTC时间字符串
+        // 返回的格式是 '2025-11-17 15:17:26.143223' (无时区标识的UTC时间，空格分隔)
+        // 需要转换为ISO 8601格式（将空格替换为T，添加Z表示UTC）
+        const lastResetDate = userData.lastRequestResetDate 
+          ? new Date(userData.lastRequestResetDate.replace(' ', 'T') + 'Z') 
+          : null;
         const lastResetDayShanghai = lastResetDate ? getShanghaiDate(lastResetDate) : null;
         const lastResetDayShanghaiDate = lastResetDayShanghai ? new Date(Date.UTC(
           lastResetDayShanghai.year,
@@ -251,17 +267,20 @@ export async function POST(request: Request) {
 
         // 先检查并重置（如果需要）- 所有用户都需要统计
         let currentCount = userData.dailyRequestCount || 0;
+        const needsReset = !lastResetDayShanghaiDate || lastResetDayShanghaiDate.getTime() !== todayShanghaiDate.getTime();
         
         // 如果上次重置日期不是今天（东八区），重置计数
-        if (!lastResetDayShanghaiDate || lastResetDayShanghaiDate.getTime() !== todayShanghaiDate.getTime()) {
+        if (needsReset) {
           currentCount = 0;
-          // 先重置计数，使用东八区时间（转换为UTC存储）
+          // 先重置计数
+          // 注意：字段类型是 timestamptz，PostgreSQL 会自动处理时区转换
+          // 直接使用 now() 即可，PostgreSQL 会以 UTC 存储
           await db
             .update(user)
             .set({
               dailyRequestCount: 0,
-              lastRequestResetDate: sql`(now() at time zone 'Asia/Shanghai')`,
-              updatedAt: sql`(now() at time zone 'Asia/Shanghai')`,
+              lastRequestResetDate: sql`now()`,
+              updatedAt: sql`now()`,
             })
             .where(eq(user.id, userId));
         }
@@ -312,13 +331,17 @@ export async function POST(request: Request) {
 
         // 使用原子操作增加计数（每次请求+1，不管batch_size）
         // 这样可以确保并发请求时也能正确计数（包括管理员）
+        // 构建更新对象
+        const updateData: any = {
+          dailyRequestCount: sql`${user.dailyRequestCount} + 1`,
+          updatedAt: sql`now()`,
+        };
+        // 注意：如果上面已经重置过（needsReset = true），lastRequestResetDate 已经在重置时更新了
+        // 这里不需要再更新，避免重复更新
+        // 如果日期相同（needsReset = false），也不需要更新 lastRequestResetDate，保持原值
         await db
           .update(user)
-          .set({
-            dailyRequestCount: sql`${user.dailyRequestCount} + 1`,
-            lastRequestResetDate: (!lastResetDayShanghaiDate || lastResetDayShanghaiDate.getTime() !== todayShanghaiDate.getTime()) ? sql`(now() at time zone 'Asia/Shanghai')` : sql`${user.lastRequestResetDate}`,
-            updatedAt: sql`(now() at time zone 'Asia/Shanghai')`,
-          })
+          .set(updateData)
           .where(eq(user.id, userId));
       }
       
