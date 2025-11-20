@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { modelUsageStats, user, userLimitConfig } from '@/db/schema'
-import { gte, sql, eq, isNotNull, and } from 'drizzle-orm'
+import { gte, lt, sql, eq, isNotNull, and } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
@@ -34,7 +34,7 @@ function getTimeRangeDate(range: TimeRange): Date {
       return new Date(todayInShanghai.getTime() - 8 * 60 * 60 * 1000)
     case 'yesterday':
       // 昨天00:00:00（中国时区 UTC+8）
-      // 使用 Intl API 获取中国时区的当前日期组件
+      // 先获取今天00:00:00的UTC时间，然后减去24小时得到昨天
       const shanghaiDateYesterday = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Shanghai',
         year: 'numeric',
@@ -46,10 +46,10 @@ function getTimeRangeDate(range: TimeRange): Date {
       const monthYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'month')!.value) - 1
       const dayYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'day')!.value)
       
-      // 创建中国时区昨天00:00:00的Date对象，然后转换为UTC
-      // 中国时区是UTC+8，所以需要减去8小时
-      const yesterdayInShanghai = new Date(Date.UTC(yearYesterday, monthYesterday, dayYesterday - 1, 0, 0, 0, 0))
-      return new Date(yesterdayInShanghai.getTime() - 8 * 60 * 60 * 1000)
+      // 创建中国时区今天00:00:00的UTC时间戳，然后减去24小时得到昨天
+      const todayInShanghaiForYesterday = new Date(Date.UTC(yearYesterday, monthYesterday, dayYesterday, 0, 0, 0, 0))
+      const todayUTCForYesterday = new Date(todayInShanghaiForYesterday.getTime() - 8 * 60 * 60 * 1000)
+      return new Date(todayUTCForYesterday.getTime() - 24 * 60 * 60 * 1000)
     case 'week':
       // 7天前（UTC时间）
       const weekAgo = new Date(now)
@@ -67,6 +67,30 @@ function getTimeRangeDate(range: TimeRange): Date {
       defaultDate.setHours(0, 0, 0, 0)
       return defaultDate
   }
+}
+
+// 获取时间范围的结束时间（用于 yesterday 等需要精确日期范围的情况）
+function getTimeRangeEndDate(range: TimeRange): Date | null {
+  if (range !== 'yesterday') {
+    return null // 其他时间范围不需要结束时间限制
+  }
+  
+  const now = new Date()
+  // 对于 yesterday，结束时间是今天00:00:00（中国时区 UTC+8）
+  const shanghaiDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(now)
+  
+  const year = parseInt(shanghaiDate.find(p => p.type === 'year')!.value)
+  const month = parseInt(shanghaiDate.find(p => p.type === 'month')!.value) - 1
+  const day = parseInt(shanghaiDate.find(p => p.type === 'day')!.value)
+  
+  // 创建中国时区今天00:00:00的Date对象，然后转换为UTC
+  const todayInShanghai = new Date(Date.UTC(year, month, day, 0, 0, 0, 0))
+  return new Date(todayInShanghai.getTime() - 8 * 60 * 60 * 1000)
 }
 
 export async function GET(request: Request) {
@@ -93,6 +117,7 @@ export async function GET(request: Request) {
     const timeRange = (searchParams.get('timeRange') || 'week') as TimeRange
 
     const startDate = getTimeRangeDate(timeRange)
+    const endDate = getTimeRangeEndDate(timeRange)
 
     // 获取用户限额配置
     let regularUserDailyLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10)
@@ -115,6 +140,15 @@ export async function GET(request: Request) {
     }
 
     // 1. 登录用户调用次数排名
+    const userCallRankingWhereConditions = [
+      gte(modelUsageStats.createdAt, startDate),
+      isNotNull(modelUsageStats.userId),
+      eq(modelUsageStats.isAuthenticated, true)
+    ]
+    if (endDate) {
+      userCallRankingWhereConditions.push(lt(modelUsageStats.createdAt, endDate))
+    }
+    
     const userCallRanking = await db
       .select({
         userId: modelUsageStats.userId,
@@ -130,18 +164,20 @@ export async function GET(request: Request) {
       })
       .from(modelUsageStats)
       .innerJoin(user, eq(modelUsageStats.userId, user.id))
-      .where(
-        and(
-          gte(modelUsageStats.createdAt, startDate),
-          isNotNull(modelUsageStats.userId),
-          eq(modelUsageStats.isAuthenticated, true)
-        )
-      )
+      .where(and(...userCallRankingWhereConditions))
       .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname, user.isAdmin, user.isPremium, user.dailyRequestCount, sql`${user.lastRequestResetDate} AT TIME ZONE 'UTC'`)
       .orderBy(sql`count(*) DESC`)
       .limit(100)
 
     // 2. IP调用次数排名（全部用户）
+    const allIPRankingWhereConditions = [
+      gte(modelUsageStats.createdAt, startDate),
+      isNotNull(modelUsageStats.ipAddress)
+    ]
+    if (endDate) {
+      allIPRankingWhereConditions.push(lt(modelUsageStats.createdAt, endDate))
+    }
+    
     const allIPRanking = await db
       .select({
         ipAddress: modelUsageStats.ipAddress,
@@ -151,17 +187,21 @@ export async function GET(request: Request) {
         userCount: sql<number>`count(distinct ${modelUsageStats.userId}) filter (where ${modelUsageStats.isAuthenticated} = true and ${modelUsageStats.userId} is not null)::int`,
       })
       .from(modelUsageStats)
-      .where(
-        and(
-          gte(modelUsageStats.createdAt, startDate),
-          isNotNull(modelUsageStats.ipAddress)
-        )
-      )
+      .where(and(...allIPRankingWhereConditions))
       .groupBy(modelUsageStats.ipAddress)
       .orderBy(sql`count(*) DESC`)
       .limit(100)
 
     // 3. IP调用次数排名（仅登录用户）
+    const authenticatedIPRankingWhereConditions = [
+      gte(modelUsageStats.createdAt, startDate),
+      isNotNull(modelUsageStats.ipAddress),
+      eq(modelUsageStats.isAuthenticated, true)
+    ]
+    if (endDate) {
+      authenticatedIPRankingWhereConditions.push(lt(modelUsageStats.createdAt, endDate))
+    }
+    
     const authenticatedIPRanking = await db
       .select({
         ipAddress: modelUsageStats.ipAddress,
@@ -169,31 +209,28 @@ export async function GET(request: Request) {
         userCount: sql<number>`count(distinct ${modelUsageStats.userId}) filter (where ${modelUsageStats.userId} is not null)::int`,
       })
       .from(modelUsageStats)
-      .where(
-        and(
-          gte(modelUsageStats.createdAt, startDate),
-          isNotNull(modelUsageStats.ipAddress),
-          eq(modelUsageStats.isAuthenticated, true)
-        )
-      )
+      .where(and(...authenticatedIPRankingWhereConditions))
       .groupBy(modelUsageStats.ipAddress)
       .orderBy(sql`count(*) DESC`)
       .limit(100)
 
     // 4. IP调用次数排名（仅未登录用户）
+    const unauthenticatedIPRankingWhereConditions = [
+      gte(modelUsageStats.createdAt, startDate),
+      isNotNull(modelUsageStats.ipAddress),
+      eq(modelUsageStats.isAuthenticated, false)
+    ]
+    if (endDate) {
+      unauthenticatedIPRankingWhereConditions.push(lt(modelUsageStats.createdAt, endDate))
+    }
+    
     const unauthenticatedIPRanking = await db
       .select({
         ipAddress: modelUsageStats.ipAddress,
         callCount: sql<number>`count(*)::int`,
       })
       .from(modelUsageStats)
-      .where(
-        and(
-          gte(modelUsageStats.createdAt, startDate),
-          isNotNull(modelUsageStats.ipAddress),
-          eq(modelUsageStats.isAuthenticated, false)
-        )
-      )
+      .where(and(...unauthenticatedIPRankingWhereConditions))
       .groupBy(modelUsageStats.ipAddress)
       .orderBy(sql`count(*) DESC`)
       .limit(100)

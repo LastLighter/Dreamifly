@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { modelUsageStats, user } from '@/db/schema'
-import { eq, sql, and, isNotNull, gte } from 'drizzle-orm'
+import { eq, sql, and, isNotNull, gte, lt } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
@@ -37,6 +37,7 @@ export async function GET(request: Request) {
 
     // 计算时间范围
     let startDate = new Date(0)
+    let endDate: Date | null = null
     if (timeRange !== 'all') {
       const now = new Date()
       
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
           break
         case 'yesterday':
           // 昨天00:00:00（中国时区 UTC+8）
-          // 使用 Intl API 获取中国时区的当前日期组件
+          // 先获取今天00:00:00的UTC时间，然后减去24小时得到昨天
           const shanghaiDateYesterday = new Intl.DateTimeFormat('en-CA', {
             timeZone: 'Asia/Shanghai',
             year: 'numeric',
@@ -78,10 +79,12 @@ export async function GET(request: Request) {
           const monthYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'month')!.value) - 1
           const dayYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'day')!.value)
           
-          // 创建中国时区昨天00:00:00的Date对象，然后转换为UTC
-          // 中国时区是UTC+8，所以需要减去8小时
-          const yesterdayInShanghai = new Date(Date.UTC(yearYesterday, monthYesterday, dayYesterday - 1, 0, 0, 0, 0))
-          startDate = new Date(yesterdayInShanghai.getTime() - 8 * 60 * 60 * 1000)
+          // 创建中国时区今天00:00:00的UTC时间戳，然后减去24小时得到昨天
+          const todayInShanghaiForYesterday = new Date(Date.UTC(yearYesterday, monthYesterday, dayYesterday, 0, 0, 0, 0))
+          const todayUTCForYesterday = new Date(todayInShanghaiForYesterday.getTime() - 8 * 60 * 60 * 1000)
+          startDate = new Date(todayUTCForYesterday.getTime() - 24 * 60 * 60 * 1000)
+          // 结束时间是今天00:00:00
+          endDate = todayUTCForYesterday
           break
         case 'week':
           // 7天前（UTC时间）
@@ -110,6 +113,9 @@ export async function GET(request: Request) {
       const whereConditions = [eq(modelUsageStats.userId, identifier)]
       if (timeRange !== 'all') {
         whereConditions.push(gte(modelUsageStats.createdAt, startDate))
+        if (endDate) {
+          whereConditions.push(lt(modelUsageStats.createdAt, endDate))
+        }
       }
 
       const timeStats = timeRange === 'hour'
@@ -144,6 +150,9 @@ export async function GET(request: Request) {
       const modelWhereConditions = [eq(modelUsageStats.userId, identifier)]
       if (timeRange !== 'all') {
         modelWhereConditions.push(gte(modelUsageStats.createdAt, startDate))
+        if (endDate) {
+          modelWhereConditions.push(lt(modelUsageStats.createdAt, endDate))
+        }
       }
 
       const modelStats = await db
@@ -234,6 +243,9 @@ export async function GET(request: Request) {
       const ipTimeWhereConditions = [eq(modelUsageStats.ipAddress, identifier)]
       if (timeRange !== 'all') {
         ipTimeWhereConditions.push(gte(modelUsageStats.createdAt, startDate))
+        if (endDate) {
+          ipTimeWhereConditions.push(lt(modelUsageStats.createdAt, endDate))
+        }
       }
 
       const timeStats = timeRange === 'hour'
@@ -268,6 +280,9 @@ export async function GET(request: Request) {
       const ipModelWhereConditions = [eq(modelUsageStats.ipAddress, identifier)]
       if (timeRange !== 'all') {
         ipModelWhereConditions.push(gte(modelUsageStats.createdAt, startDate))
+        if (endDate) {
+          ipModelWhereConditions.push(lt(modelUsageStats.createdAt, endDate))
+        }
       }
 
       const modelStats = await db
@@ -286,6 +301,18 @@ export async function GET(request: Request) {
       }))
 
       // 获取使用该IP的登录用户信息
+      const ipUserWhereConditions = [
+        eq(modelUsageStats.ipAddress, identifier),
+        isNotNull(modelUsageStats.userId),
+        eq(modelUsageStats.isAuthenticated, true)
+      ]
+      if (timeRange !== 'all') {
+        ipUserWhereConditions.push(gte(modelUsageStats.createdAt, startDate))
+        if (endDate) {
+          ipUserWhereConditions.push(lt(modelUsageStats.createdAt, endDate))
+        }
+      }
+      
       const ipUserStats = await db
         .select({
           userId: modelUsageStats.userId,
@@ -296,14 +323,7 @@ export async function GET(request: Request) {
         })
         .from(modelUsageStats)
         .innerJoin(user, eq(modelUsageStats.userId, user.id))
-        .where(
-          and(
-            eq(modelUsageStats.ipAddress, identifier),
-            isNotNull(modelUsageStats.userId),
-            eq(modelUsageStats.isAuthenticated, true),
-            ...(timeRange !== 'all' ? [gte(modelUsageStats.createdAt, startDate)] : [])
-          )
-        )
+        .where(and(...ipUserWhereConditions))
         .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname)
         .orderBy(sql`count(*) DESC`)
 
