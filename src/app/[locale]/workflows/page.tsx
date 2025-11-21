@@ -154,7 +154,7 @@ export default function WorkflowsPage() {
       >
         <input
           type="file"
-          accept="image/*"
+          accept=".png,.jpg,.jpeg,image/png,image/jpeg"
           className="hidden"
           ref={fileInputRef}
           onChange={handleFileChange}
