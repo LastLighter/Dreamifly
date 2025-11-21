@@ -14,6 +14,7 @@ import type { MouseEvent as ReactMouseEvent } from 'react'
 import { useSession, signOut } from '@/lib/auth-client'
 import { useAvatar } from '@/contexts/AvatarContext'
 import AvatarWithFrame from './AvatarWithFrame'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 export default function Navbar() {
   const { locale } = useParams()
@@ -25,28 +26,39 @@ export default function Navbar() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isPremium, setIsPremium] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
-  // 检查管理员状态
+  // 检查管理员和优质用户状态
   useEffect(() => {
-    const checkAdminStatus = async () => {
+    const checkUserStatus = async () => {
       if (!session?.user) {
         setIsAdmin(false)
+        setIsPremium(false)
         return
       }
 
       try {
-        const response = await fetch('/api/admin/check')
+        // 获取动态 token
+        const token = await generateDynamicTokenWithServerTime()
+        
+        const response = await fetch('/api/admin/check', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
         const data = await response.json()
         setIsAdmin(data.isAdmin || false)
+        setIsPremium(data.isPremium || false)
       } catch (error) {
-        console.error('Failed to check admin status:', error)
+        console.error('Failed to check user status:', error)
         setIsAdmin(false)
+        setIsPremium(false)
       }
     }
 
-    checkAdminStatus()
+    checkUserStatus()
   }, [session?.user])
 
   // 处理点击遮罩层关闭菜单
@@ -265,6 +277,20 @@ export default function Navbar() {
          </svg>
          <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('friends')}</span>
        </button>
+
+            {/* 工作流菜单 - 仅优质用户和管理员可见 */}
+            {session?.user && (isAdmin || isPremium) && (
+              <Link
+                href={transferUrl('/workflows', locale)}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
+              >
+                <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h10m-6 5h6" />
+                </svg>
+                <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('workflows')}</span>
+              </Link>
+            )}
 
             {/* 管理员菜单 - 仅管理员可见 */}
             {session?.user && isAdmin && (
