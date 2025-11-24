@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { modelUsageStats, user } from '@/db/schema'
-import { gte, lt, sql, eq, and } from 'drizzle-orm'
+import { gte, lt, sql, eq, and, isNotNull } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
@@ -221,6 +221,30 @@ export async function GET(request: Request) {
       .from(modelUsageStats)
       .where(and(...whereConditions))
 
+    // 获取活跃用户数量（去重）
+    const activeUsers = await db
+      .select({
+        count: sql<number>`count(distinct ${modelUsageStats.userId})::int`,
+      })
+      .from(modelUsageStats)
+      .where(and(...whereConditions, isNotNull(modelUsageStats.userId)))
+
+    // 获取已登录用户活跃IP数量（去重）
+    const authenticatedIPs = await db
+      .select({
+        count: sql<number>`count(distinct ${modelUsageStats.ipAddress})::int`,
+      })
+      .from(modelUsageStats)
+      .where(and(...whereConditions, eq(modelUsageStats.isAuthenticated, true), isNotNull(modelUsageStats.ipAddress)))
+
+    // 获取未登录用户IP数量（去重）
+    const unauthenticatedIPs = await db
+      .select({
+        count: sql<number>`count(distinct ${modelUsageStats.ipAddress})::int`,
+      })
+      .from(modelUsageStats)
+      .where(and(...whereConditions, eq(modelUsageStats.isAuthenticated, false), isNotNull(modelUsageStats.ipAddress)))
+
     // 获取每日总计趋势（用于折线图）
     // 对于hour范围，按分钟统计；today和yesterday范围按小时统计；week和month按天统计
     let dailyTrend: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
@@ -297,6 +321,9 @@ export async function GET(request: Request) {
           totalCalls: totalStats[0] ? Number(totalStats[0].totalCalls) : 0,
           authenticatedCalls: totalStats[0] ? Number(totalStats[0].authenticatedCalls) : 0,
           unauthenticatedCalls: totalStats[0] ? Number(totalStats[0].unauthenticatedCalls) : 0,
+          activeUsers: activeUsers[0] ? Number(activeUsers[0].count) : 0,
+          authenticatedIPs: authenticatedIPs[0] ? Number(authenticatedIPs[0].count) : 0,
+          unauthenticatedIPs: unauthenticatedIPs[0] ? Number(unauthenticatedIPs[0].count) : 0,
         },
         dailyTrend,
       },
