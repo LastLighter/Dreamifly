@@ -9,6 +9,7 @@ import AdminSidebar from '@/components/AdminSidebar'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 interface AvatarFrame {
   id: number
@@ -70,24 +71,59 @@ export default function DecorationsPage() {
       if (!session?.user) {
         setIsAdmin(false)
         setCheckingAdmin(false)
-        router.push(transferUrl('/', locale))
+        // 延迟重定向，避免闪烁
+        setTimeout(() => {
+          router.push(transferUrl('/', locale))
+        }, 100)
         return
       }
 
       try {
-        const response = await fetch(`/api/admin/check?t=${Date.now()}`)
+        // 获取动态token
+        const token = await generateDynamicTokenWithServerTime()
+        
+        const response = await fetch(`/api/admin/check?t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        // 检查响应状态
+        if (!response.ok) {
+          // 如果是401或403，说明权限不足，重定向
+          if (response.status === 401 || response.status === 403) {
+            setIsAdmin(false)
+            setTimeout(() => {
+              router.push(transferUrl('/', locale))
+            }, 100)
+            return
+          }
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const data = await response.json()
         const isAdminUser = data.isAdmin || false
         setIsAdmin(isAdminUser)
         
-        // 如果不是管理员，重定向
+        // 如果不是管理员，延迟重定向
         if (!isAdminUser) {
-          router.push(transferUrl('/', locale))
+          setTimeout(() => {
+            router.push(transferUrl('/', locale))
+          }, 100)
         }
       } catch (error) {
         console.error('Failed to check admin status:', error)
-        setIsAdmin(false)
-        router.push(transferUrl('/', locale))
+        // 只有在确认不是管理员时才重定向，网络错误不重定向
+        // 如果已经有session，可能是网络问题，不立即重定向
+        if (!session?.user) {
+          setIsAdmin(false)
+          setTimeout(() => {
+            router.push(transferUrl('/', locale))
+          }, 100)
+        } else {
+          // 有session但检查失败，可能是临时网络问题，不重定向
+          setIsAdmin(false)
+        }
       } finally {
         setCheckingAdmin(false)
       }

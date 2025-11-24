@@ -28,7 +28,7 @@ export const user = pgTable("user", {
   isAdmin: boolean("is_admin").default(false), // 数据库字段名: is_admin
   isPremium: boolean("is_premium").default(false), // 数据库字段名: is_premium，标记是否为优质用户
   dailyRequestCount: integer("daily_request_count").default(0), // 数据库字段名: daily_request_count，当日请求次数
-  lastRequestResetDate: timestamp("last_request_reset_date").defaultNow(), // 数据库字段名: last_request_reset_date，上次重置请求次数的日期
+  lastRequestResetDate: timestamp("last_request_reset_date").defaultNow(), // 数据库字段名: last_request_reset_date，上次重置请求次数的日期（类型为 timestamptz）
   avatarFrameId: integer("avatar_frame_id"), // 数据库字段名: avatar_frame_id，头像框ID，为null时使用默认头像框
 });
 

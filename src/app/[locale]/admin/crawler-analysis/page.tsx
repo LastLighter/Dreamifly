@@ -24,13 +24,17 @@ import {
   Legend,
 } from 'recharts'
 
-type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
+type TimeRange = 'hour' | 'today' | 'yesterday' | 'week' | 'month' | 'all'
 
 interface UserCallRanking {
   userId: string
   userName: string | null
   userEmail: string
   userNickname: string | null
+  isAdmin: boolean
+  isPremium: boolean
+  dailyRequestCount: number
+  maxDailyLimit: number | null
   callCount: number
 }
 
@@ -348,7 +352,7 @@ export default function CrawlerAnalysisPage() {
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-gray-700">时间范围：</span>
                   <div className="flex gap-2">
-                    {(['hour', 'today', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
+                    {(['hour', 'today', 'yesterday', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
                       <button
                         key={range}
                         onClick={() => setTimeRange(range)}
@@ -358,7 +362,7 @@ export default function CrawlerAnalysisPage() {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        {range === 'hour' ? '近一小时' : range === 'today' ? '今天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
+                        {range === 'hour' ? '近一小时' : range === 'today' ? '今天' : range === 'yesterday' ? '昨天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
                       </button>
                     ))}
                   </div>
@@ -465,6 +469,8 @@ export default function CrawlerAnalysisPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">排名</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户信息</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">身份标识</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">今日额度</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                           </tr>
@@ -472,7 +478,7 @@ export default function CrawlerAnalysisPage() {
                         <tbody className="bg-white divide-y divide-gray-200">
                           {data.userCallRanking.length === 0 ? (
                             <tr>
-                              <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                                 暂无数据
                               </td>
                             </tr>
@@ -501,6 +507,30 @@ export default function CrawlerAnalysisPage() {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                   {user.userEmail}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    {user.isAdmin && (
+                                      <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                                        管理员
+                                      </span>
+                                    )}
+                                    {user.isPremium && !user.isAdmin && (
+                                      <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                                        优质用户
+                                      </span>
+                                    )}
+                                    {!user.isAdmin && !user.isPremium && (
+                                      <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                                        普通用户
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span className="text-sm font-semibold text-blue-600">
+                                    {user.dailyRequestCount.toLocaleString()} / {user.maxDailyLimit === null ? '∞' : user.maxDailyLimit.toLocaleString()}
+                                  </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <span className="text-sm font-semibold text-orange-600">

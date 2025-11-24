@@ -24,7 +24,7 @@ import {
   Cell,
 } from 'recharts'
 
-type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
+type TimeRange = 'hour' | 'today' | 'yesterday' | 'week' | 'month' | 'all'
 
 interface ModelStat {
   modelName: string
@@ -45,6 +45,9 @@ interface TotalStats {
   totalCalls: number
   authenticatedCalls: number
   unauthenticatedCalls: number
+  activeUsers: number
+  authenticatedIPs: number
+  unauthenticatedIPs: number
 }
 
 interface DailyTrend {
@@ -106,6 +109,7 @@ export default function AnalyticsPage() {
   const [statsCache, setStatsCache] = useState<Record<TimeRange, StatsResponse | null>>({
     hour: null,
     today: null,
+    yesterday: null,
     week: null,
     month: null,
     all: null,
@@ -219,9 +223,10 @@ export default function AnalyticsPage() {
       }
 
       // 并行获取所有时间范围的数据
-      const [hourData, todayData, weekData, monthData, allData] = await Promise.all([
+      const [hourData, todayData, yesterdayData, weekData, monthData, allData] = await Promise.all([
         fetchStatsForRange('hour'),
         fetchStatsForRange('today'),
+        fetchStatsForRange('yesterday'),
         fetchStatsForRange('week'),
         fetchStatsForRange('month'),
         fetchStatsForRange('all'),
@@ -231,6 +236,7 @@ export default function AnalyticsPage() {
       const newCache = {
         hour: hourData,
         today: todayData,
+        yesterday: yesterdayData,
         week: weekData,
         month: monthData,
         all: allData,
@@ -269,10 +275,10 @@ export default function AnalyticsPage() {
     const dateMap = new Map<string, { [key: string]: number }>()
 
     stats.dailyData.forEach((item) => {
-      // 对于hour范围，保留完整时间戳（包括分钟）；today范围保留小时信息；其他范围只取日期部分
+      // 对于hour范围，保留完整时间戳（包括分钟）；today和yesterday范围保留小时信息；其他范围只取日期部分
       const date = timeRange === 'hour' 
         ? item.date // 保留完整时间戳
-        : timeRange === 'today'
+        : timeRange === 'today' || timeRange === 'yesterday'
         ? item.date // 保留完整时间戳（包括小时）
         : item.date.split('T')[0] // 只取日期部分
       if (!dateMap.has(date)) {
@@ -378,7 +384,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-gray-700">时间范围：</span>
                   <div className="flex gap-2">
-                    {(['hour', 'today', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
+                    {(['hour', 'today', 'yesterday', 'week', 'month', 'all'] as TimeRange[]).map((range) => (
                       <button
                         key={range}
                         onClick={() => setTimeRange(range)}
@@ -388,7 +394,7 @@ export default function AnalyticsPage() {
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        {range === 'hour' ? '近一小时' : range === 'today' ? '今天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
+                        {range === 'hour' ? '近一小时' : range === 'today' ? '今天' : range === 'yesterday' ? '昨天' : range === 'week' ? '最近一周' : range === 'month' ? '最近一月' : '全部'}
                       </button>
                     ))}
                   </div>
@@ -438,7 +444,7 @@ export default function AnalyticsPage() {
                 {/* 总计模块 */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                    {timeRange === 'hour' ? '近一小时总计' : timeRange === 'today' ? '今日总计' : timeRange === 'week' ? '最近一周总计' : timeRange === 'month' ? '最近一月总计' : '全部总计'}
+                    {timeRange === 'hour' ? '近一小时总计' : timeRange === 'today' ? '今日总计' : timeRange === 'yesterday' ? '昨天总计' : timeRange === 'week' ? '最近一周总计' : timeRange === 'month' ? '最近一月总计' : '全部总计'}
                   </h2>
                   
                   {/* 总计卡片 */}
@@ -520,6 +526,55 @@ export default function AnalyticsPage() {
                         </div>
                       </div>
                     </div>
+
+                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600 mb-1">活跃用户数</p>
+                          <p className="text-3xl font-bold text-green-600">
+                            {stats.totalStats.activeUsers.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-green-100 rounded-lg">
+                          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg p-6 border border-purple-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600 mb-1">已登录用户IP数</p>
+                          <p className="text-3xl font-bold text-purple-600">
+                            {stats.totalStats.authenticatedIPs.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-purple-100 rounded-lg">
+                          <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-lg p-6 border border-indigo-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600 mb-1">未登录用户IP数</p>
+                          <p className="text-3xl font-bold text-indigo-600">
+                            {stats.totalStats.unauthenticatedIPs.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-indigo-100 rounded-lg">
+                          <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   {/* 占比饼图 */}
@@ -528,7 +583,7 @@ export default function AnalyticsPage() {
                       <h3 className="text-md font-semibold text-gray-900 mb-4">调用占比分布</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                         <div className="flex justify-center">
-                          <ResponsiveContainer width="100%" height={250}>
+                          <ResponsiveContainer width="100%" height={350}>
                             <PieChart>
                               <Pie
                                 data={[
@@ -542,7 +597,7 @@ export default function AnalyticsPage() {
                                   const { name, percent } = entry
                                   return `${name}: ${(percent * 100).toFixed(1)}%`
                                 }}
-                                outerRadius={80}
+                                outerRadius={100}
                                 fill="#8884d8"
                                 dataKey="value"
                                 stroke="#fff"
@@ -605,8 +660,8 @@ export default function AnalyticsPage() {
                     </div>
                   )}
 
-                  {/* 趋势折线图（hour按分钟显示，today按小时显示，week和month按天显示） */}
-                  {(timeRange === 'hour' || timeRange === 'today' || timeRange === 'week' || timeRange === 'month') && stats.dailyTrend && stats.dailyTrend.length > 0 && (
+                  {/* 趋势折线图（hour按分钟显示，today和yesterday按小时显示，week和month按天显示） */}
+                  {(timeRange === 'hour' || timeRange === 'today' || timeRange === 'yesterday' || timeRange === 'week' || timeRange === 'month') && stats.dailyTrend && stats.dailyTrend.length > 0 && (
                     <div className="mt-6">
                       <h3 className="text-md font-semibold text-gray-900 mb-4">调用趋势</h3>
                       <ResponsiveContainer width="100%" height={300}>
@@ -621,7 +676,7 @@ export default function AnalyticsPage() {
                               if (timeRange === 'hour') {
                                 // 按分钟显示：HH:mm
                                 return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
-                              } else if (timeRange === 'today') {
+                              } else if (timeRange === 'today' || timeRange === 'yesterday') {
                                 // 按小时显示：HH:00
                                 return `${date.getHours().toString().padStart(2, '0')}:00`
                               } else {
@@ -655,7 +710,7 @@ export default function AnalyticsPage() {
                                   hour: '2-digit',
                                   minute: '2-digit'
                                 })
-                              } else if (timeRange === 'today') {
+                              } else if (timeRange === 'today' || timeRange === 'yesterday') {
                                 // 按小时显示：完整日期和小时
                                 return date.toLocaleString('zh-CN', { 
                                   year: 'numeric', 
@@ -760,7 +815,7 @@ export default function AnalyticsPage() {
                             // 按分钟显示：HH:mm
                             const date = new Date(value)
                             return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
-                          } else if (timeRange === 'today') {
+                          } else if (timeRange === 'today' || timeRange === 'yesterday') {
                             // 按小时显示：HH:00
                             const date = new Date(value)
                             return `${date.getHours().toString().padStart(2, '0')}:00`
@@ -796,7 +851,7 @@ export default function AnalyticsPage() {
                               hour: '2-digit',
                               minute: '2-digit'
                             })
-                          } else if (timeRange === 'today') {
+                          } else if (timeRange === 'today' || timeRange === 'yesterday') {
                             // 按小时显示：完整日期和小时
                             const date = new Date(value)
                             return date.toLocaleString('zh-CN', { 

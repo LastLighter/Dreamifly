@@ -596,7 +596,7 @@ export default function GenerateForm({
   return (
     <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl lg:p-6 p-3 border border-orange-400/40 flex flex-col">
       <div className="absolute inset-0 bg-gradient-to-br from-orange-100/10 to-amber-100/10 rounded-3xl"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(249,115,22,0.1),rgba(255,255,255,0))] shadow-orange-400/20"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(249,115,22,0.1),rgba(255,255,255,0))] shadow-orange-400/20 rounded-3xl"></div>
       <form onSubmit={handleSubmit} className="space-y-8 relative flex flex-col">
         <div className="space-y-8">
           {/* 上传图片区域（仅支持图生图模型时显示） */}
