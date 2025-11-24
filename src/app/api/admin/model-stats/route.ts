@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { modelUsageStats, user } from '@/db/schema'
-import { gte, sql, eq } from 'drizzle-orm'
+import { gte, lt, sql, eq, and } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
-type TimeRange = 'hour' | 'today' | 'week' | 'month' | 'all'
+type TimeRange = 'hour' | 'today' | 'yesterday' | 'week' | 'month' | 'all'
 
 function getTimeRangeDate(range: TimeRange): Date {
   const now = new Date()
@@ -32,6 +32,24 @@ function getTimeRangeDate(range: TimeRange): Date {
       // 中国时区是UTC+8，所以需要减去8小时
       const todayInShanghai = new Date(Date.UTC(year, month, day, 0, 0, 0, 0))
       return new Date(todayInShanghai.getTime() - 8 * 60 * 60 * 1000)
+    case 'yesterday':
+      // 昨天00:00:00（中国时区 UTC+8）
+      // 先获取今天00:00:00的UTC时间，然后减去24小时得到昨天
+      const shanghaiDateYesterday = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(now)
+      
+      const yearYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'year')!.value)
+      const monthYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'month')!.value) - 1
+      const dayYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'day')!.value)
+      
+      // 创建中国时区今天00:00:00的UTC时间戳，然后减去24小时得到昨天
+      const todayInShanghaiForYesterday = new Date(Date.UTC(yearYesterday, monthYesterday, dayYesterday, 0, 0, 0, 0))
+      const todayUTCForYesterday = new Date(todayInShanghaiForYesterday.getTime() - 8 * 60 * 60 * 1000)
+      return new Date(todayUTCForYesterday.getTime() - 24 * 60 * 60 * 1000)
     case 'week':
       // 7天前（UTC时间）
       const weekAgo = new Date(now)
@@ -49,6 +67,30 @@ function getTimeRangeDate(range: TimeRange): Date {
       defaultDate.setHours(0, 0, 0, 0)
       return defaultDate
   }
+}
+
+// 获取时间范围的结束时间（用于 yesterday 等需要精确日期范围的情况）
+function getTimeRangeEndDate(range: TimeRange): Date | null {
+  if (range !== 'yesterday') {
+    return null // 其他时间范围不需要结束时间限制
+  }
+  
+  const now = new Date()
+  // 对于 yesterday，结束时间是今天00:00:00（中国时区 UTC+8）
+  const shanghaiDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(now)
+  
+  const year = parseInt(shanghaiDate.find(p => p.type === 'year')!.value)
+  const month = parseInt(shanghaiDate.find(p => p.type === 'month')!.value) - 1
+  const day = parseInt(shanghaiDate.find(p => p.type === 'day')!.value)
+  
+  // 创建中国时区今天00:00:00的Date对象，然后转换为UTC
+  const todayInShanghai = new Date(Date.UTC(year, month, day, 0, 0, 0, 0))
+  return new Date(todayInShanghai.getTime() - 8 * 60 * 60 * 1000)
 }
 
 export async function GET(request: Request) {
@@ -76,6 +118,13 @@ export async function GET(request: Request) {
     const timeRange = (searchParams.get('timeRange') || 'week') as TimeRange
 
     const startDate = getTimeRangeDate(timeRange)
+    const endDate = getTimeRangeEndDate(timeRange)
+
+    // 构建查询条件
+    const whereConditions = [gte(modelUsageStats.createdAt, startDate)]
+    if (endDate) {
+      whereConditions.push(lt(modelUsageStats.createdAt, endDate))
+    }
 
     // 获取模型调用次数统计
     const callCounts = await db
@@ -86,7 +135,7 @@ export async function GET(request: Request) {
         unauthenticatedCount: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
       })
       .from(modelUsageStats)
-      .where(gte(modelUsageStats.createdAt, startDate))
+      .where(and(...whereConditions))
       .groupBy(modelUsageStats.modelName)
 
     // 获取平均响应时间统计（区分登录和未登录）
@@ -98,11 +147,11 @@ export async function GET(request: Request) {
         count: sql<number>`count(*)::int`,
       })
       .from(modelUsageStats)
-      .where(gte(modelUsageStats.createdAt, startDate))
+      .where(and(...whereConditions))
       .groupBy(modelUsageStats.modelName, modelUsageStats.isAuthenticated)
 
     // 按日期分组统计（用于图表显示）
-    // 对于hour范围，按分钟统计；today范围按小时统计；其他范围按天统计
+    // 对于hour范围，按分钟统计；today和yesterday范围按小时统计；其他范围按天统计
     const dailyStats = timeRange === 'hour'
       ? await db
           .select({
@@ -111,10 +160,10 @@ export async function GET(request: Request) {
             count: sql<number>`count(*)::int`,
           })
           .from(modelUsageStats)
-          .where(gte(modelUsageStats.createdAt, startDate))
+          .where(and(...whereConditions))
           .groupBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`, modelUsageStats.modelName)
           .orderBy(modelUsageStats.modelName, sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
-      : timeRange === 'today'
+      : timeRange === 'today' || timeRange === 'yesterday'
       ? await db
           .select({
             date: sql<string>`date_trunc('hour', ${modelUsageStats.createdAt})::text`,
@@ -122,7 +171,7 @@ export async function GET(request: Request) {
             count: sql<number>`count(*)::int`,
           })
           .from(modelUsageStats)
-          .where(gte(modelUsageStats.createdAt, startDate))
+          .where(and(...whereConditions))
           .groupBy(sql`date_trunc('hour', ${modelUsageStats.createdAt})`, modelUsageStats.modelName)
           .orderBy(modelUsageStats.modelName, sql`date_trunc('hour', ${modelUsageStats.createdAt})`)
       : await db
@@ -132,7 +181,7 @@ export async function GET(request: Request) {
             count: sql<number>`count(*)::int`,
           })
           .from(modelUsageStats)
-          .where(gte(modelUsageStats.createdAt, startDate))
+          .where(and(...whereConditions))
           .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`, modelUsageStats.modelName)
           .orderBy(modelUsageStats.modelName, sql`date_trunc('day', ${modelUsageStats.createdAt})`)
 
@@ -170,10 +219,10 @@ export async function GET(request: Request) {
         unauthenticatedCalls: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
       })
       .from(modelUsageStats)
-      .where(gte(modelUsageStats.createdAt, startDate))
+      .where(and(...whereConditions))
 
     // 获取每日总计趋势（用于折线图）
-    // 对于hour范围，按分钟统计；today范围按小时统计；week和month按天统计
+    // 对于hour范围，按分钟统计；today和yesterday范围按小时统计；week和month按天统计
     let dailyTrend: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
     
     if (timeRange === 'hour') {
@@ -186,7 +235,7 @@ export async function GET(request: Request) {
           unauthenticated: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
         })
         .from(modelUsageStats)
-        .where(gte(modelUsageStats.createdAt, startDate))
+        .where(and(...whereConditions))
         .groupBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
         .orderBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
 
@@ -196,7 +245,7 @@ export async function GET(request: Request) {
         authenticated: Number(stat.authenticated),
         unauthenticated: Number(stat.unauthenticated),
       }))
-    } else if (timeRange === 'today') {
+    } else if (timeRange === 'today' || timeRange === 'yesterday') {
       // 按小时统计
       const hourTrendData = await db
         .select({
@@ -206,7 +255,7 @@ export async function GET(request: Request) {
           unauthenticated: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
         })
         .from(modelUsageStats)
-        .where(gte(modelUsageStats.createdAt, startDate))
+        .where(and(...whereConditions))
         .groupBy(sql`date_trunc('hour', ${modelUsageStats.createdAt})`)
         .orderBy(sql`date_trunc('hour', ${modelUsageStats.createdAt})`)
 
@@ -226,7 +275,7 @@ export async function GET(request: Request) {
           unauthenticated: sql<number>`count(*) filter (where ${modelUsageStats.isAuthenticated} = false)::int`,
         })
         .from(modelUsageStats)
-        .where(gte(modelUsageStats.createdAt, startDate))
+        .where(and(...whereConditions))
         .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
         .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
 
