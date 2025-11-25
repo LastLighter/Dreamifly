@@ -383,7 +383,8 @@
       "fileTooLarge": "檔案大小不能超過2MB",
       "invalidFileType": "只支援 JPG、PNG、GIF 格式的圖片",
       "emailNotVerified": "請先驗證你的電子郵件地址",
-      "resendFailed": "發送失敗，請稍後重試"
+      "resendFailed": "發送失敗，請稍後重試",
+      "emailDomainNotAllowed": "不支援該電子郵件類型註冊"
     },
     "validation": {
       "minLength": "至少需要 {min} 個字元",

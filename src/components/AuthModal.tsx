@@ -119,12 +119,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           const validateData = await validateResponse.json()
           
           if (!validateData.isValid) {
-            setError('不支持该邮箱类型注册')
+            setError(t('error.emailDomainNotAllowed'))
             return
           }
         } catch (err) {
           console.error('Email domain validation error:', err)
-          setError('验证邮箱域名时出错，请稍后重试')
+          setError(t('error.registerFailed'))
           return
         }
 
@@ -138,8 +138,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
 
         if (result.error) {
           // 检查是否是邮箱域名验证错误
-          if (result.error.message?.includes('邮箱域名') || result.error.message?.includes('不在允许列表中')) {
-            setError(result.error.message)
+          // better-auth 可能不会传递 code，所以同时检查 code 和 message
+          const errorMessage = result.error.message || ''
+          const errorCode = result.error.code
+          
+          if (errorCode === 'EMAIL_DOMAIN_NOT_ALLOWED' || 
+              errorMessage === 'EMAIL_DOMAIN_NOT_ALLOWED' ||
+              errorMessage.includes('EMAIL_DOMAIN_NOT_ALLOWED')) {
+            setError(t('error.emailDomainNotAllowed'))
           } else {
             setError(t('error.registerFailed'))
           }

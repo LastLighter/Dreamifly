@@ -20,6 +20,7 @@ export const auth = betterAuth({
       }
       
       const isAllowed = await isEmailDomainAllowed(user.email);
+
       if (!isAllowed) {
         throw new Error("不支持该邮箱类型注册");
       }

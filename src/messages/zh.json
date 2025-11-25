@@ -388,7 +388,8 @@
       "fileTooLarge": "文件大小不能超过2MB",
       "invalidFileType": "只支持 JPG、PNG、GIF 格式的图片",
       "emailNotVerified": "请先验证你的邮箱地址",
-      "resendFailed": "发送失败，请稍后重试"
+      "resendFailed": "发送失败，请稍后重试",
+      "emailDomainNotAllowed": "不支持该邮箱类型注册"
     },
     "validation": {
       "minLength": "至少需要 {min} 个字符",
