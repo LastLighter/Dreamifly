@@ -120,6 +120,15 @@ export const avatarFrame = pgTable("avatar_frame", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
 });
 
+// 允许的邮箱域名表
+export const allowedEmailDomain = pgTable("allowed_email_domain", {
+  id: serial("id").primaryKey(), // 自增ID
+  domain: text("domain").notNull().unique(), // 邮箱域名，唯一
+  isEnabled: boolean("is_enabled").default(true).notNull(), // 是否启用
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+});
+
 // 用户与头像框的关系
 export const userRelations = relations(user, ({ one }) => ({
   avatarFrame: one(avatarFrame, {

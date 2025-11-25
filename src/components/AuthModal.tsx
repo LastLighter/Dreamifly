@@ -113,6 +113,21 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           }, 500)
         }
       } else if (mode === 'register') {
+        // 先验证邮箱域名
+        try {
+          const validateResponse = await fetch(`/api/auth/validate-email-domain?email=${encodeURIComponent(email)}`)
+          const validateData = await validateResponse.json()
+          
+          if (!validateData.isValid) {
+            setError('不支持该邮箱类型注册')
+            return
+          }
+        } catch (err) {
+          console.error('Email domain validation error:', err)
+          setError('验证邮箱域名时出错，请稍后重试')
+          return
+        }
+
         const result = await signUp.email({
           email,
           password,
@@ -122,7 +137,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
         })
 
         if (result.error) {
-          setError(t('error.registerFailed'))
+          // 检查是否是邮箱域名验证错误
+          if (result.error.message?.includes('邮箱域名') || result.error.message?.includes('不在允许列表中')) {
+            setError(result.error.message)
+          } else {
+            setError(t('error.registerFailed'))
+          }
         } else {
           // 注册成功后，设置 UID 和昵称
           if (result.data?.user?.id) {
