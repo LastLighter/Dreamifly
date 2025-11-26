@@ -8,6 +8,7 @@ import { ExtendedUser } from '@/types/auth'
 import { useAvatar } from '@/contexts/AvatarContext'
 import AvatarCropper from '@/components/AvatarCropper'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 export default function ProfilePage() {
   const t = useTranslations('auth')
@@ -37,6 +38,15 @@ export default function ProfilePage() {
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
   const [passwordLoading, setPasswordLoading] = useState(false)
 
+  // Quota state
+  const [quota, setQuota] = useState<{
+    todayCount: number
+    maxDailyRequests: number | null
+    isAdmin: boolean
+    isPremium: boolean
+  } | null>(null)
+  const [quotaLoading, setQuotaLoading] = useState(false)
+
   // 监听session变化，更新用户数据
   useEffect(() => {
     if (session?.user) {
@@ -54,6 +64,36 @@ export default function ProfilePage() {
   useEffect(() => {
     setNickname(globalNickname)
   }, [globalNickname])
+
+  // 获取今日额度信息
+  useEffect(() => {
+    const fetchQuota = async () => {
+      if (!session?.user) return
+      
+      setQuotaLoading(true)
+      try {
+        // 获取动态token（使用服务器时间）
+        const token = await generateDynamicTokenWithServerTime()
+        
+        // 添加时间戳参数以避免缓存
+        const response = await fetch(`/api/user/quota?t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setQuota(data)
+        }
+      } catch (error) {
+        console.error('Error fetching quota:', error)
+      } finally {
+        setQuotaLoading(false)
+      }
+    }
+
+    fetchQuota()
+  }, [session])
 
   // 仅在保存成功时通过 updateProfile 同步全局昵称，输入时不实时同步
 
@@ -344,6 +384,40 @@ export default function ProfilePage() {
               />
             </div>
           )}
+
+          {/* 今日额度 */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              今日额度
+            </label>
+            {quotaLoading ? (
+              <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                <span className="flex items-center">
+                  <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  加载中...
+                </span>
+              </div>
+            ) : quota ? (
+              <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
+                <span className="font-medium">
+                  {quota.todayCount} / {quota.maxDailyRequests === null ? '∞' : quota.maxDailyRequests}
+                </span>
+                {quota.isAdmin && (
+                  <span className="ml-2 text-xs text-gray-500">(管理员不限次数)</span>
+                )}
+                {!quota.isAdmin && quota.isPremium && (
+                  <span className="ml-2 text-xs text-gray-500">(优质用户)</span>
+                )}
+              </div>
+            ) : (
+              <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                无法加载额度信息
+              </div>
+            )}
+          </div>
 
           {/* Email (read-only) */}
           <div className="mb-6">
