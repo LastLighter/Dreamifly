@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { signIn, signUp, sendVerificationEmail, forgetPassword } from '@/lib/auth-client'
+import { signIn, sendVerificationEmail, forgetPassword } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 interface AuthModalProps {
