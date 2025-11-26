@@ -127,6 +127,13 @@ export default function AdminPage() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
   const [directFrameIdInput, setDirectFrameIdInput] = useState<string>('')
   const [updatingUser, setUpdatingUser] = useState(false)
+  
+  // 邮箱白名单状态
+  const [emailDomains, setEmailDomains] = useState<Array<{ id: number; domain: string; isEnabled: boolean }>>([])
+  
+  // 邮箱类型下拉框状态
+  const [isEmailTypeDropdownOpen, setIsEmailTypeDropdownOpen] = useState(false)
+  const emailTypeDropdownRef = useRef<HTMLDivElement>(null)
 
   // 隐藏父级 layout 的 Navbar 和 Footer
   useEffect(() => {
@@ -152,6 +159,23 @@ export default function AdminPage() {
       }
     }
   }, [])
+
+  // 处理邮箱类型下拉框点击外部关闭
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emailTypeDropdownRef.current && !emailTypeDropdownRef.current.contains(event.target as Node)) {
+        setIsEmailTypeDropdownOpen(false)
+      }
+    }
+
+    if (isEmailTypeDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isEmailTypeDropdownOpen])
 
   // 检查管理员权限
   useEffect(() => {
@@ -259,6 +283,7 @@ export default function AdminPage() {
       fetchUsers()
       fetchLimitConfig()
       fetchAvatarFrames()
+      fetchEmailDomains()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter])
@@ -280,6 +305,19 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Failed to fetch avatar frames:', error)
+    }
+  }
+
+  // 获取邮箱白名单列表
+  const fetchEmailDomains = async () => {
+    try {
+      const response = await fetch(`/api/admin/allowed-email-domains?t=${Date.now()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setEmailDomains(data.domains || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch email domains:', error)
     }
   }
 
@@ -699,21 +737,73 @@ export default function AdminPage() {
                     {/* 邮箱类型筛选 */}
                     <div className="flex flex-col">
                       <label className="text-xs text-gray-600 mb-1">邮箱类型</label>
-                      <select
-                        value={emailTypeFilter}
-                        onChange={(e) => {
-                          setEmailTypeFilter(e.target.value)
-                          setCurrentPage(1)
-                        }}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
-                      >
-                        <option value="all">全部</option>
-                        <option value="gmail">Gmail</option>
-                        <option value="outlook">Outlook/Hotmail</option>
-                        <option value="qq">QQ邮箱</option>
-                        <option value="163">163/126邮箱</option>
-                        <option value="other">其他</option>
-                      </select>
+                      <div ref={emailTypeDropdownRef} className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsEmailTypeDropdownOpen(!isEmailTypeDropdownOpen)}
+                          className="w-full px-3 py-1.5 text-sm text-left border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none bg-white flex items-center justify-between"
+                        >
+                          <span>
+                            {emailTypeFilter === 'all' 
+                              ? '全部' 
+                              : emailTypeFilter === 'other'
+                              ? '其他'
+                              : emailDomains.find(d => d.domain === emailTypeFilter)?.domain || emailTypeFilter
+                            }
+                          </span>
+                          <svg
+                            className={`w-4 h-4 text-gray-600 transform transition-transform duration-200 ${isEmailTypeDropdownOpen ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {isEmailTypeDropdownOpen && (
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <div
+                              onClick={() => {
+                                setEmailTypeFilter('all')
+                                setCurrentPage(1)
+                                setIsEmailTypeDropdownOpen(false)
+                              }}
+                              className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
+                                emailTypeFilter === 'all' ? 'bg-orange-50 text-orange-600' : 'text-gray-900'
+                              }`}
+                            >
+                              全部
+                            </div>
+                            {emailDomains.map((domain) => (
+                              <div
+                                key={domain.id}
+                                onClick={() => {
+                                  setEmailTypeFilter(domain.domain)
+                                  setCurrentPage(1)
+                                  setIsEmailTypeDropdownOpen(false)
+                                }}
+                                className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
+                                  emailTypeFilter === domain.domain ? 'bg-orange-50 text-orange-600' : 'text-gray-900'
+                                } ${!domain.isEnabled ? 'line-through opacity-60' : ''}`}
+                              >
+                                {domain.domain}
+                              </div>
+                            ))}
+                            <div
+                              onClick={() => {
+                                setEmailTypeFilter('other')
+                                setCurrentPage(1)
+                                setIsEmailTypeDropdownOpen(false)
+                              }}
+                              className={`px-3 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
+                                emailTypeFilter === 'other' ? 'bg-orange-50 text-orange-600' : 'text-gray-900'
+                              }`}
+                            >
+                              其他
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     {/* 角色筛选 */}

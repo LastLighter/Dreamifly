@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
-import { user, avatarFrame } from '@/db/schema';
+import { user, avatarFrame, allowedEmailDomain } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { headers } from 'next/headers';
 
@@ -81,28 +81,24 @@ export async function GET(request: NextRequest) {
 
     // 邮箱类型筛选（在内存中处理，因为需要检查邮箱域名）
     if (emailTypeFilter !== 'all') {
+      // 获取所有邮箱白名单域名
+      const allDomains = await db
+        .select({ domain: allowedEmailDomain.domain })
+        .from(allowedEmailDomain);
+      
+      const domainList = allDomains.map(d => d.domain.toLowerCase());
+      
       allUsers = allUsers.filter(u => {
         if (!u.email) return false;
         const emailLower = u.email.toLowerCase();
-        switch (emailTypeFilter) {
-          case 'gmail':
-            return emailLower.includes('@gmail.com');
-          case 'outlook':
-            return emailLower.includes('@outlook.com') || emailLower.includes('@hotmail.com') || emailLower.includes('@live.com');
-          case 'qq':
-            return emailLower.includes('@qq.com');
-          case '163':
-            return emailLower.includes('@163.com') || emailLower.includes('@126.com');
-          case 'other':
-            return !emailLower.includes('@gmail.com') && 
-                   !emailLower.includes('@outlook.com') && 
-                   !emailLower.includes('@hotmail.com') && 
-                   !emailLower.includes('@live.com') && 
-                   !emailLower.includes('@qq.com') && 
-                   !emailLower.includes('@163.com') && 
-                   !emailLower.includes('@126.com');
-          default:
-            return true;
+        const emailDomain = emailLower.split('@')[1];
+        
+        if (emailTypeFilter === 'other') {
+          // 筛选不在白名单中的邮箱
+          return !domainList.includes(emailDomain);
+        } else {
+          // 筛选指定域名的邮箱
+          return emailDomain === emailTypeFilter.toLowerCase();
         }
       });
     }
