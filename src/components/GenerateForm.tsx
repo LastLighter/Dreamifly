@@ -510,6 +510,7 @@ export default function GenerateForm({
 
   // 如果当前选中的模型不可用，自动切换到第一个可用模型
   useEffect(() => {
+    if (isGenerating) return; // don't auto-switch models while generating
     if (modelsLoading || availableModels.length === 0) return;
     
     const currentModel = filteredModels.find(m => m.id === model)
@@ -520,7 +521,7 @@ export default function GenerateForm({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadedImages.length, modelsLoading, availableModels.length])
+  }, [uploadedImages.length, modelsLoading, availableModels.length, isGenerating])
 
   // 处理从 URL 设置参考图片
   useEffect(() => {
@@ -612,11 +613,15 @@ export default function GenerateForm({
               <div className="relative" ref={modelDropdownRef}>
                 <button
                   type="button"
-                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                  onClick={() => {
+                    if (!isGenerating) {
+                      setIsModelDropdownOpen(!isModelDropdownOpen)
+                    }
+                  }}
                   className={`w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-left text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300 flex items-center justify-between ${
-                    !filteredModels.find(m => m.id === model)?.isAvailable ? 'opacity-50' : ''
+                    (!filteredModels.find(m => m.id === model)?.isAvailable || isGenerating) ? 'opacity-50' : ''
                   }`}
-                  disabled={status === 'loading'}
+                  disabled={status === 'loading' || isGenerating}
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-6 rounded overflow-hidden flex-shrink-0">
@@ -678,12 +683,13 @@ export default function GenerateForm({
                         key={modelOption.id}
                         type="button"
                         onClick={() => {
-                          if (modelOption.isAvailable) {
-                            setModel(modelOption.id)
-                            setIsModelDropdownOpen(false)
-                          }
-                        }}
-                        disabled={!modelOption.isAvailable}
+                            if (isGenerating) return
+                            if (modelOption.isAvailable) {
+                              setModel(modelOption.id)
+                              setIsModelDropdownOpen(false)
+                            }
+                          }}
+                          disabled={!modelOption.isAvailable || isGenerating}
                         className={`w-full px-4 py-4 text-left transition-colors duration-200 flex flex-col space-y-3 ${
                           model === modelOption.id ? 'bg-white/50' : ''
                         } ${
