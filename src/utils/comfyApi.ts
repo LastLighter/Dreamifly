@@ -359,19 +359,28 @@ function setZImageTurboT2IorkflowParams(workflow: any, params: GenerateParams) {
 function setFlux2T2IorkflowParams(workflow: any, params: GenerateParams) {
   try {
     // 检查工作流节点是否存在
-    if (!workflow["47"] || !workflow["47"].inputs) {
-      throw new Error('工作流节点 "47" (EmptyFlux2LatentImage) 不存在');
-    }
-    if (!workflow["6"] || !workflow["6"].inputs) {
-      throw new Error('工作流节点 "6" (CLIPTextEncode Positive) 不存在');
-    }
-    if (!workflow["48"] || !workflow["48"].inputs) {
-      throw new Error('工作流节点 "48" (Flux2Scheduler) 不存在');
-    }
-    if (!workflow["25"] || !workflow["25"].inputs) {
-      throw new Error('工作流节点 "25" (RandomNoise) 不存在');
+    const requiredNodes = ["6", "8", "9", "10", "12", "13", "16", "22", "25", "26", "38", "47", "48"];
+    for (const nodeId of requiredNodes) {
+      if (!workflow[nodeId] || !workflow[nodeId].inputs) {
+        throw new Error(`工作流节点 "${nodeId}" 不存在或格式不正确`);
+      }
     }
 
+    // 验证节点类型
+    if (workflow["47"].class_type !== "EmptyFlux2LatentImage") {
+      throw new Error(`节点 "47" 类型不正确，期望 "EmptyFlux2LatentImage"，实际为 "${workflow["47"].class_type}"`);
+    }
+    if (workflow["48"].class_type !== "Flux2Scheduler") {
+      throw new Error(`节点 "48" 类型不正确，期望 "Flux2Scheduler"，实际为 "${workflow["48"].class_type}"`);
+    }
+    if (workflow["6"].class_type !== "CLIPTextEncode") {
+      throw new Error(`节点 "6" 类型不正确，期望 "CLIPTextEncode"，实际为 "${workflow["6"].class_type}"`);
+    }
+    if (workflow["13"].class_type !== "SamplerCustomAdvanced") {
+      throw new Error(`节点 "13" 类型不正确，期望 "SamplerCustomAdvanced"，实际为 "${workflow["13"].class_type}"`);
+    }
+
+    // 设置参数
     workflow["47"].inputs.width = params.width;
     workflow["47"].inputs.height = params.height;
     workflow["48"].inputs.width = params.width;
@@ -381,10 +390,22 @@ function setFlux2T2IorkflowParams(workflow: any, params: GenerateParams) {
     if (params.seed) {
       workflow["25"].inputs.noise_seed = params.seed;
     }
+    
+    console.log('Flux-2 workflow params set successfully:', {
+      width: params.width,
+      height: params.height,
+      steps: params.steps,
+      hasSeed: !!params.seed
+    });
     // 注意：Flux-2 工作流示例中没有负面提示词节点，如果需要可以添加
   } catch (error) {
     console.error('Error setting Flux-2 workflow params:', error);
     console.error('Workflow structure:', Object.keys(workflow));
+    console.error('Workflow nodes:', Object.keys(workflow).map(id => ({
+      id,
+      class_type: workflow[id]?.class_type,
+      hasInputs: !!workflow[id]?.inputs
+    })));
     throw error;
   }
 }
