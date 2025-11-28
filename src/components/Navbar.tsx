@@ -278,8 +278,8 @@ export default function Navbar() {
          <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('friends')}</span>
        </button>
 
-            {/* 工作流菜单 - 仅优质用户和管理员可见 */}
-            {session?.user && (isAdmin || isPremium) && (
+            {/* 工作流菜单 - 所有登录用户可见 */}
+            {session?.user && (
               <Link
                 href={transferUrl('/workflows', locale)}
                 onClick={() => setIsMobileMenuOpen(false)}

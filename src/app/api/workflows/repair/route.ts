@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized: 请先登录' }, { status: 401 })
     }
 
-    // 3. 检查用户权限（只有优质用户和管理员可以使用）
+    // 3. 获取用户信息（用于判断是否扣除积分）
     const currentUser = await db.select()
       .from(user)
       .where(eq(user.id, session.user.id))
@@ -89,14 +89,6 @@ export async function POST(request: Request) {
 
     const userData = currentUser[0]
     const isAdmin = userData.isAdmin || false
-    const isPremium = userData.isPremium || false
-
-    if (!isAdmin && !isPremium) {
-      return NextResponse.json(
-        { error: 'Forbidden: 此功能仅限优质用户和管理员使用' },
-        { status: 403 }
-      )
-    }
 
     // 管理员不扣积分，普通用户和优质用户需要检查并扣除积分
     if (!isAdmin) {
