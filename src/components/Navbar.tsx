@@ -27,6 +27,7 @@ export default function Navbar() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isPremium, setIsPremium] = useState(false)
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -36,6 +37,7 @@ export default function Navbar() {
       if (!session?.user) {
         setIsAdmin(false)
         setIsPremium(false)
+        setPointsBalance(null)
         return
       }
 
@@ -59,6 +61,28 @@ export default function Navbar() {
     }
 
     checkUserStatus()
+  }, [session?.user])
+
+  // 获取积分余额
+  useEffect(() => {
+    const fetchPointsBalance = async () => {
+      if (!session?.user) {
+        setPointsBalance(null)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/points/balance?t=${Date.now()}`)
+        if (response.ok) {
+          const data = await response.json()
+          setPointsBalance(data.balance || 0)
+        }
+      } catch (error) {
+        console.error('Failed to fetch points balance:', error)
+      }
+    }
+
+    fetchPointsBalance()
   }, [session?.user])
 
   // 处理点击遮罩层关闭菜单
@@ -153,39 +177,51 @@ export default function Navbar() {
           </span>
         </div>
         
-        {/* 移动端图标和用户菜单 */}
+        {/* 移动端积分和用户菜单 */}
         <div className="ml-auto flex items-center gap-2">
           {session?.user ? (
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-200/50 transition-colors"
-              >
-                <AvatarWithFrame
-                  avatar={globalAvatar}
-                  avatarFrameId={avatarFrameId}
-                  size={32}
-                  className="border-2 border-orange-400/30"
-                />
-              </button>
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
-                  <Link
-                    href={transferUrl('/profile', locale)}
-                    onClick={() => setShowUserMenu(false)}
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    {tAuth('profile')}
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
-                  >
-                    {tAuth('logout')}
-                  </button>
+            <>
+              {/* 积分显示 */}
+              {pointsBalance !== null && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-orange-400/10 to-amber-400/10 rounded-lg border border-orange-400/20">
+                  <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm font-semibold text-orange-700">{pointsBalance}</span>
                 </div>
               )}
-            </div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-200/50 transition-colors"
+                >
+                  <AvatarWithFrame
+                    avatar={globalAvatar}
+                    avatarFrameId={avatarFrameId}
+                    size={32}
+                    className="border-2 border-orange-400/30"
+                  />
+                </button>
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                    <Link
+                      href={transferUrl('/profile', locale)}
+                      onClick={() => setShowUserMenu(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      {tAuth('profile')}
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
+                    >
+                      {tAuth('logout')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <button
               onClick={() => setShowAuthModal(true)}
@@ -194,8 +230,6 @@ export default function Navbar() {
               {tAuth('login')}
             </button>
           )}
-          <GitHubIcon />
-          <WeChatIcon />
         </div>
       </div>
 
