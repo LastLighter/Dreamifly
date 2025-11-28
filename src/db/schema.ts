@@ -129,6 +129,31 @@ export const allowedEmailDomain = pgTable("allowed_email_domain", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
 });
 
+// 积分记录表
+export const userPoints = pgTable("user_points", {
+  id: text("id").primaryKey(), // 使用UUID作为主键
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }), // 用户ID，外键关联user表
+  points: integer("points").notNull(), // 积分数量，正数表示获得，负数表示消费
+  type: text("type").notNull(), // 积分类型：'earned' | 'spent'
+  description: text("description"), // 描述
+  earnedAt: timestamp("earned_at").defaultNow().notNull(), // 获得/消费时间
+  expiresAt: timestamp("expires_at"), // 过期时间，仅对获得的积分有效
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+});
+
+// 积分配置表
+export const pointsConfig = pgTable("points_config", {
+  id: integer("id").primaryKey().default(1), // 单例配置
+  regularUserDailyPoints: integer("regular_user_daily_points"), // 普通用户每日积分，null表示使用环境变量
+  premiumUserDailyPoints: integer("premium_user_daily_points"), // 优质用户每日积分
+  pointsExpiryDays: integer("points_expiry_days"), // 积分过期天数
+  repairWorkflowCost: integer("repair_workflow_cost"), // 工作流修复消耗
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // 用户与头像框的关系
 export const userRelations = relations(user, ({ one }) => ({
   avatarFrame: one(avatarFrame, {

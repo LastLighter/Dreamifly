@@ -270,7 +270,25 @@ export async function runSupirRepairWorkflow(
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`Supir Repair 服务错误 (${response.status}): ${errorText || '未知错误'}`)
+    let errorMessage = `Supir Repair 服务错误 (${response.status})`
+    
+    if (response.status === 404) {
+      errorMessage = 'Supir Repair 服务不可用，请检查服务配置或联系管理员'
+    } else if (response.status === 500) {
+      errorMessage = 'Supir Repair 服务内部错误，请稍后重试'
+    } else if (errorText) {
+      try {
+        const errorJson = JSON.parse(errorText)
+        errorMessage = errorJson.error || errorJson.message || errorMessage
+      } catch {
+        // 如果不是 JSON，使用原始文本
+        if (errorText.length < 200) {
+          errorMessage = `${errorMessage}: ${errorText}`
+        }
+      }
+    }
+    
+    throw new Error(errorMessage)
   }
 
   const text = await response.text()

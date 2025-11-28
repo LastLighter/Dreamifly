@@ -18,11 +18,19 @@ interface AvatarContextType {
 
 const AvatarContext = createContext<AvatarContextType | undefined>(undefined)
 
+interface DailyAwardInfo {
+  points: number
+  expiresInDays: number
+  userType: 'regular' | 'premium'
+}
+
 export function AvatarProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession()
   const [avatar, setAvatar] = useState('/images/default-avatar.svg')
   const [nickname, setNickname] = useState('')
   const [avatarFrameId, setAvatarFrameId] = useState<number | null>(null)
+  const [dailyAwardInfo, setDailyAwardInfo] = useState<DailyAwardInfo | null>(null)
+  const [showDailyAwardModal, setShowDailyAwardModal] = useState(false)
 
   // 监听session变化，更新头像、昵称和头像框
   useEffect(() => {
@@ -51,6 +59,44 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
     setNickname(newNickname)
   }
 
+  useEffect(() => {
+    if (!session?.user?.id) {
+      return
+    }
+
+    let aborted = false
+
+    const checkDailyAward = async () => {
+      try {
+        const response = await fetch('/api/points/award-daily', {
+          method: 'POST',
+        })
+
+        if (!response.ok) {
+          return
+        }
+
+        const data = await response.json()
+        if (!aborted && data.awarded) {
+          setDailyAwardInfo({
+            points: data.points,
+            expiresInDays: data.expiresInDays,
+            userType: data.userType === 'premium' ? 'premium' : 'regular',
+          })
+          setShowDailyAwardModal(true)
+        }
+      } catch (error) {
+        console.error('Failed to check daily award:', error)
+      }
+    }
+
+    checkDailyAward()
+
+    return () => {
+      aborted = true
+    }
+  }, [session?.user?.id])
+
   return (
     <AvatarContext.Provider value={{ 
       avatar, 
@@ -64,6 +110,49 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
       updateProfile 
     }}>
       {children}
+
+      {showDailyAwardModal && dailyAwardInfo && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 relative">
+            <button
+              aria-label="Close"
+              onClick={() => setShowDailyAwardModal(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="p-3 rounded-full bg-orange-100 text-orange-600">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.7 2.288a1 1 0 01.6 0l7 2.333A1 1 0 0120 5.567v6.933c0 3.831-2.82 7.612-8.423 11.334a1 1 0 01-1.154 0C4.82 20.112 2 16.33 2 12.5V5.567a1 1 0 01.7-.946l7-2.333z" />
+                </svg>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-orange-600">
+                  {dailyAwardInfo.userType === 'premium' ? '尊敬的优质用户' : '欢迎回来'}
+                </p>
+                <h3 className="text-lg font-bold text-gray-900">
+                  今日已为您赠送 {dailyAwardInfo.points} 积分
+                </h3>
+                <p className="text-sm text-gray-600">
+                  这些积分可用于需要积分的模型或工作流，积分有效期为 {dailyAwardInfo.expiresInDays} 天。
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowDailyAwardModal(false)}
+                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors"
+              >
+                知道啦
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AvatarContext.Provider>
   )
 }

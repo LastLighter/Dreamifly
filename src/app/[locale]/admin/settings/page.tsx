@@ -60,6 +60,32 @@ export default function SettingsPage() {
     useEnvPremium: false,
   })
 
+  // 积分配置状态
+  const [pointsConfig, setPointsConfig] = useState({
+    regularUserDailyPoints: 10,
+    premiumUserDailyPoints: 20,
+    pointsExpiryDays: 7,
+    repairWorkflowCost: 1,
+    usingEnvRegular: false,
+    usingEnvPremium: false,
+    usingEnvExpiry: false,
+    usingEnvRepair: false,
+    envRegularPoints: 10,
+    envPremiumPoints: 20,
+    envExpiryDays: 7,
+    envRepairCost: 1,
+  })
+  const [pointsInputs, setPointsInputs] = useState({
+    regular: '',
+    premium: '',
+    expiry: '',
+    repair: '',
+    useEnvRegular: false,
+    useEnvPremium: false,
+    useEnvExpiry: false,
+    useEnvRepair: false,
+  })
+
   // 对话框状态
   const [dialogState, setDialogState] = useState<{
     show: boolean
@@ -151,9 +177,103 @@ export default function SettingsPage() {
   useEffect(() => {
     if (isAdmin && !checkingAdmin) {
       fetchLimitConfig()
+      fetchPointsConfig()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, checkingAdmin])
+
+  // 获取积分配置
+  const fetchPointsConfig = async () => {
+    try {
+      const response = await fetch('/api/admin/points-config')
+      if (response.ok) {
+        const data = await response.json()
+        setPointsConfig(data)
+        setPointsInputs({
+          regular: data.usingEnvRegular ? '' : data.regularUserDailyPoints.toString(),
+          premium: data.usingEnvPremium ? '' : data.premiumUserDailyPoints.toString(),
+          expiry: data.usingEnvExpiry ? '' : data.pointsExpiryDays.toString(),
+          repair: data.usingEnvRepair ? '' : data.repairWorkflowCost.toString(),
+          useEnvRegular: data.usingEnvRegular,
+          useEnvPremium: data.usingEnvPremium,
+          useEnvExpiry: data.usingEnvExpiry,
+          useEnvRepair: data.usingEnvRepair,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch points config:', error)
+    }
+  }
+
+  // 更新积分配置
+  const handleUpdatePointsConfig = async () => {
+    try {
+      const body: any = {}
+      
+      if (pointsInputs.useEnvRegular) {
+        body.useEnvForRegular = true
+      } else {
+        const regularValue = parseInt(pointsInputs.regular, 10)
+        if (isNaN(regularValue) || regularValue < 0) {
+          showDialog('error', '验证失败', '普通用户每日积分必须是大于等于0的数字')
+          return
+        }
+        body.regularUserDailyPoints = regularValue
+      }
+
+      if (pointsInputs.useEnvPremium) {
+        body.useEnvForPremium = true
+      } else {
+        const premiumValue = parseInt(pointsInputs.premium, 10)
+        if (isNaN(premiumValue) || premiumValue < 0) {
+          showDialog('error', '验证失败', '优质用户每日积分必须是大于等于0的数字')
+          return
+        }
+        body.premiumUserDailyPoints = premiumValue
+      }
+
+      if (pointsInputs.useEnvExpiry) {
+        body.useEnvForExpiry = true
+      } else {
+        const expiryValue = parseInt(pointsInputs.expiry, 10)
+        if (isNaN(expiryValue) || expiryValue < 1) {
+          showDialog('error', '验证失败', '积分过期天数必须是大于等于1的数字')
+          return
+        }
+        body.pointsExpiryDays = expiryValue
+      }
+
+      if (pointsInputs.useEnvRepair) {
+        body.useEnvForRepair = true
+      } else {
+        const repairValue = parseInt(pointsInputs.repair, 10)
+        if (isNaN(repairValue) || repairValue < 0) {
+          showDialog('error', '验证失败', '工作流修复消耗积分必须是大于等于0的数字')
+          return
+        }
+        body.repairWorkflowCost = repairValue
+      }
+
+      const response = await fetch('/api/admin/points-config', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      })
+
+      if (response.ok) {
+        showDialog('success', '成功', '积分配置已更新')
+        fetchPointsConfig()
+      } else {
+        const data = await response.json()
+        showDialog('error', '更新失败', data.error || '更新积分配置失败')
+      }
+    } catch (error) {
+      console.error('Failed to update points config:', error)
+      showDialog('error', '更新失败', '更新积分配置时发生错误')
+    }
+  }
 
   // 显示对话框的辅助函数
   const showDialog = (
@@ -416,6 +536,184 @@ export default function SettingsPage() {
                   <button
                     onClick={() => {
                       fetchLimitConfig() // 重置输入
+                    }}
+                    className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    重置
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 积分配置卡片 */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">积分配置</h2>
+                  <p className="text-sm text-gray-500 mt-1">配置用户积分发放规则和消费规则</p>
+                </div>
+              </div>
+              
+              <div className="space-y-6">
+                {/* 普通用户每日积分 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    普通用户每日积分
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={pointsInputs.useEnvRegular}
+                        onChange={(e) => {
+                          setPointsInputs({
+                            ...pointsInputs,
+                            useEnvRegular: e.target.checked,
+                            regular: e.target.checked ? '' : pointsConfig.regularUserDailyPoints.toString(),
+                          })
+                        }}
+                        className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-600">使用环境变量 ({pointsConfig.envRegularPoints})</span>
+                    </label>
+                    {!pointsInputs.useEnvRegular && (
+                      <input
+                        type="number"
+                        value={pointsInputs.regular}
+                        onChange={(e) => setPointsInputs({ ...pointsInputs, regular: e.target.value })}
+                        placeholder="输入积分"
+                        min="0"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    当前值: {pointsConfig.usingEnvRegular ? `环境变量 (${pointsConfig.envRegularPoints})` : pointsConfig.regularUserDailyPoints}
+                  </p>
+                </div>
+
+                {/* 优质用户每日积分 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    优质用户每日积分
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={pointsInputs.useEnvPremium}
+                        onChange={(e) => {
+                          setPointsInputs({
+                            ...pointsInputs,
+                            useEnvPremium: e.target.checked,
+                            premium: e.target.checked ? '' : pointsConfig.premiumUserDailyPoints.toString(),
+                          })
+                        }}
+                        className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-600">使用环境变量 ({pointsConfig.envPremiumPoints})</span>
+                    </label>
+                    {!pointsInputs.useEnvPremium && (
+                      <input
+                        type="number"
+                        value={pointsInputs.premium}
+                        onChange={(e) => setPointsInputs({ ...pointsInputs, premium: e.target.value })}
+                        placeholder="输入积分"
+                        min="0"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    当前值: {pointsConfig.usingEnvPremium ? `环境变量 (${pointsConfig.envPremiumPoints})` : pointsConfig.premiumUserDailyPoints}
+                  </p>
+                </div>
+
+                {/* 积分过期天数 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    积分过期天数
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={pointsInputs.useEnvExpiry}
+                        onChange={(e) => {
+                          setPointsInputs({
+                            ...pointsInputs,
+                            useEnvExpiry: e.target.checked,
+                            expiry: e.target.checked ? '' : pointsConfig.pointsExpiryDays.toString(),
+                          })
+                        }}
+                        className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-600">使用环境变量 ({pointsConfig.envExpiryDays})</span>
+                    </label>
+                    {!pointsInputs.useEnvExpiry && (
+                      <input
+                        type="number"
+                        value={pointsInputs.expiry}
+                        onChange={(e) => setPointsInputs({ ...pointsInputs, expiry: e.target.value })}
+                        placeholder="输入天数"
+                        min="1"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    当前值: {pointsConfig.usingEnvExpiry ? `环境变量 (${pointsConfig.envExpiryDays})` : pointsConfig.pointsExpiryDays} 天
+                  </p>
+                </div>
+
+                {/* 工作流修复消耗积分 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    工作流修复消耗积分
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={pointsInputs.useEnvRepair}
+                        onChange={(e) => {
+                          setPointsInputs({
+                            ...pointsInputs,
+                            useEnvRepair: e.target.checked,
+                            repair: e.target.checked ? '' : pointsConfig.repairWorkflowCost.toString(),
+                          })
+                        }}
+                        className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-600">使用环境变量 ({pointsConfig.envRepairCost})</span>
+                    </label>
+                    {!pointsInputs.useEnvRepair && (
+                      <input
+                        type="number"
+                        value={pointsInputs.repair}
+                        onChange={(e) => setPointsInputs({ ...pointsInputs, repair: e.target.value })}
+                        placeholder="输入积分"
+                        min="0"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    当前值: {pointsConfig.usingEnvRepair ? `环境变量 (${pointsConfig.envRepairCost})` : pointsConfig.repairWorkflowCost} 积分/次
+                  </p>
+                </div>
+
+                {/* 操作按钮 */}
+                <div className="flex gap-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={handleUpdatePointsConfig}
+                    className="px-6 py-2.5 bg-gradient-to-r from-orange-400 to-amber-400 text-white font-semibold rounded-lg hover:from-orange-500 hover:to-amber-500 transition-all shadow-sm hover:shadow-md"
+                  >
+                    保存设置
+                  </button>
+                  <button
+                    onClick={() => {
+                      fetchPointsConfig() // 重置输入
                     }}
                     className="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                   >
