@@ -133,13 +133,13 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
 
               <div className="space-y-2">
                 <p className="text-sm font-medium text-orange-600">
-                  {dailyAwardInfo.userType === 'premium' ? '尊敬的优质用户' : '欢迎回来'}
+                  {dailyAwardInfo.userType === 'premium' ? '优质用户' : '欢迎回来'}
                 </p>
                 <h3 className="text-lg font-bold text-gray-900">
-                  今日已为您赠送 {dailyAwardInfo.points} 积分
+                  今日签到获得 {dailyAwardInfo.points} 积分
                 </h3>
                 <p className="text-sm text-gray-600">
-                  这些积分可用于需要积分的模型或工作流，积分有效期为 {dailyAwardInfo.expiresInDays} 天。
+                有效期为 {dailyAwardInfo.expiresInDays} 天
                 </p>
               </div>
 

@@ -17,8 +17,8 @@ export async function getPointsConfig() {
   const configData = config.length > 0 ? config[0] : null;
 
   // 获取环境变量默认值
-  const envRegularPoints = parseInt(process.env.REGULAR_USER_DAILY_POINTS || '30', 10);
-  const envPremiumPoints = parseInt(process.env.PREMIUM_USER_DAILY_POINTS || '60', 10);
+  const envRegularPoints = parseInt(process.env.REGULAR_USER_DAILY_POINTS || '20', 10);
+  const envPremiumPoints = parseInt(process.env.PREMIUM_USER_DAILY_POINTS || '40', 10);
   const envExpiryDays = parseInt(process.env.POINTS_EXPIRY_DAYS || '7', 10);
   const envRepairCost = parseInt(process.env.REPAIR_WORKFLOW_COST || '3', 10);
 
