@@ -4,10 +4,12 @@ import { useRef, useState, useEffect } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { usePoints } from '@/contexts/PointsContext'
+import { useSession } from '@/lib/auth-client'
 
 type TabKey = 'repair' | 'upscale'
 
 export default function WorkflowsPage() {
+  const { data: session } = useSession()
   const { refreshPoints } = usePoints()
   const [activeTab, setActiveTab] = useState<TabKey>('repair')
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
@@ -21,6 +23,7 @@ export default function WorkflowsPage() {
   const [repairTime, setRepairTime] = useState<number | null>(null)
   const [repairCost, setRepairCost] = useState<number | null>(null) // 工作流修复消耗积分，null表示未加载
   const [isLoadingCost, setIsLoadingCost] = useState(true)
+  const [showLoginTip, setShowLoginTip] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   // 获取工作流修复消耗积分配置
@@ -142,6 +145,14 @@ export default function WorkflowsPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
+        
+        // 如果是401未登录错误，显示提示
+        if (response.status === 401) {
+          setShowLoginTip(true)
+          setIsProcessing(false)
+          return
+        }
+        
         throw new Error(data.error || '修复失败，请稍后重试')
       }
 
@@ -448,6 +459,45 @@ export default function WorkflowsPage() {
             <p>
               {isShowingOriginal && zoomedImage.original ? '显示原图' : '显示修复后'} - 点击背景或关闭按钮退出预览
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* 未登录提示框 */}
+      {showLoginTip && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 relative">
+            <button
+              aria-label="Close"
+              onClick={() => setShowLoginTip(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="p-3 rounded-full bg-orange-100 text-orange-600">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-gray-900">该功能仅限登录用户使用</h3>
+                <p className="text-sm text-gray-600">
+                  请先登录后再使用工作流修复功能
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowLoginTip(false)}
+                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors"
+              >
+                知道啦
+              </button>
+            </div>
           </div>
         </div>
       )}
