@@ -98,6 +98,7 @@ export async function generateImage(params: GenerateParams): Promise<string> {
     baseUrl = process.env.Flux_2_URL || ''
     setFlux2T2IorkflowParams(workflow, params);
     console.log('Flux-2 workflow configured, baseUrl:', baseUrl ? `${baseUrl.substring(0, 50)}...` : 'NOT SET');
+    console.log('Flux-2 workflow structure:', JSON.stringify(workflow, null, 2));
   }
 
   // 检查baseUrl是否配置
@@ -111,13 +112,19 @@ export async function generateImage(params: GenerateParams): Promise<string> {
   try {
     // 2. 发送提示请求并等待响应
     const apiEndpoint = `${baseUrl}/prompt`;
+    const requestBody = { prompt: workflow };
     console.log(`[${params.model}] 调用 API: ${apiEndpoint}`);
+    if (params.model === 'Flux-2') {
+      console.log(`[${params.model}] 请求体大小: ${JSON.stringify(requestBody).length} 字符`);
+      console.log(`[${params.model}] 工作流节点数量: ${Object.keys(workflow).length}`);
+      console.log(`[${params.model}] 工作流节点列表:`, Object.keys(workflow).sort((a, b) => parseInt(a) - parseInt(b)));
+    }
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ prompt: workflow }),
+      body: JSON.stringify(requestBody),
     });
 
     // 检查HTTP响应状态
