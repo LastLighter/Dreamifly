@@ -8,6 +8,7 @@ import { Inter } from 'next/font/google'
 import '@/app/globals.css'
 import UmamiProvider from 'next-umami'
 import { AvatarProvider } from '@/contexts/AvatarContext'
+import { PointsProvider } from '@/contexts/PointsContext'
 import VersionDisplay from '@/components/VersionDisplay'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
@@ -131,14 +132,16 @@ export default async function LocaleLayout({
       <body className={inter.className}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <AvatarProvider>
-            <div className="min-h-screen flex flex-col">
-              <Navbar />
-              <main className="flex-grow">
-                {children}
-              </main>
-              <Footer />
-            </div>
-            <VersionDisplay />
+            <PointsProvider>
+              <div className="min-h-screen flex flex-col">
+                <Navbar />
+                <main className="flex-grow">
+                  {children}
+                </main>
+                <Footer />
+              </div>
+              <VersionDisplay />
+            </PointsProvider>
           </AvatarProvider>
         </NextIntlClientProvider>
       </body>

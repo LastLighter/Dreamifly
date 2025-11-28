@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { useSession, signOut } from '@/lib/auth-client'
 import { useAvatar } from '@/contexts/AvatarContext'
+import { usePoints } from '@/contexts/PointsContext'
 import AvatarWithFrame from './AvatarWithFrame'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
@@ -22,12 +23,12 @@ export default function Navbar() {
   const tAuth = useTranslations('auth')
   const { data: session } = useSession()
   const { avatar: globalAvatar, nickname: globalNickname, avatarFrameId } = useAvatar()
+  const { pointsBalance } = usePoints()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isPremium, setIsPremium] = useState(false)
-  const [pointsBalance, setPointsBalance] = useState<number | null>(null)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -37,7 +38,6 @@ export default function Navbar() {
       if (!session?.user) {
         setIsAdmin(false)
         setIsPremium(false)
-        setPointsBalance(null)
         return
       }
 
@@ -63,27 +63,6 @@ export default function Navbar() {
     checkUserStatus()
   }, [session?.user])
 
-  // 获取积分余额
-  useEffect(() => {
-    const fetchPointsBalance = async () => {
-      if (!session?.user) {
-        setPointsBalance(null)
-        return
-      }
-
-      try {
-        const response = await fetch(`/api/points/balance?t=${Date.now()}`)
-        if (response.ok) {
-          const data = await response.json()
-          setPointsBalance(data.balance || 0)
-        }
-      } catch (error) {
-        console.error('Failed to fetch points balance:', error)
-      }
-    }
-
-    fetchPointsBalance()
-  }, [session?.user])
 
   // 处理点击遮罩层关闭菜单
   const handleOverlayClick = () => {

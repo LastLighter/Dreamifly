@@ -6,7 +6,7 @@ import { db } from '@/db'
 import { user } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { createHash } from 'crypto'
-import { getPointsConfig, checkPointsSufficient, deductPoints } from '@/utils/points'
+import { getPointsConfig, checkPointsSufficient, deductPoints, getPointsBalance } from '@/utils/points'
 
 /**
  * 验证动态API token
@@ -197,6 +197,7 @@ export async function POST(request: Request) {
       })
 
       // 修复成功后扣除积分（管理员不扣）
+      let newBalance = null
       if (!isAdmin) {
         const config = await getPointsConfig()
         const cost = config.repairWorkflowCost
@@ -204,10 +205,16 @@ export async function POST(request: Request) {
         if (!deducted) {
           // 如果扣除失败（理论上不应该发生，因为前面已经检查过），记录错误但不影响结果
           console.error('Failed to deduct points after repair workflow')
+        } else {
+          // 获取扣除后的新积分余额
+          newBalance = await getPointsBalance(session.user.id)
         }
       }
 
-      return NextResponse.json({ imageUrl: repairedImage })
+      return NextResponse.json({ 
+        imageUrl: repairedImage,
+        pointsBalance: newBalance
+      })
     } catch (workflowError) {
       // 工作流失败，不扣除积分（因为前面已经检查过积分，这里如果失败应该回滚，但为了简化，我们只在成功时扣除）
       throw workflowError

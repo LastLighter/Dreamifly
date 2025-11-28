@@ -3,10 +3,12 @@
 import { useRef, useState, useEffect } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
+import { usePoints } from '@/contexts/PointsContext'
 
 type TabKey = 'repair' | 'upscale'
 
 export default function WorkflowsPage() {
+  const { refreshPoints } = usePoints()
   const [activeTab, setActiveTab] = useState<TabKey>('repair')
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -144,6 +146,11 @@ export default function WorkflowsPage() {
       
       setResultImage(data.imageUrl)
       setRepairTime(parseFloat(elapsedTime))
+      
+      // 如果API返回了新的积分余额，更新前端积分显示
+      if (data.pointsBalance !== undefined && data.pointsBalance !== null) {
+        await refreshPoints()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '修复失败，请稍后重试')
       setRepairTime(null)
