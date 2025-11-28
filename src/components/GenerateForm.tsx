@@ -698,6 +698,13 @@ export default function GenerateForm({
                               src={modelOption.image} 
                               alt={modelOption.name} 
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                // 如果图片加载失败，使用默认占位符
+                                if (!target.src.includes('data:image')) {
+                                  target.src = '/models/Qwen-Image.jpg' // 使用 Qwen-Image 作为默认图片
+                                }
+                              }}
                             />
                           </div>
                           <div className="flex-1 min-w-0">

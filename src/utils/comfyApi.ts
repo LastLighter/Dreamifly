@@ -1,4 +1,4 @@
-import { hidreamFp8T2IWorkflow,  fluxDevT2IWorkflow, stableDiffusion3T2IWorkflow, fluxKreaT2IWorkflow, qwenImageT2IWorkflow, waiSDXLV150Workflow } from "./t2iworkflow";
+import { hidreamFp8T2IWorkflow,  fluxDevT2IWorkflow, stableDiffusion3T2IWorkflow, fluxKreaT2IWorkflow, qwenImageT2IWorkflow, waiSDXLV150Workflow, zImageTurboT2IWorkflow, flux2T2IWorkflow } from "./t2iworkflow";
 import { fluxI2IWorkflow, fluxKontextI2IMultiImageWorkflow, fluxKontextI2IWorkflow, QwenImageEdit2ImagesWorkflow, QwenImageEdit3ImagesWorkflow, QwenImageEditWorkflow } from "./i2iworkflow";
 const T2IModelMap = {
   "HiDream-full-fp8": hidreamFp8T2IWorkflow,
@@ -6,7 +6,9 @@ const T2IModelMap = {
   "Stable-Diffusion-3.5": stableDiffusion3T2IWorkflow,
   "Flux-Krea": fluxKreaT2IWorkflow,
   "Qwen-Image": qwenImageT2IWorkflow,
-  "Wai-SDXL-V150": waiSDXLV150Workflow
+  "Wai-SDXL-V150": waiSDXLV150Workflow,
+  "Z-Image-Turbo": zImageTurboT2IWorkflow,
+  "Flux-2": flux2T2IWorkflow
 }
 
 const I2IModelMap = {
@@ -48,6 +50,14 @@ export async function generateImage(params: GenerateParams): Promise<string> {
     workflow = T2IModelMap[params.model as keyof typeof T2IModelMap];
   }
 
+  // 检查工作流是否加载成功
+  if (!workflow || Object.keys(workflow).length === 0) {
+    throw new Error(`模型 ${params.model} 的工作流未找到或为空`);
+  }
+
+  // 深拷贝工作流，避免修改原始模板
+  workflow = JSON.parse(JSON.stringify(workflow));
+
   let baseUrl = '';
   if(params.model === 'HiDream-full-fp8') {
     baseUrl = process.env.HiDream_Fp8_URL || ''
@@ -80,6 +90,14 @@ export async function generateImage(params: GenerateParams): Promise<string> {
   }else if(params.model === 'Wai-SDXL-V150') {
     baseUrl = process.env.Wai_SDXL_V150_URL || ''
     setWaiSDXLV150T2IorkflowParams(workflow, params);
+  }else if(params.model === 'Z-Image-Turbo') {
+    baseUrl = process.env.Z_Image_Turbo_URL || ''
+    setZImageTurboT2IorkflowParams(workflow, params);
+    console.log('Z-Image-Turbo workflow:', JSON.stringify(workflow, null, 2));
+  }else if(params.model === 'Flux-2') {
+    baseUrl = process.env.Flux_2_URL || ''
+    setFlux2T2IorkflowParams(workflow, params);
+    console.log('Flux-2 workflow configured, baseUrl:', baseUrl ? `${baseUrl.substring(0, 50)}...` : 'NOT SET');
   }
 
   // 检查baseUrl是否配置
@@ -87,9 +105,14 @@ export async function generateImage(params: GenerateParams): Promise<string> {
     throw new Error(`模型 ${params.model} 的服务URL未配置，请检查环境变量`);
   }
 
+  // 规范化 baseUrl（移除末尾斜杠）
+  baseUrl = baseUrl.replace(/\/+$/, '');
+
   try {
     // 2. 发送提示请求并等待响应
-    const response = await fetch(`${baseUrl}/prompt`, {
+    const apiEndpoint = `${baseUrl}/prompt`;
+    console.log(`[${params.model}] 调用 API: ${apiEndpoint}`);
+    const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -100,6 +123,23 @@ export async function generateImage(params: GenerateParams): Promise<string> {
     // 检查HTTP响应状态
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(`[${params.model}] API 错误响应:`, {
+        status: response.status,
+        statusText: response.statusText,
+        url: apiEndpoint,
+        error: errorText
+      });
+      
+      // 如果是 404 错误，提供更详细的提示
+      if (response.status === 404) {
+        throw new Error(`API 端点不存在 (404): ${apiEndpoint}。请检查 ${params.model} 的服务URL配置是否正确，确保指向正确的 ComfyUI 服务地址`);
+      }
+      
+      // 如果是 503 错误，提供连接相关的提示
+      if (response.status === 503) {
+        throw new Error(`ComfyUI服务不可用 (503): ${errorText || '无法连接到服务'}。请检查 ${params.model} 的服务是否正在运行，以及环境变量 ${params.model === 'Flux-2' ? 'Flux_2_URL' : 'URL'} 配置是否正确`);
+      }
+      
       throw new Error(`ComfyUI服务错误 (${response.status}): ${errorText || '未知错误'}`);
     }
 
@@ -273,5 +313,71 @@ function setWaiSDXLV150T2IorkflowParams(workflow: any, params: GenerateParams) {
   }
   if (params.negative_prompt) {
     workflow["7"].inputs.text = params.negative_prompt;
+  }
+}
+
+function setZImageTurboT2IorkflowParams(workflow: any, params: GenerateParams) {
+  try {
+    // 检查工作流节点是否存在
+    if (!workflow["13"] || !workflow["13"].inputs) {
+      throw new Error('工作流节点 "13" (EmptySD3LatentImage) 不存在');
+    }
+    if (!workflow["6"] || !workflow["6"].inputs) {
+      throw new Error('工作流节点 "6" (CLIPTextEncode Positive) 不存在');
+    }
+    if (!workflow["3"] || !workflow["3"].inputs) {
+      throw new Error('工作流节点 "3" (KSampler) 不存在');
+    }
+    if (params.negative_prompt && (!workflow["7"] || !workflow["7"].inputs)) {
+      throw new Error('工作流节点 "7" (CLIPTextEncode Negative) 不存在');
+    }
+
+    workflow["13"].inputs.width = params.width;
+    workflow["13"].inputs.height = params.height;
+    workflow["6"].inputs.text = params.prompt;
+    workflow["3"].inputs.steps = params.steps;
+    if (params.seed) {
+      workflow["3"].inputs.seed = params.seed;
+    }
+    if (params.negative_prompt) {
+      workflow["7"].inputs.text = params.negative_prompt;
+    }
+  } catch (error) {
+    console.error('Error setting Z-Image-Turbo workflow params:', error);
+    console.error('Workflow structure:', Object.keys(workflow));
+    throw error;
+  }
+}
+
+function setFlux2T2IorkflowParams(workflow: any, params: GenerateParams) {
+  try {
+    // 检查工作流节点是否存在
+    if (!workflow["47"] || !workflow["47"].inputs) {
+      throw new Error('工作流节点 "47" (EmptyFlux2LatentImage) 不存在');
+    }
+    if (!workflow["6"] || !workflow["6"].inputs) {
+      throw new Error('工作流节点 "6" (CLIPTextEncode Positive) 不存在');
+    }
+    if (!workflow["48"] || !workflow["48"].inputs) {
+      throw new Error('工作流节点 "48" (Flux2Scheduler) 不存在');
+    }
+    if (!workflow["25"] || !workflow["25"].inputs) {
+      throw new Error('工作流节点 "25" (RandomNoise) 不存在');
+    }
+
+    workflow["47"].inputs.width = params.width;
+    workflow["47"].inputs.height = params.height;
+    workflow["48"].inputs.width = params.width;
+    workflow["48"].inputs.height = params.height;
+    workflow["48"].inputs.steps = params.steps;
+    workflow["6"].inputs.text = params.prompt;
+    if (params.seed) {
+      workflow["25"].inputs.noise_seed = params.seed;
+    }
+    // 注意：Flux-2 工作流示例中没有负面提示词节点，如果需要可以添加
+  } catch (error) {
+    console.error('Error setting Flux-2 workflow params:', error);
+    console.error('Workflow structure:', Object.keys(workflow));
+    throw error;
   }
 }

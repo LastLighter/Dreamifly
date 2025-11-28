@@ -9,7 +9,9 @@ const MODEL_ENV_MAP = {
   "Flux-Krea": "Flux_Krea_URL",
   "Qwen-Image": "Qwen_Image_URL",
   "Qwen-Image-Edit": "Qwen_Image_Edit_URL",
-  "Wai-SDXL-V150": "Wai_SDXL_V150_URL"
+  "Wai-SDXL-V150": "Wai_SDXL_V150_URL",
+  "Z-Image-Turbo": "Z_Image_Turbo_URL",
+  "Flux-2": "Flux_2_URL"
 } as const;
 
 // 基础模型配置
@@ -101,6 +103,26 @@ export const ALL_MODELS: ModelConfig[] = [
     use_t2i: true,
     maxImages: 0,
     tags: ["chineseSupport"],
+    isRecommended: true
+  },
+  {
+    id: "Z-Image-Turbo",
+    name: "Z-Image-Turbo",
+    image: "/models/Z-Image-Turbo.jpg",
+    use_i2i: false,
+    use_t2i: true,
+    maxImages: 0,
+    tags: ["chineseSupport", "fastGeneration"],
+    isRecommended: true
+  },
+  {
+    id: "Flux-2",
+    name: "Flux-2",
+    image: "/models/Flux-2.jpg",
+    use_i2i: false,
+    use_t2i: true,
+    maxImages: 0,
+    tags: ["fastGeneration"],
     isRecommended: true
   }
 ];
