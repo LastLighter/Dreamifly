@@ -9,8 +9,10 @@ import Image from 'next/image'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
 import PointsTotalRanking from '@/components/admin/PointsTotalRanking'
+import PointsConsumeRanking from '@/components/admin/PointsConsumeRanking'
 
 type PointsTab = 'consume' | 'total'
+type TimeRange = 'hour' | 'today' | 'yesterday' | 'week' | 'month' | 'all'
 
 export default function PointsAdminPage() {
   const { data: session, isPending: sessionLoading } = useSession()
@@ -23,6 +25,7 @@ export default function PointsAdminPage() {
   const [checkingAdmin, setCheckingAdmin] = useState(true)
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string>('')
   const [activeTab, setActiveTab] = useState<PointsTab>('consume')
+  const [timeRange, setTimeRange] = useState<TimeRange>('week')
 
   // 隐藏父级 layout 的 Navbar 和 Footer
   useEffect(() => {
@@ -204,9 +207,10 @@ export default function PointsAdminPage() {
         {/* 内容区域 */}
         <div className="p-4 lg:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* Tab 切换 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <div className="flex gap-2 border-b border-gray-200">
+            {/* Tab 切换 + 时间范围选择 */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-4">
+              {/* 主 Tab：消耗 / 总额 */}
+              <div className="flex gap-2 border-b border-gray-200 pb-1">
                 <button
                   onClick={() => setActiveTab('consume')}
                   className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
@@ -228,12 +232,46 @@ export default function PointsAdminPage() {
                   积分总额排名
                 </button>
               </div>
+
+              {/* 时间范围 Tab（参考数据统计页的划分），当前只用于“积分消耗排名” */}
+              {activeTab === 'consume' && (
+                <div className="flex items-center justify-between gap-4 flex-wrap pt-1">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-gray-700">时间范围：</span>
+                    <div className="flex flex-wrap gap-2">
+                      {(['hour', 'today', 'yesterday', 'week', 'month', 'all'] as TimeRange[]).map(
+                        (range) => (
+                          <button
+                            key={range}
+                            onClick={() => setTimeRange(range)}
+                            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                              timeRange === range
+                                ? 'bg-gradient-to-r from-orange-400 to-amber-400 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {range === 'hour'
+                              ? '近一小时'
+                              : range === 'today'
+                              ? '今天'
+                              : range === 'yesterday'
+                              ? '昨天'
+                              : range === 'week'
+                              ? '最近一周'
+                              : range === 'month'
+                              ? '最近一月'
+                              : '全部'}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* 内容占位 */}
-            {activeTab === 'consume'
-              ? renderPlaceholder('积分消耗排名', '这里将展示用户或模型的积分消耗排行榜与明细。')
-              : <PointsTotalRanking /> }
+            {/* 内容区域 */}
+            {activeTab === 'consume' ? <PointsConsumeRanking timeRange={timeRange} /> : <PointsTotalRanking />}
           </div>
         </div>
       </div>
