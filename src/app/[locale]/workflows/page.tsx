@@ -4,12 +4,10 @@ import { useRef, useState, useEffect } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { usePoints } from '@/contexts/PointsContext'
-import { useSession } from '@/lib/auth-client'
 
 type TabKey = 'repair' | 'upscale'
 
 export default function WorkflowsPage() {
-  const { data: session } = useSession()
   const { refreshPoints } = usePoints()
   const [activeTab, setActiveTab] = useState<TabKey>('repair')
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
@@ -202,6 +200,7 @@ export default function WorkflowsPage() {
         {previewUrl ? (
           <div className="w-full space-y-4">
             <div className="relative w-full max-w-xl mx-auto aspect-video rounded-xl overflow-hidden shadow-lg border border-orange-200/60 bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previewUrl}
                 alt="待修复图片预览"
@@ -309,6 +308,7 @@ export default function WorkflowsPage() {
           </div>
 
           <div className="relative rounded-3xl border border-orange-400/40 bg-white/80 overflow-hidden shadow-xl group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={resultImage}
               alt="修复后的图片"
@@ -445,6 +445,7 @@ export default function WorkflowsPage() {
           {/* 图片容器 */}
           <div className="relative w-full h-full flex items-center justify-center">
             <div className="relative w-full max-w-[1400px] max-h-[calc(100vh-8rem)] flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={isShowingOriginal && zoomedImage.original ? zoomedImage.original : zoomedImage.repaired}
                 alt={isShowingOriginal && zoomedImage.original ? "原图预览" : "修复后预览"}

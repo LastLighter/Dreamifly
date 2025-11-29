@@ -95,7 +95,8 @@ export default async function LocaleLayout({
     if (session?.user) {
       // 异步更新登录时间，不等待结果
       // 每次页面加载都更新，确保刷新时能正确更新
-      (async () => {
+      const userId = session.user.id
+      ;(async () => {
         try {
           // 更新登录时间
           await db
@@ -105,7 +106,7 @@ export default async function LocaleLayout({
               lastLoginAt: sql`(now() at time zone 'UTC')`,
               updatedAt: sql`(now() at time zone 'UTC')`,
             })
-            .where(eq(user.id, session.user.id));
+            .where(eq(user.id, userId));
         } catch (error) {
           // 静默处理错误，不影响页面渲染
           console.error('Failed to update last login time:', error);

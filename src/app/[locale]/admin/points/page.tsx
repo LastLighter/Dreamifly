@@ -121,29 +121,6 @@ export default function PointsAdminPage() {
   const normalizedAvatarSrc =
     avatarSrc.startsWith('http') || avatarSrc.startsWith('/') ? avatarSrc : `/${avatarSrc}`
 
-  const renderPlaceholder = (title: string, description: string) => (
-    <div className="bg-white rounded-xl shadow-sm border border-dashed border-orange-200 flex flex-col items-center justify-center py-16 px-4 text-center">
-      <div className="mb-4 inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-100 to-amber-100 text-orange-500 shadow-sm">
-        <svg
-          className="w-7 h-7"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 8c-1.657 0-3 .672-3 1.5S10.343 11 12 11s3 .672 3 1.5S13.657 14 12 14m0-6c1.11 0 2.08.402 2.6 1M12 8V6m0 8v2m8-4a8 8 0 11-16 0 8 8 0 0116 0z"
-          />
-        </svg>
-      </div>
-      <h2 className="text-lg font-semibold text-gray-900 mb-2">{title}</h2>
-      <p className="text-sm text-gray-500 mb-1">正在开发中，敬请期待～</p>
-      <p className="text-xs text-gray-400">{description}</p>
-    </div>
-  )
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 左侧边栏 */}

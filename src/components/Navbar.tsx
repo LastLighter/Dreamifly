@@ -28,7 +28,6 @@ export default function Navbar() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [isPremium, setIsPremium] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -37,7 +36,6 @@ export default function Navbar() {
     const checkUserStatus = async () => {
       if (!session?.user) {
         setIsAdmin(false)
-        setIsPremium(false)
         return
       }
 
@@ -52,11 +50,9 @@ export default function Navbar() {
         })
         const data = await response.json()
         setIsAdmin(data.isAdmin || false)
-        setIsPremium(data.isPremium || false)
       } catch (error) {
         console.error('Failed to check user status:', error)
         setIsAdmin(false)
-        setIsPremium(false)
       }
     }
 

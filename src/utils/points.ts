@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { userPoints, pointsConfig } from '@/db/schema';
-import { eq, and, gte, lt, sql, desc, inArray, isNotNull } from 'drizzle-orm';
+import { eq, and, gte, lt, sql, inArray, isNotNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
 /**
