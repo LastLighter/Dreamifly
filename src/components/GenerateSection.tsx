@@ -24,7 +24,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   const [height, setHeight] = useState(1024);
   const [steps, setSteps] = useState(20);
   const [batch_size, setBatchSize] = useState(1);
-  const [model, setModel] = useState('Qwen-Image');
+  const [model, setModel] = useState('Z-Image-Turbo');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [imageStatuses, setImageStatuses] = useState<Array<{
@@ -126,6 +126,11 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
         id: "Qwen-Image",
         maxImages: 0,
         tags: ["chineseSupport"]
+      },
+      {
+        id: "Z-Image-Turbo",
+        maxImages: 0,
+        tags: ["chineseSupport", "fastGeneration"]
       }
     ];
     
@@ -450,6 +455,49 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
       newHeight = Math.round(Math.sqrt(area / ratioNum) / 8) * 8;
       newWidth = Math.round(newHeight * ratioNum / 8) * 8;
     }
+    
+    // 确保尺寸在允许范围内（64-1440）
+    const maxDimension = 1440;
+    const minDimension = 64;
+    
+    // 如果宽度或高度超过限制，按比例缩放
+    if (newWidth > maxDimension || newHeight > maxDimension) {
+      const scale = Math.min(maxDimension / newWidth, maxDimension / newHeight);
+      newWidth = Math.round(newWidth * scale / 8) * 8;
+      newHeight = Math.round(newHeight * scale / 8) * 8;
+    }
+    
+    // 确保最小尺寸，同时保持比例
+    if (newWidth < minDimension || newHeight < minDimension) {
+      // 根据比例确定哪个维度是限制因素
+      if (ratioNum >= 1) {
+        // 横向或正方形：宽度优先
+        newWidth = Math.max(newWidth, Math.round(minDimension / 8) * 8);
+        newHeight = Math.round(newWidth / ratioNum / 8) * 8;
+        // 如果高度仍然太小，以高度为准
+        if (newHeight < minDimension) {
+          newHeight = Math.round(minDimension / 8) * 8;
+          newWidth = Math.round(newHeight * ratioNum / 8) * 8;
+        }
+      } else {
+        // 纵向：高度优先
+        newHeight = Math.max(newHeight, Math.round(minDimension / 8) * 8);
+        newWidth = Math.round(newHeight * ratioNum / 8) * 8;
+        // 如果宽度仍然太小，以宽度为准
+        if (newWidth < minDimension) {
+          newWidth = Math.round(minDimension / 8) * 8;
+          newHeight = Math.round(newWidth / ratioNum / 8) * 8;
+        }
+      }
+    }
+    
+    // 最终确保不超过最大限制，同时保持比例
+    if (newWidth > maxDimension || newHeight > maxDimension) {
+      const scale = Math.min(maxDimension / newWidth, maxDimension / newHeight);
+      newWidth = Math.round(newWidth * scale / 8) * 8;
+      newHeight = Math.round(newHeight * scale / 8) * 8;
+    }
+    
     setWidth(newWidth);
     setHeight(newHeight);
   };

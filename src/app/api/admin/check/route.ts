@@ -50,7 +50,7 @@ function validateDynamicToken(providedToken: string): boolean {
   return false
 }
 
-// 检查当前用户是否是管理员和优质用户状态（仅限管理员和优质用户调用）
+// 检查当前用户是否是管理员和优质用户状态（所有登录用户可调用）
 export async function GET(request: Request) {
   try {
     // 1. 验证动态 token
@@ -115,14 +115,7 @@ export async function GET(request: Request) {
     // 获取 isPremium 状态
     const premiumStatus = Boolean(userData.isPremium);
 
-    // 4. 检查权限：只有管理员和优质用户可以调用此接口
-    if (!adminStatus && !premiumStatus) {
-      return NextResponse.json(
-        { error: 'Forbidden: 此接口仅限优质用户和管理员使用' },
-        { status: 403 }
-      );
-    }
-
+    // 4. 返回用户状态（允许所有登录用户查询自己的状态）
     console.log('Final adminStatus:', adminStatus);
     console.log('Final premiumStatus:', premiumStatus);
 

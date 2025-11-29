@@ -8,6 +8,7 @@ import { Inter } from 'next/font/google'
 import '@/app/globals.css'
 import UmamiProvider from 'next-umami'
 import { AvatarProvider } from '@/contexts/AvatarContext'
+import { PointsProvider } from '@/contexts/PointsContext'
 import VersionDisplay from '@/components/VersionDisplay'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
@@ -94,21 +95,23 @@ export default async function LocaleLayout({
     if (session?.user) {
       // 异步更新登录时间，不等待结果
       // 每次页面加载都更新，确保刷新时能正确更新
-      db
-        .update(user)
-        .set({
-          // 将当前时间转换为UTC并存为无时区
-          lastLoginAt: sql`(now() at time zone 'UTC')`,
-          updatedAt: sql`(now() at time zone 'UTC')`,
-        })
-        .where(eq(user.id, session.user.id))
-        .then(() => {
-          // 更新成功
-        })
-        .catch((error) => {
+      const userId = session.user.id
+      ;(async () => {
+        try {
+          // 更新登录时间
+          await db
+            .update(user)
+            .set({
+              // 将当前时间转换为UTC并存为无时区
+              lastLoginAt: sql`(now() at time zone 'UTC')`,
+              updatedAt: sql`(now() at time zone 'UTC')`,
+            })
+            .where(eq(user.id, userId));
+        } catch (error) {
           // 静默处理错误，不影响页面渲染
           console.error('Failed to update last login time:', error);
-        });
+        }
+      })();
     }
   } catch (error) {
     // 静默处理错误，不影响页面渲染
@@ -129,16 +132,18 @@ export default async function LocaleLayout({
       </head>
       <body className={inter.className}>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <AvatarProvider>
-            <div className="min-h-screen flex flex-col">
-              <Navbar />
-              <main className="flex-grow">
-                {children}
-              </main>
-              <Footer />
-            </div>
-            <VersionDisplay />
-          </AvatarProvider>
+          <PointsProvider>
+            <AvatarProvider>
+              <div className="min-h-screen flex flex-col">
+                <Navbar />
+                <main className="flex-grow">
+                  {children}
+                </main>
+                <Footer />
+              </div>
+              <VersionDisplay />
+            </AvatarProvider>
+          </PointsProvider>
         </NextIntlClientProvider>
       </body>
     </html >

@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { useSession, signOut } from '@/lib/auth-client'
 import { useAvatar } from '@/contexts/AvatarContext'
+import { usePoints } from '@/contexts/PointsContext'
 import AvatarWithFrame from './AvatarWithFrame'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
@@ -22,11 +23,11 @@ export default function Navbar() {
   const tAuth = useTranslations('auth')
   const { data: session } = useSession()
   const { avatar: globalAvatar, nickname: globalNickname, avatarFrameId } = useAvatar()
+  const { pointsBalance } = usePoints()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [isPremium, setIsPremium] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
@@ -35,7 +36,6 @@ export default function Navbar() {
     const checkUserStatus = async () => {
       if (!session?.user) {
         setIsAdmin(false)
-        setIsPremium(false)
         return
       }
 
@@ -50,16 +50,15 @@ export default function Navbar() {
         })
         const data = await response.json()
         setIsAdmin(data.isAdmin || false)
-        setIsPremium(data.isPremium || false)
       } catch (error) {
         console.error('Failed to check user status:', error)
         setIsAdmin(false)
-        setIsPremium(false)
       }
     }
 
     checkUserStatus()
   }, [session?.user])
+
 
   // 处理点击遮罩层关闭菜单
   const handleOverlayClick = () => {
@@ -153,39 +152,51 @@ export default function Navbar() {
           </span>
         </div>
         
-        {/* 移动端图标和用户菜单 */}
+        {/* 移动端积分和用户菜单 */}
         <div className="ml-auto flex items-center gap-2">
           {session?.user ? (
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-200/50 transition-colors"
-              >
-                <AvatarWithFrame
-                  avatar={globalAvatar}
-                  avatarFrameId={avatarFrameId}
-                  size={32}
-                  className="border-2 border-orange-400/30"
-                />
-              </button>
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
-                  <Link
-                    href={transferUrl('/profile', locale)}
-                    onClick={() => setShowUserMenu(false)}
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    {tAuth('profile')}
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
-                  >
-                    {tAuth('logout')}
-                  </button>
+            <>
+              {/* 积分显示 */}
+              {pointsBalance !== null && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-orange-400/10 to-amber-400/10 rounded-lg border border-orange-400/20">
+                  <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm font-semibold text-orange-700">{pointsBalance}</span>
                 </div>
               )}
-            </div>
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-200/50 transition-colors"
+                >
+                  <AvatarWithFrame
+                    avatar={globalAvatar}
+                    avatarFrameId={avatarFrameId}
+                    size={32}
+                    className="border-2 border-orange-400/30"
+                  />
+                </button>
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                    <Link
+                      href={transferUrl('/profile', locale)}
+                      onClick={() => setShowUserMenu(false)}
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
+                      {tAuth('profile')}
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 transition-colors"
+                    >
+                      {tAuth('logout')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           ) : (
             <button
               onClick={() => setShowAuthModal(true)}
@@ -194,8 +205,6 @@ export default function Navbar() {
               {tAuth('login')}
             </button>
           )}
-          <GitHubIcon />
-          <WeChatIcon />
         </div>
       </div>
 
@@ -249,6 +258,18 @@ export default function Navbar() {
               <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('quickGenerate')}</span>
             </button>
 
+            {/* 工作流菜单 - 所有用户可见 */}
+            <Link
+              href={transferUrl('/workflows', locale)}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
+            >
+              <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h10m-6 5h6" />
+              </svg>
+              <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('workflows')}</span>
+            </Link>
+
             <button
               onClick={() => handleNavItemClick('community-showcase')}
               className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
@@ -259,38 +280,15 @@ export default function Navbar() {
               <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('community')}</span>
             </button>
             <button
-              onClick={() => handleNavItemClick('faq-section')}
+              onClick={() => handleNavItemClick('friends-section')}
               className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
             >
-              <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="currentColor" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                <path d="M546.9184 665.4976a187.9552 187.9552 0 0 1-133.3248-55.1424 25.6 25.6 0 0 1 36.1984-36.1984 137.472 137.472 0 0 0 194.2016 0l186.1632-186.1632c53.5552-53.5552 53.5552-140.6464 0-194.2016s-140.6464-53.5552-194.2016 0L478.8736 350.8736a25.6 25.6 0 0 1-36.1984-36.1984l157.0816-157.0816c73.5232-73.5232 193.1264-73.5232 266.5984 0s73.5232 193.1264 0 266.5984l-186.1632 186.1632a187.9552 187.9552 0 0 1-133.3248 55.1424z" />
+                <path d="M239.7184 972.6976a187.9552 187.9552 0 0 1-133.3248-55.1424 188.672 188.672 0 0 1 0-266.5984l186.1632-186.1632a188.672 188.672 0 0 1 266.5984 0 25.6 25.6 0 0 1-36.1984 36.1984 137.472 137.472 0 0 0-194.2016 0l-186.1632 186.1632c-53.5552 53.5552-53.5552 140.6464 0 194.2016s140.6464 53.5552 194.2016 0l157.0816-157.0816a25.6 25.6 0 0 1 36.1984 36.1984l-157.0816 157.0816a187.9552 187.9552 0 0 1-133.3248 55.1424z" />
               </svg>
-              <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('faq')}</span>
+              <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('friends')}</span>
             </button>
-                   <button
-         onClick={() => handleNavItemClick('friends-section')}
-         className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
-       >
-         <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="currentColor" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-           <path d="M546.9184 665.4976a187.9552 187.9552 0 0 1-133.3248-55.1424 25.6 25.6 0 0 1 36.1984-36.1984 137.472 137.472 0 0 0 194.2016 0l186.1632-186.1632c53.5552-53.5552 53.5552-140.6464 0-194.2016s-140.6464-53.5552-194.2016 0L478.8736 350.8736a25.6 25.6 0 0 1-36.1984-36.1984l157.0816-157.0816c73.5232-73.5232 193.1264-73.5232 266.5984 0s73.5232 193.1264 0 266.5984l-186.1632 186.1632a187.9552 187.9552 0 0 1-133.3248 55.1424z" />
-           <path d="M239.7184 972.6976a187.9552 187.9552 0 0 1-133.3248-55.1424 188.672 188.672 0 0 1 0-266.5984l186.1632-186.1632a188.672 188.672 0 0 1 266.5984 0 25.6 25.6 0 0 1-36.1984 36.1984 137.472 137.472 0 0 0-194.2016 0l-186.1632 186.1632c-53.5552 53.5552-53.5552 140.6464 0 194.2016s140.6464 53.5552 194.2016 0l157.0816-157.0816a25.6 25.6 0 0 1 36.1984 36.1984l-157.0816 157.0816a187.9552 187.9552 0 0 1-133.3248 55.1424z" />
-         </svg>
-         <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('friends')}</span>
-       </button>
-
-            {/* 工作流菜单 - 仅优质用户和管理员可见 */}
-            {session?.user && (isAdmin || isPremium) && (
-              <Link
-                href={transferUrl('/workflows', locale)}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
-              >
-                <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h10m-6 5h6" />
-                </svg>
-                <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('workflows')}</span>
-              </Link>
-            )}
 
             {/* 管理员菜单 - 仅管理员可见 */}
             {session?.user && isAdmin && (
@@ -353,12 +351,22 @@ export default function Navbar() {
                 </div>
               )}
 
-              {/* 语言切换 */}
-              <div className="flex flex-col items-center gap-2 relative">
-                <span className="text-sm text-gray-700">{t('switchLanguage')}</span>
+              {/* 语言切换和积分显示 */}
+              <div className="flex items-center justify-center gap-4 w-full">
+                {/* 语言切换图标（左侧） */}
                 <div className="relative">
                   <LanguageSwitch />
                 </div>
+                {/* 积分显示（右侧，仅登录用户显示） */}
+                {session?.user && pointsBalance !== null && (
+                  <div className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-orange-400/10 to-amber-400/10 rounded-lg border border-orange-400/20">
+                    <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-semibold text-orange-700">{pointsBalance}</span>
+                  </div>
+                )}
               </div>
 
               {/* 登录按钮（移动至语言切换下方） */}

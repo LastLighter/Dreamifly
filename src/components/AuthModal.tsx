@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { signIn, signUp, sendVerificationEmail, forgetPassword } from '@/lib/auth-client'
+import { signIn, sendVerificationEmail, forgetPassword } from '@/lib/auth-client'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -113,24 +114,80 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           }, 500)
         }
       } else if (mode === 'register') {
-        const result = await signUp.email({
-          email,
-          password,
-          name: nickname, // 使用昵称作为 name
-          image: '/images/default-avatar.svg',
-          callbackURL: '/',
-        })
-
-        if (result.error) {
+        // 先验证邮箱域名
+        try {
+          // 获取动态token（使用服务器时间）
+          const token = await generateDynamicTokenWithServerTime()
+          
+          const validateResponse = await fetch(`/api/auth/validate-email-domain?email=${encodeURIComponent(email)}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+          const validateData = await validateResponse.json()
+          
+          if (!validateData.isValid) {
+            setError(t('error.emailDomainNotAllowed'))
+            return
+          }
+        } catch (err) {
+          console.error('Email domain validation error:', err)
           setError(t('error.registerFailed'))
-        } else {
+          return
+        }
+
+        // 获取动态token用于注册请求
+        const registerToken = await generateDynamicTokenWithServerTime()
+        
+        // better-auth 的 signUp.email() 可能不支持自定义 headers
+        // 使用原生 fetch 调用注册接口以确保可以添加动态 token
+        try {
+          const signUpResponse = await fetch('/api/auth/sign-up/email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${registerToken}`
+            },
+            body: JSON.stringify({
+              email,
+              password,
+              name: nickname,
+              image: '/images/default-avatar.svg',
+              callbackURL: '/',
+            }),
+          })
+
+          const signUpData = await signUpResponse.json()
+          
+          if (!signUpResponse.ok) {
+            // 处理错误
+            const errorMessage = signUpData.error?.message || ''
+            const errorCode = signUpData.error?.code
+            
+            if (errorCode === 'EMAIL_DOMAIN_NOT_ALLOWED' || 
+                errorMessage === 'EMAIL_DOMAIN_NOT_ALLOWED' ||
+                errorMessage.includes('EMAIL_DOMAIN_NOT_ALLOWED')) {
+              setError(t('error.emailDomainNotAllowed'))
+            } else {
+              setError(t('error.registerFailed'))
+            }
+            return
+          }
+
+          // 注册成功，处理响应
           // 注册成功后，设置 UID 和昵称
-          if (result.data?.user?.id) {
+          if (signUpData?.user?.id) {
             try {
+              // 获取动态token（使用服务器时间）
+              const token = await generateDynamicTokenWithServerTime()
+              
               await fetch('/api/auth/signup-handler', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: result.data.user.id }),
+                headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ userId: signUpData.user.id }),
               });
             } catch (err) {
               console.error('Failed to set UID:', err);
@@ -139,6 +196,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           
           setMode('verify')
           setSuccess(t('success.registerCheckEmail'))
+        } catch (signUpErr) {
+          console.error('Sign up error:', signUpErr)
+          setError(t('error.registerFailed'))
         }
       } else if (mode === 'reset') {
         const result = await forgetPassword({

@@ -1,12 +1,14 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
+import { usePoints } from '@/contexts/PointsContext'
 
 type TabKey = 'repair' | 'upscale'
 
 export default function WorkflowsPage() {
+  const { refreshPoints } = usePoints()
   const [activeTab, setActiveTab] = useState<TabKey>('repair')
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -17,7 +19,30 @@ export default function WorkflowsPage() {
   const [zoomedImage, setZoomedImage] = useState<{ original: string; repaired: string } | null>(null)
   const [isShowingOriginal, setIsShowingOriginal] = useState(false)
   const [repairTime, setRepairTime] = useState<number | null>(null)
+  const [repairCost, setRepairCost] = useState<number | null>(null) // 工作流修复消耗积分，null表示未加载
+  const [isLoadingCost, setIsLoadingCost] = useState(true)
+  const [showLoginTip, setShowLoginTip] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  // 获取工作流修复消耗积分配置
+  useEffect(() => {
+    const fetchRepairCost = async () => {
+      setIsLoadingCost(true)
+      try {
+        const response = await fetch('/api/points/repair-cost')
+        if (response.ok) {
+          const data = await response.json()
+          setRepairCost(data.repairWorkflowCost || 3)
+        }
+      } catch (error) {
+        console.error('Failed to fetch repair cost:', error)
+        setRepairCost(3) // 失败时使用默认值
+      } finally {
+        setIsLoadingCost(false)
+      }
+    }
+    fetchRepairCost()
+  }, [])
 
   const resetState = () => {
     setUploadedImage(null)
@@ -118,6 +143,14 @@ export default function WorkflowsPage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
+        
+        // 如果是401未登录错误，显示提示
+        if (response.status === 401) {
+          setShowLoginTip(true)
+          setIsProcessing(false)
+          return
+        }
+        
         throw new Error(data.error || '修复失败，请稍后重试')
       }
 
@@ -127,6 +160,11 @@ export default function WorkflowsPage() {
       
       setResultImage(data.imageUrl)
       setRepairTime(parseFloat(elapsedTime))
+      
+      // 如果API返回了新的积分余额，更新前端积分显示
+      if (data.pointsBalance !== undefined && data.pointsBalance !== null) {
+        await refreshPoints()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '修复失败，请稍后重试')
       setRepairTime(null)
@@ -162,6 +200,7 @@ export default function WorkflowsPage() {
         {previewUrl ? (
           <div className="w-full space-y-4">
             <div className="relative w-full max-w-xl mx-auto aspect-video rounded-xl overflow-hidden shadow-lg border border-orange-200/60 bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previewUrl}
                 alt="待修复图片预览"
@@ -211,7 +250,7 @@ export default function WorkflowsPage() {
           type="button"
           onClick={handleRepair}
           disabled={isProcessing || !uploadedImage}
-          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white font-semibold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+          className="relative inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-white font-semibold bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
         >
           {isProcessing ? (
             <>
@@ -220,6 +259,16 @@ export default function WorkflowsPage() {
             </>
           ) : (
             '开始修复'
+          )}
+          {/* 积分消耗标识 - 按钮内部右下角（仅在加载完成后显示） */}
+          {!isLoadingCost && repairCost !== null && (
+            <div className="absolute bottom-1 right-1 flex items-center gap-0.5 px-1.5 py-0.5 bg-white/20 backdrop-blur-sm text-white text-xs font-medium rounded-full">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
+              </svg>
+              <span>{repairCost}</span>
+            </div>
           )}
         </button>
         {error && <div className="text-sm text-red-500">{error}</div>}
@@ -259,6 +308,7 @@ export default function WorkflowsPage() {
           </div>
 
           <div className="relative rounded-3xl border border-orange-400/40 bg-white/80 overflow-hidden shadow-xl group">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={resultImage}
               alt="修复后的图片"
@@ -395,6 +445,7 @@ export default function WorkflowsPage() {
           {/* 图片容器 */}
           <div className="relative w-full h-full flex items-center justify-center">
             <div className="relative w-full max-w-[1400px] max-h-[calc(100vh-8rem)] flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={isShowingOriginal && zoomedImage.original ? zoomedImage.original : zoomedImage.repaired}
                 alt={isShowingOriginal && zoomedImage.original ? "原图预览" : "修复后预览"}
@@ -409,6 +460,45 @@ export default function WorkflowsPage() {
             <p>
               {isShowingOriginal && zoomedImage.original ? '显示原图' : '显示修复后'} - 点击背景或关闭按钮退出预览
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* 未登录提示框 */}
+      {showLoginTip && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 relative">
+            <button
+              aria-label="Close"
+              onClick={() => setShowLoginTip(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="p-3 rounded-full bg-orange-100 text-orange-600">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-gray-900">该功能仅限登录用户使用</h3>
+                <p className="text-sm text-gray-600">
+                  请先登录后再使用工作流修复功能
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowLoginTip(false)}
+                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors"
+              >
+                知道啦
+              </button>
+            </div>
           </div>
         </div>
       )}

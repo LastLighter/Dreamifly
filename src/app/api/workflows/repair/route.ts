@@ -6,6 +6,7 @@ import { db } from '@/db'
 import { user } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { createHash } from 'crypto'
+import { getPointsConfig, checkPointsSufficient, deductPoints, getPointsBalance } from '@/utils/points'
 
 /**
  * 验证动态API token
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized: 请先登录' }, { status: 401 })
     }
 
-    // 3. 检查用户权限（只有优质用户和管理员可以使用）
+    // 3. 获取用户信息（用于判断是否扣除积分）
     const currentUser = await db.select()
       .from(user)
       .where(eq(user.id, session.user.id))
@@ -88,13 +89,21 @@ export async function POST(request: Request) {
 
     const userData = currentUser[0]
     const isAdmin = userData.isAdmin || false
-    const isPremium = userData.isPremium || false
 
-    if (!isAdmin && !isPremium) {
-      return NextResponse.json(
-        { error: 'Forbidden: 此功能仅限优质用户和管理员使用' },
-        { status: 403 }
-      )
+    // 管理员不扣积分，普通用户和优质用户需要检查并扣除积分
+    if (!isAdmin) {
+      // 获取积分配置
+      const config = await getPointsConfig()
+      const cost = config.repairWorkflowCost
+
+      // 检查积分是否足够
+      const hasEnoughPoints = await checkPointsSufficient(session.user.id, cost)
+      if (!hasEnoughPoints) {
+        return NextResponse.json(
+          { error: `积分不足，需要 ${cost} 积分才能使用此功能` },
+          { status: 403 }
+        )
+      }
     }
 
     // 4. 处理请求
@@ -177,14 +186,39 @@ export async function POST(request: Request) {
       )
     }
 
-    const repairedImage = await runSupirRepairWorkflow(sanitizedImage, {
-      positivePrompt,
-      negativePrompt,
-      steps,
-      seed
-    })
+    // 执行修复工作流
+    let repairedImage: string
+    try {
+      repairedImage = await runSupirRepairWorkflow(sanitizedImage, {
+        positivePrompt,
+        negativePrompt,
+        steps,
+        seed
+      })
 
-    return NextResponse.json({ imageUrl: repairedImage })
+      // 修复成功后扣除积分（管理员不扣）
+      let newBalance = null
+      if (!isAdmin) {
+        const config = await getPointsConfig()
+        const cost = config.repairWorkflowCost
+        const deducted = await deductPoints(session.user.id, cost, '工作流修复消费')
+        if (!deducted) {
+          // 如果扣除失败（理论上不应该发生，因为前面已经检查过），记录错误但不影响结果
+          console.error('Failed to deduct points after repair workflow')
+        } else {
+          // 获取扣除后的新积分余额
+          newBalance = await getPointsBalance(session.user.id)
+        }
+      }
+
+      return NextResponse.json({ 
+        imageUrl: repairedImage,
+        pointsBalance: newBalance
+      })
+    } catch (workflowError) {
+      // 工作流失败，不扣除积分（因为前面已经检查过积分，这里如果失败应该回滚，但为了简化，我们只在成功时扣除）
+      throw workflowError
+    }
   } catch (error) {
     console.error('Error running Supir Repair workflow:', error)
     return NextResponse.json(

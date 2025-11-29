@@ -87,7 +87,9 @@
             "Stable-Diffusion-35": "Stable Diffusion 3.5 is an upgraded text-to-image model launched by Stability AI, featuring an improved diffusion architecture, support for higher resolutions, optimized prompt understanding and detail generation, capable of producing more realistic and coherent images.",
             "Qwen-Image": "Qwen-Image is the first image generation foundation model released by Alibaba's Tongyi Qianwen team, based on MMDiT architecture with 20B parameters and open-sourced. The model not only supports realistic, anime, cyberpunk and other style image generation and style transfer, but also has capabilities for image content editing, detail enhancement and text addition. Qwen-Image has made progress in text rendering and can maintain visual details and semantic coherence of non-edited areas during the editing process.",
             "Qwen-Image-Edit": "Qwen-Image-Edit is an image editing model developed by Alibaba's Tongyi Qianwen team, specifically designed for image content editing and modification. The model supports text-instruction-based image editing, capable of precisely understanding editing requirements while maintaining the overall style and details of the image.",
-            "Wai-SDXL-V150": "A third-party community model based on SDXL and the Brilliant series, specializing in drawing anime-style characters."
+            "Wai-SDXL-V150": "A third-party community model based on SDXL and the Brilliant series, specializing in drawing anime-style characters.",
+            "Z-Image-Turbo": "Z-Image-Turbo is a fast text-to-image model with Chinese support, based on Lumina2 architecture, capable of quickly generating high-quality images, especially suitable for Chinese prompt input.",
+            "Flux-2": "Flux-2 is the latest text-to-image generation model developed by Black Forest Labs, featuring an improved architecture and more powerful CLIP encoder, capable of generating higher quality and more detailed images."
           }
         },
         "steps": {
@@ -404,7 +406,8 @@
       "fileTooLarge": "File size cannot exceed 2MB",
       "invalidFileType": "Only JPG, PNG, GIF formats are supported",
       "emailNotVerified": "Please verify your email address first",
-      "resendFailed": "Failed to send, please try again later"
+      "resendFailed": "Failed to send, please try again later",
+      "emailDomainNotAllowed": "This email domain is not allowed for registration"
     },
     "validation": {
       "minLength": "Must be at least {min} characters",

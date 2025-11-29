@@ -142,7 +142,8 @@ export default function GenerateForm({
         'Stable-Diffusion-3.5': 0.67,  // 40s/60s
         'Qwen-Image': 1.5,             // 48s/60s
         'Qwen-Image-Edit': 1.2,
-        'Wai-SDXL-V150': 0.1
+        'Wai-SDXL-V150': 0.1,
+        'Z-Image-Turbo': 0.325       // 20步1024*1024=13秒，换算到30步基准：13*(30/20)/60 = 0.325
       };
       
       const currentPixels = width * height;
@@ -698,6 +699,13 @@ export default function GenerateForm({
                               src={modelOption.image} 
                               alt={modelOption.name} 
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                // 如果图片加载失败，使用默认占位符
+                                if (!target.src.includes('data:image')) {
+                                  target.src = '/models/Qwen-Image.jpg' // 使用 Qwen-Image 作为默认图片
+                                }
+                              }}
                             />
                           </div>
                           <div className="flex-1 min-w-0">

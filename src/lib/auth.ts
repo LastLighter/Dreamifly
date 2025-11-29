@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db";
 import { sendEmail, createVerificationEmailHTML, createPasswordResetEmailHTML } from "./email";
+import { isEmailDomainAllowed } from "@/utils/email-domain-validator";
 
 export const auth = betterAuth({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL || "https://dreamifly.com",
@@ -12,6 +13,20 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true, // 启用邮箱验证要求
     autoSignIn: false, // 注册后不自动登录，需要先验证邮箱
+    beforeSignUp: async ({ user }: { user: { email: string; [key: string]: any } }) => {
+      // 验证邮箱域名
+      if (!user.email) {
+        throw new Error("邮箱地址不能为空");
+      }
+      
+      const isAllowed = await isEmailDomainAllowed(user.email);
+
+      if (!isAllowed) {
+        throw new Error("不支持该邮箱类型注册");
+      }
+      
+      return user;
+    },
     sendResetPassword: async ({ user, url }) => {
       // 输出重置链接到控制台（方便开发调试）
       console.log('\n' + '='.repeat(80));
