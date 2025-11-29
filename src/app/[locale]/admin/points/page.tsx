@@ -8,6 +8,7 @@ import AdminSidebar from '@/components/AdminSidebar'
 import Image from 'next/image'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
+import PointsTotalRanking from '@/components/admin/PointsTotalRanking'
 
 type PointsTab = 'consume' | 'total'
 
@@ -232,7 +233,7 @@ export default function PointsAdminPage() {
             {/* 内容占位 */}
             {activeTab === 'consume'
               ? renderPlaceholder('积分消耗排名', '这里将展示用户或模型的积分消耗排行榜与明细。')
-              : renderPlaceholder('积分总额排名', '这里将展示用户当前积分总额的排行榜与统计图表。')}
+              : <PointsTotalRanking /> }
           </div>
         </div>
       </div>
