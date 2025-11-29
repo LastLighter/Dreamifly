@@ -47,11 +47,6 @@ export default function ProfilePage() {
   } | null>(null)
   const [quotaLoading, setQuotaLoading] = useState(false)
 
-  // Points state
-  const [points, setPoints] = useState<{
-    balance: number
-  } | null>(null)
-  const [pointsLoading, setPointsLoading] = useState(false)
 
   // 监听session变化，更新用户数据
   useEffect(() => {
@@ -101,29 +96,6 @@ export default function ProfilePage() {
     fetchQuota()
   }, [session])
 
-  // 获取积分余额信息
-  useEffect(() => {
-    const fetchPoints = async () => {
-      if (!session?.user) return
-      
-      setPointsLoading(true)
-      try {
-        const response = await fetch(`/api/points/balance?t=${Date.now()}`)
-        if (response.ok) {
-          const data = await response.json()
-          setPoints({
-            balance: data.balance || 0,
-          })
-        }
-      } catch (error) {
-        console.error('Error fetching points:', error)
-      } finally {
-        setPointsLoading(false)
-      }
-    }
-
-    fetchPoints()
-  }, [session])
 
   // 仅在保存成功时通过 updateProfile 同步全局昵称，输入时不实时同步
 
@@ -449,33 +421,6 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* 积分余额 */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              积分余额
-            </label>
-            {pointsLoading ? (
-              <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
-                <span className="flex items-center">
-                  <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  加载中...
-                </span>
-              </div>
-            ) : points ? (
-              <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700">
-                <span className="font-medium text-orange-600">
-                  {points.balance}
-                </span>
-              </div>
-            ) : (
-              <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
-                无法加载积分信息
-              </div>
-            )}
-          </div>
 
           {/* Email (read-only) */}
           <div className="mb-6">
