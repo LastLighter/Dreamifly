@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
         userId: user.id,
         name: user.name,
         email: user.email,
+        isAdmin: user.isAdmin,
+        isPremium: user.isPremium,
         totalPoints: sql<number>`COALESCE(SUM(${userPoints.points}), 0)`,
       })
       .from(user)
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
           gte(userPoints.expiresAt, now)
         )
       )
-      .groupBy(user.id)
+      .groupBy(user.id, user.isAdmin, user.isPremium)
       .orderBy(desc(sql`COALESCE(SUM(${userPoints.points}), 0)`))
       .limit(limit)
       .offset(offset)
