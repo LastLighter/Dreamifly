@@ -155,6 +155,43 @@ export default function AdminSidebar() {
           </Link>
 
           <Link
+            href={transferUrl('/admin/points', locale)}
+            onClick={handleNavClick}
+            className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 ${
+              isActive('/admin/points')
+                ? 'bg-gradient-to-r from-orange-400/20 to-amber-400/20 border border-orange-400/40'
+                : 'bg-gray-200/50 hover:bg-gray-300/50'
+            }`}
+          >
+            <svg
+              className={`w-6 h-6 flex-shrink-0 ${
+                isActive('/admin/points')
+                  ? 'text-orange-600 group-hover:text-orange-700'
+                  : 'text-gray-700 group-hover:text-gray-900'
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8c-1.657 0-3 .672-3 1.5S10.343 11 12 11s3 .672 3 1.5S13.657 14 12 14m0-6c1.11 0 2.08.402 2.6 1M12 8V6m0 8v2m8-4a8 8 0 11-16 0 8 8 0 0116 0z"
+              />
+            </svg>
+            <span
+              className={`text-sm font-medium ${
+                isActive('/admin/points')
+                  ? 'text-orange-700 group-hover:text-orange-800'
+                  : 'text-gray-900 group-hover:text-gray-800'
+              }`}
+            >
+              积分管理
+            </span>
+          </Link>
+
+          <Link
             href={transferUrl('/admin/crawler-analysis', locale)}
             onClick={handleNavClick}
             className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 ${
