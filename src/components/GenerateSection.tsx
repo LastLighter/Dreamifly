@@ -126,6 +126,11 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
         id: "Qwen-Image",
         maxImages: 0,
         tags: ["chineseSupport"]
+      },
+      {
+        id: "Z-Image-Turbo",
+        maxImages: 0,
+        tags: ["chineseSupport", "fastGeneration"]
       }
     ];
     
