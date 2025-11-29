@@ -62,7 +62,6 @@ export async function generateImage(params: GenerateParams): Promise<string> {
   if(params.model === 'HiDream-full-fp8') {
     baseUrl = process.env.HiDream_Fp8_URL || ''
     setHiDreamWT2IorkflowParams(workflow, params);
-    console.log('HiDream-full-fp8', workflow)
   }else if(params.model === 'Flux-Dev') {
     baseUrl = process.env.Flux_Dev_URL || ''
     if(params.images && params.images.length > 0){
@@ -93,12 +92,9 @@ export async function generateImage(params: GenerateParams): Promise<string> {
   }else if(params.model === 'Z-Image-Turbo') {
     baseUrl = process.env.Z_Image_Turbo_URL || ''
     setZImageTurboT2IorkflowParams(workflow, params);
-    console.log('Z-Image-Turbo workflow:', JSON.stringify(workflow, null, 2));
   }else if(params.model === 'Flux-2') {
     baseUrl = process.env.Flux_2_URL || ''
     setFlux2T2IorkflowParams(workflow, params);
-    console.log('Flux-2 workflow configured, baseUrl:', baseUrl ? `${baseUrl.substring(0, 50)}...` : 'NOT SET');
-    console.log('Flux-2 workflow structure:', JSON.stringify(workflow, null, 2));
   }
 
   // 检查baseUrl是否配置
@@ -113,12 +109,6 @@ export async function generateImage(params: GenerateParams): Promise<string> {
     // 2. 发送提示请求并等待响应
     const apiEndpoint = `${baseUrl}/prompt`;
     const requestBody = { prompt: workflow };
-    console.log(`[${params.model}] 调用 API: ${apiEndpoint}`);
-    if (params.model === 'Flux-2') {
-      console.log(`[${params.model}] 请求体大小: ${JSON.stringify(requestBody).length} 字符`);
-      console.log(`[${params.model}] 工作流节点数量: ${Object.keys(workflow).length}`);
-      console.log(`[${params.model}] 工作流节点列表:`, Object.keys(workflow).sort((a, b) => parseInt(a) - parseInt(b)));
-    }
     const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
@@ -390,13 +380,6 @@ function setFlux2T2IorkflowParams(workflow: any, params: GenerateParams) {
     if (params.seed) {
       workflow["25"].inputs.noise_seed = params.seed;
     }
-    
-    console.log('Flux-2 workflow params set successfully:', {
-      width: params.width,
-      height: params.height,
-      steps: params.steps,
-      hasSeed: !!params.seed
-    });
     // 注意：Flux-2 工作流示例中没有负面提示词节点，如果需要可以添加
   } catch (error) {
     console.error('Error setting Flux-2 workflow params:', error);
