@@ -132,8 +132,8 @@ export default async function LocaleLayout({
       </head>
       <body className={inter.className}>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <AvatarProvider>
-            <PointsProvider>
+          <PointsProvider>
+            <AvatarProvider>
               <div className="min-h-screen flex flex-col">
                 <Navbar />
                 <main className="flex-grow">
@@ -142,8 +142,8 @@ export default async function LocaleLayout({
                 <Footer />
               </div>
               <VersionDisplay />
-            </PointsProvider>
-          </AvatarProvider>
+            </AvatarProvider>
+          </PointsProvider>
         </NextIntlClientProvider>
       </body>
     </html >

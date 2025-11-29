@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { useSession } from '@/lib/auth-client'
 import { ExtendedUser } from '@/types/auth'
+import { usePoints } from '@/contexts/PointsContext'
 
 interface AvatarContextType {
   avatar: string
@@ -26,6 +27,7 @@ interface DailyAwardInfo {
 
 export function AvatarProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession()
+  const { refreshPoints } = usePoints()
   const [avatar, setAvatar] = useState('/images/default-avatar.svg')
   const [nickname, setNickname] = useState('')
   const [avatarFrameId, setAvatarFrameId] = useState<number | null>(null)
@@ -84,6 +86,8 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
             userType: data.userType === 'premium' ? 'premium' : 'regular',
           })
           setShowDailyAwardModal(true)
+          // 刷新积分显示
+          await refreshPoints()
         }
       } catch (error) {
         console.error('Failed to check daily award:', error)
