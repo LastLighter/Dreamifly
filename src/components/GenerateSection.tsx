@@ -186,8 +186,6 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
     
     const requests = Array(batch_size).fill(null).map((_, index) => {
       const startTime = Date.now();
-      let retryCount = 0;
-      const maxRetries = 1;
 
       const makeRequest = async () => {
         try {
@@ -267,9 +265,9 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
           });
           await imageLoadPromise;
         } catch (err) {
-          console.error(`生成图片失败 (尝试 ${retryCount + 1}/${maxRetries + 1}):`, err);
+          console.error(`生成图片失败:`, err);
 
-          // 如果是并发限制或每日限额错误，不进行重试
+          // 如果是并发限制或每日限额错误，直接显示错误
           if (err instanceof Error && (err.message === 'CONCURRENCY_LIMIT' || err.message === 'DAILY_LIMIT')) {
             setImageStatuses(prev => {
               const newStatuses = [...prev];
@@ -282,29 +280,15 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             return;
           }
 
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setImageStatuses(prev => {
-              const newStatuses = [...prev];
-              newStatuses[index] = ({
-                status: 'pending',
-                message: `${t('preview.retrying')} (${retryCount}/${maxRetries})`
-              });
-              return newStatuses;
+          // 直接显示错误，不进行重试
+          setImageStatuses(prev => {
+            const newStatuses = [...prev];
+            newStatuses[index] = ({
+              status: 'error',
+              message: t('preview.error')
             });
-            // Wait for 1 second before retrying
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return makeRequest();
-          } else {
-            setImageStatuses(prev => {
-              const newStatuses = [...prev];
-              newStatuses[index] = ({
-                status: 'error',
-                message: t('preview.error')
-              });
-              return newStatuses;
-            });
-          }
+            return newStatuses;
+          });
         }
       };
 
