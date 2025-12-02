@@ -105,6 +105,11 @@ export const auth = betterAuth({
         required: false,
         defaultValue: false,
       },
+      isOldUser: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+      },
       dailyRequestCount: {
         type: "number",
         required: false,

@@ -172,6 +172,7 @@ export async function GET(request: NextRequest) {
       isActive: u.isActive,
       isAdmin: u.isAdmin || false,
       isPremium: u.isPremium || false,
+      isOldUser: u.isOldUser || false,
       dailyRequestCount: u.dailyRequestCount || 0,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,
@@ -226,7 +227,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, isPremium, avatarFrameId } = body;
+    const { userId, isPremium, isOldUser, avatarFrameId } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -238,6 +239,7 @@ export async function PATCH(request: NextRequest) {
     // 构建更新数据
     const updateData: {
       isPremium?: boolean;
+      isOldUser?: boolean;
       avatarFrameId?: number | null;
       updatedAt: Date;
     } = {
@@ -247,6 +249,11 @@ export async function PATCH(request: NextRequest) {
     // 如果提供了isPremium，更新角色
     if (typeof isPremium === 'boolean') {
       updateData.isPremium = isPremium;
+    }
+
+    // 如果提供了isOldUser，更新老用户标记
+    if (typeof isOldUser === 'boolean') {
+      updateData.isOldUser = isOldUser;
     }
 
     // 如果提供了avatarFrameId，验证并更新

@@ -44,6 +44,7 @@ export default function ProfilePage() {
     maxDailyRequests: number | null
     isAdmin: boolean
     isPremium: boolean
+    isOldUser: boolean
   } | null>(null)
   const [quotaLoading, setQuotaLoading] = useState(false)
 
@@ -407,12 +408,26 @@ export default function ProfilePage() {
                 <span className="font-medium">
                   {quota.todayCount} / {quota.maxDailyRequests === null ? '∞' : quota.maxDailyRequests}
                 </span>
-                {quota.isAdmin && (
-                  <span className="ml-2 text-xs text-gray-500">(管理员不限次数)</span>
-                )}
-                {!quota.isAdmin && quota.isPremium && (
-                  <span className="ml-2 text-xs text-gray-500">(优质用户)</span>
-                )}
+                {/* 用户类型标签：管理员 / 优质用户 / 首批用户 / 普通用户 */}
+                <span className="ml-3 text-xs">
+                  {quota.isAdmin ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-red-200 bg-red-50 text-red-600">
+                      管理员
+                    </span>
+                  ) : quota.isPremium ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-700">
+                      优质用户
+                    </span>
+                  ) : quota.isOldUser ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-blue-200 bg-blue-50 text-blue-700">
+                      首批用户
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-gray-600">
+                      普通用户
+                    </span>
+                  )}
+                </span>
               </div>
             ) : (
               <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
