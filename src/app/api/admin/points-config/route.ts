@@ -56,11 +56,39 @@ export async function GET() {
 
     const configData = config[0];
     
-    // 获取环境变量默认值
-    const envRegularPoints = parseInt(process.env.REGULAR_USER_DAILY_POINTS || '30', 10);
-    const envPremiumPoints = parseInt(process.env.PREMIUM_USER_DAILY_POINTS || '60', 10);
-    const envExpiryDays = parseInt(process.env.POINTS_EXPIRY_DAYS || '7', 10);
-    const envRepairCost = parseInt(process.env.REPAIR_WORKFLOW_COST || '3', 10);
+    // 获取环境变量默认值（与 src/utils/points.ts 保持一致）
+    // 调试：记录环境变量的原始值
+    const envRegularPointsRaw = process.env.REGULAR_USER_DAILY_POINTS;
+    const envPremiumPointsRaw = process.env.PREMIUM_USER_DAILY_POINTS;
+    const envExpiryDaysRaw = process.env.POINTS_EXPIRY_DAYS;
+    const envRepairCostRaw = process.env.REPAIR_WORKFLOW_COST;
+    
+    const envRegularPoints = parseInt(envRegularPointsRaw || '20', 10);
+    const envPremiumPoints = parseInt(envPremiumPointsRaw || '40', 10);
+    const envExpiryDays = parseInt(envExpiryDaysRaw || '7', 10);
+    const envRepairCost = parseInt(envRepairCostRaw || '3', 10);
+    
+    // 调试日志：输出环境变量读取情况
+    console.log('[Points Config API] Environment variables:', {
+      REGULAR_USER_DAILY_POINTS: {
+        raw: envRegularPointsRaw,
+        type: typeof envRegularPointsRaw,
+        parsed: envRegularPoints,
+        source: envRegularPointsRaw ? 'env var' : 'default (20)'
+      },
+      PREMIUM_USER_DAILY_POINTS: {
+        raw: envPremiumPointsRaw,
+        type: typeof envPremiumPointsRaw,
+        parsed: envPremiumPoints,
+        source: envPremiumPointsRaw ? 'env var' : 'default (40)'
+      },
+      databaseConfig: {
+        regularUserDailyPoints: configData.regularUserDailyPoints,
+        premiumUserDailyPoints: configData.premiumUserDailyPoints,
+        usingEnvRegular: configData.regularUserDailyPoints === null,
+        usingEnvPremium: configData.premiumUserDailyPoints === null,
+      }
+    });
 
     return NextResponse.json({
       regularUserDailyPoints: configData.regularUserDailyPoints ?? envRegularPoints,
