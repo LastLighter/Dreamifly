@@ -37,8 +37,21 @@ RUN npm run build
 # 生产运行阶段
 FROM base AS runner
 
-# 安装必要的系统工具和字体（包括中文字体）
-RUN apk add --no-cache curl fontconfig ttf-liberation ttf-wqy-zenhei
+# 安装必要的系统工具和字体配置工具
+RUN apk add --no-cache curl fontconfig
+
+# 创建字体目录
+RUN mkdir -p /usr/share/fonts/truetype
+
+# 复制本地字体文件
+COPY fonts /tmp/fonts
+
+# 移动字体文件到系统字体目录（忽略非 .ttf 文件）
+RUN find /tmp/fonts -name "*.ttf" -exec cp {} /usr/share/fonts/truetype/ \; 2>/dev/null || true && \
+    rm -rf /tmp/fonts
+
+# 更新字体缓存
+RUN fc-cache -fv
 
 # 复制构建结果
 COPY --from=builder  /app/.next ./.next
