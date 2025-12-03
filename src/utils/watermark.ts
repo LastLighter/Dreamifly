@@ -7,7 +7,8 @@ import sharp from 'sharp'
  * @returns 添加水印后的base64图片字符串
  */
 // 使用系统字体（字体已在 Docker 中安装到系统字体目录）
-const SYSTEM_FONT_NAME = 'Arial'
+// Source Han Sans CN (思源黑体) - 支持中英文
+const SYSTEM_FONT_NAME = 'Source Han Sans CN'
 
 export async function addWatermark(
   imageBase64: string,
@@ -93,7 +94,7 @@ export async function addWatermark(
         <text
           x="${textX}"
           y="${textY}"
-          font-family="${SYSTEM_FONT_NAME}, sans-serif"
+          font-family="${SYSTEM_FONT_NAME}, 'Source Han Sans', 'Noto Sans CJK SC', sans-serif"
           font-size="${fontSize}"
           font-weight="bold"
           fill="${borderColor}"
