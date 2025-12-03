@@ -8,6 +8,7 @@ import { headers } from 'next/headers'
 import { concurrencyManager } from '@/utils/concurrencyManager'
 import { ipConcurrencyManager } from '@/utils/ipConcurrencyManager'
 import { randomUUID, createHash } from 'crypto'
+import { addWatermark } from '@/utils/watermark'
 
 /**
  * 验证动态API token
@@ -432,7 +433,7 @@ export async function POST(request: Request) {
     }
 
     // 调用 ComfyUI API
-    const imageUrl = await generateImage({
+    let imageUrl = await generateImage({
       prompt,
       width,
       height,
@@ -443,6 +444,25 @@ export async function POST(request: Request) {
       images,
       negative_prompt,
     })
+
+    // 如果用户未登录，检查是否需要添加水印
+    if (!session?.user) {
+      // 检查是否启用水印（默认启用）
+      const enableWatermark = process.env.ENABLE_WATERMARK !== 'false'
+      
+      if (enableWatermark) {
+        // 获取水印文本（默认为"Dreamifly"）
+        const watermarkText = process.env.WATERMARK_TEXT || 'Dreamifly'
+        
+        try {
+          // 添加水印
+          imageUrl = await addWatermark(imageUrl, watermarkText)
+        } catch (error) {
+          console.error('添加水印失败，返回原图:', error)
+          // 如果添加水印失败，继续使用原图
+        }
+      }
+    }
 
     // 计算总响应时间（秒），包含排队延迟
     const responseTime = (Date.now() - totalStartTime) / 1000
