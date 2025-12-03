@@ -38,8 +38,8 @@ RUN npm run build
 # 生产运行阶段
 FROM base AS runner
 
-# 安装必要的系统工具
-RUN apk add --no-cache curl
+# 安装必要的系统工具和字体管理工具
+RUN apk add --no-cache curl fontconfig ttf-dejavu
 
 # 复制构建结果
 COPY --from=builder  /app/.next ./.next
@@ -47,10 +47,14 @@ COPY --from=builder  /app/public ./public
 COPY --from=builder  /app/node_modules ./node_modules
 COPY --from=builder  /app/package.json ./package.json
 
-# 复制必要的配置文件和字体文件
+# 复制必要的配置文件
 COPY --from=builder  /app/next.config.js ./
 COPY --from=builder  /app/middleware.ts ./
-COPY --from=builder  /app/fonts ./fonts
+
+# 将字体文件复制到系统字体目录并更新字体缓存
+RUN mkdir -p /usr/share/fonts/truetype
+COPY --from=builder  /app/fonts/*.ttf /usr/share/fonts/truetype/
+RUN fc-cache -fv && echo "字体缓存已更新"
 
 # 暴露端口
 EXPOSE 3000

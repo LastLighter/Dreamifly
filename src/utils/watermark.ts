@@ -1,6 +1,4 @@
 import sharp from 'sharp'
-import fs from 'fs'
-import path from 'path'
 
 /**
  * 为图片添加水印
@@ -8,35 +6,8 @@ import path from 'path'
  * @param watermarkText 水印文本，默认为"Dreamifly"
  * @returns 添加水印后的base64图片字符串
  */
-// 加载字体文件并转换为 base64（缓存结果）
-let fontBase64Cache: string | null = null
-
-function getFontBase64(): string {
-  if (fontBase64Cache) {
-    return fontBase64Cache
-  }
-  
-  try {
-    // 尝试读取字体文件（支持多种可能的路径）
-    const fontPaths = [
-      path.join(process.cwd(), 'fonts', 'Arial.ttf'),
-      path.join(process.cwd(), 'fonts', 'arial.ttf'),
-      path.join(process.cwd(), 'public', 'fonts', 'Arial.ttf'),
-    ]
-    
-    for (const fontPath of fontPaths) {
-      if (fs.existsSync(fontPath)) {
-        const fontBuffer = fs.readFileSync(fontPath)
-        fontBase64Cache = fontBuffer.toString('base64')
-        return fontBase64Cache
-      }
-    }
-  } catch (error) {
-    console.warn('无法加载字体文件，将使用系统默认字体:', error)
-  }
-  
-  return ''
-}
+// 使用系统字体（字体已在 Docker 中安装到系统字体目录）
+const SYSTEM_FONT_NAME = 'Arial'
 
 export async function addWatermark(
   imageBase64: string,
@@ -91,7 +62,7 @@ export async function addWatermark(
     // 文本在矩形框内的位置（居中）
     // 使用 text-anchor="middle" 和 dominant-baseline="central" 时，坐标应该是矩形框的中心点
     const textX = boxX + boxWidth / 2
-    const textY = boxY + boxHeight / 2+padding*0.8
+    const textY = boxY + boxHeight / 2
     
     
     // 边框颜色与文字颜色一致
@@ -99,25 +70,13 @@ export async function addWatermark(
     // 边框宽度（根据字体大小调整）
     const strokeWidth = Math.max(1, fontSize / 20)
     
-    // 获取字体 base64（如果可用）
-    const fontBase64 = getFontBase64()
-    const fontFace = fontBase64 
-      ? `<defs>
-          <style>
-            @font-face {
-              font-family: 'Arial';
-              src: url('data:font/truetype;charset=utf-8;base64,${fontBase64}') format('truetype');
-              font-weight: bold;
-              font-style: normal;
-            }
-          </style>
-        </defs>`
-      : ''
+    // 使用系统字体（字体已在 Docker 中安装到系统字体目录）
+    console.log(`✓ 使用系统字体生成水印: ${SYSTEM_FONT_NAME}`)
     
     // 创建SVG水印（包含圆角矩形边框和文本）
+    // 直接使用系统字体名称，字体已在 Docker 中安装到系统字体目录
     const svgText = `
       <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-        ${fontFace}
         <!-- 圆角矩形边框（中间镂空） -->
         <rect
           x="${boxX}"
@@ -134,7 +93,7 @@ export async function addWatermark(
         <text
           x="${textX}"
           y="${textY}"
-          font-family="${fontBase64 ? 'Arial' : 'Arial, sans-serif'}"
+          font-family="${SYSTEM_FONT_NAME}, sans-serif"
           font-size="${fontSize}"
           font-weight="bold"
           fill="${borderColor}"
