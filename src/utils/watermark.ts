@@ -86,7 +86,7 @@ export async function addWatermark(
         <text
           x="${textX}"
           y="${textY}"
-          font-family="Arial, sans-serif"
+          font-family="Arial, 'WenQuanYi Zen Hei', 'Microsoft YaHei', sans-serif"
           font-size="${fontSize}"
           font-weight="bold"
           fill="${borderColor}"

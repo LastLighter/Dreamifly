@@ -37,8 +37,8 @@ RUN npm run build
 # 生产运行阶段
 FROM base AS runner
 
-# 安装必要的系统工具和字体
-RUN apk add --no-cache curl fontconfig ttf-liberation
+# 安装必要的系统工具和字体（包括中文字体）
+RUN apk add --no-cache curl fontconfig ttf-liberation ttf-wqy-zenhei
 
 # 复制构建结果
 COPY --from=builder  /app/.next ./.next
