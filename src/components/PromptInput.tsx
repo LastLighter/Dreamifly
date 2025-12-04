@@ -207,7 +207,7 @@ const PromptInput = ({
               {isOptimizing ? t('form.optimizingPrompt') || 'Optimizing...' : t('form.optimizePrompt')}
             </button>
           </div>
-          <div className="flex flex-col items-center gap-2 w-full md:w-[200px]">
+          <div className="flex flex-col items-center gap-2 w-full md:w-auto md:min-w-[280px]">
             <button
               type="button"
               onClick={onGenerate}

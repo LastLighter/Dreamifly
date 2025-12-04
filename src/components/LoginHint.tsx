@@ -53,7 +53,7 @@ export default function LoginHint({
 
   return (
     <div
-      className={`flex items-center gap-2 text-sm text-gray-600 ${className}`}
+      className={`flex items-center gap-2 text-sm text-gray-600 whitespace-nowrap ${className}`}
     >
       {icon || defaultIcon}
       <span>{message}</span>
