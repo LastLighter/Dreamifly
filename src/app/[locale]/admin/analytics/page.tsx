@@ -582,7 +582,7 @@ export default function AnalyticsPage() {
                     <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-6 border border-teal-200">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-gray-600 mb-1">注册人数</p>
+                          <p className="text-sm font-medium text-gray-600 mb-1">总注册次数</p>
                           <p className="text-3xl font-bold text-teal-600">
                             {stats.totalStats.registeredUsers.toLocaleString()}
                           </p>
@@ -598,7 +598,7 @@ export default function AnalyticsPage() {
                     <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-6 border border-emerald-200">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-600 mb-1">有效注册次数</p>
+                          <p className="text-sm font-medium text-gray-600 mb-1">新增用户人数</p>
                           <p className="text-3xl font-bold text-emerald-600 mb-2">
                             {stats.totalStats.verifiedRegistrations.toLocaleString()}
                           </p>
@@ -629,7 +629,7 @@ export default function AnalyticsPage() {
                     <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-lg p-6 border border-rose-200">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-600 mb-1">无效注册次数</p>
+                          <p className="text-sm font-medium text-gray-600 mb-1">未验证邮箱注册</p>
                           <p className="text-3xl font-bold text-rose-600 mb-2">
                             {stats.totalStats.unverifiedRegistrations.toLocaleString()}
                           </p>
