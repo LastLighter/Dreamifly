@@ -21,6 +21,7 @@ interface User {
   isActive: boolean
   isAdmin: boolean
   isPremium: boolean
+  isOldUser: boolean
   dailyRequestCount: number
   createdAt: Date | string
   updatedAt: Date | string
@@ -96,10 +97,13 @@ export default function AdminPage() {
   const [limitConfig, setLimitConfig] = useState({
     regularUserDailyLimit: 100,
     premiumUserDailyLimit: 300,
+    newUserDailyLimit: 50,
     usingEnvRegular: false,
     usingEnvPremium: false,
+    usingEnvNew: false,
     envRegularLimit: 100,
     envPremiumLimit: 300,
+    envNewLimit: 50,
   })
 
   // 对话框状态
@@ -639,8 +643,9 @@ export default function AdminPage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mb-2">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="text-sm text-gray-600">
-                    当前限额: 首批用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
-                    优质用户 {limitConfig.usingEnvPremium ? `(环境变量: ${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit} 次
+                    当前限额: 优质用户 {limitConfig.usingEnvPremium ? `(环境变量: ${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit} 次，
+                    首批用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
+                    新用户 {limitConfig.usingEnvNew ? `(环境变量: ${limitConfig.envNewLimit})` : limitConfig.newUserDailyLimit} 次
                   </div>
                 </div>
                 <form onSubmit={handleSearch} className="flex gap-2">
@@ -973,22 +978,26 @@ export default function AdminPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex flex-col gap-1">
+                            <div className="flex flex-col gap-1 items-center">
                               {user.isAdmin ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
+                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
                                   管理员
                                 </span>
                               ) : user.isPremium ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                   优质用户
                                 </span>
+                              ) : user.isOldUser ? (
+                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  首批用户
+                                </span>
                               ) : (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
-                                  普通用户
+                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                                  新用户
                                 </span>
                               )}
                               <span className="text-xs text-gray-600">
-                                今日: {user.dailyRequestCount || 0} / {user.isAdmin ? '∞' : user.isPremium ? limitConfig.premiumUserDailyLimit : limitConfig.regularUserDailyLimit}
+                                今日: {user.dailyRequestCount || 0} / {user.isAdmin ? '∞' : user.isPremium ? limitConfig.premiumUserDailyLimit : user.isOldUser ? limitConfig.regularUserDailyLimit : limitConfig.newUserDailyLimit}
                               </span>
                             </div>
                           </td>
