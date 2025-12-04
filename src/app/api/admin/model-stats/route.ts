@@ -245,6 +245,37 @@ export async function GET(request: Request) {
       .from(modelUsageStats)
       .where(and(...whereConditions, eq(modelUsageStats.isAuthenticated, false), isNotNull(modelUsageStats.ipAddress)))
 
+    // 获取注册统计（基于用户表的createdAt和emailVerified字段）
+    // 构建用户注册时间查询条件（与modelUsageStats的时间范围一致）
+    const userWhereConditions = [gte(user.createdAt, startDate)]
+    if (endDate) {
+      userWhereConditions.push(lt(user.createdAt, endDate))
+    }
+
+    // 获取注册人数（总数）
+    const registeredUsers = await db
+      .select({
+        count: sql<number>`count(*)::int`,
+      })
+      .from(user)
+      .where(and(...userWhereConditions))
+
+    // 获取有效注册次数（已验证邮箱）
+    const verifiedRegistrations = await db
+      .select({
+        count: sql<number>`count(*)::int`,
+      })
+      .from(user)
+      .where(and(...userWhereConditions, eq(user.emailVerified, true)))
+
+    // 获取无效注册次数（未验证邮箱）
+    const unverifiedRegistrations = await db
+      .select({
+        count: sql<number>`count(*)::int`,
+      })
+      .from(user)
+      .where(and(...userWhereConditions, eq(user.emailVerified, false)))
+
     // 获取每日总计趋势（用于折线图）
     // 对于hour范围，按分钟统计；today和yesterday范围按小时统计；week和month按天统计
     let dailyTrend: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
@@ -324,6 +355,9 @@ export async function GET(request: Request) {
           activeUsers: activeUsers[0] ? Number(activeUsers[0].count) : 0,
           authenticatedIPs: authenticatedIPs[0] ? Number(authenticatedIPs[0].count) : 0,
           unauthenticatedIPs: unauthenticatedIPs[0] ? Number(unauthenticatedIPs[0].count) : 0,
+          registeredUsers: registeredUsers[0] ? Number(registeredUsers[0].count) : 0,
+          verifiedRegistrations: verifiedRegistrations[0] ? Number(verifiedRegistrations[0].count) : 0,
+          unverifiedRegistrations: unverifiedRegistrations[0] ? Number(unverifiedRegistrations[0].count) : 0,
         },
         dailyTrend,
       },
