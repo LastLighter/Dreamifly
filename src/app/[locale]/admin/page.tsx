@@ -94,12 +94,12 @@ export default function AdminPage() {
 
   // 用户限额配置状态（仅用于显示）
   const [limitConfig, setLimitConfig] = useState({
-    regularUserDailyLimit: 200,
-    premiumUserDailyLimit: 500,
+    regularUserDailyLimit: 100,
+    premiumUserDailyLimit: 300,
     usingEnvRegular: false,
     usingEnvPremium: false,
-    envRegularLimit: 200,
-    envPremiumLimit: 500,
+    envRegularLimit: 100,
+    envPremiumLimit: 300,
   })
 
   // 对话框状态
@@ -407,7 +407,9 @@ export default function AdminPage() {
   // 获取用户限额配置（仅用于显示）
   const fetchLimitConfig = async () => {
     try {
-      const response = await fetch('/api/admin/user-limits')
+      const response = await fetch(`/api/admin/user-limits?t=${Date.now()}`, {
+        cache: 'no-store',
+      })
       if (response.ok) {
         const data = await response.json()
         setLimitConfig(data)
@@ -637,7 +639,7 @@ export default function AdminPage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mb-2">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="text-sm text-gray-600">
-                    当前限额: 普通用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
+                    当前限额: 首批用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
                     优质用户 {limitConfig.usingEnvPremium ? `(环境变量: ${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit} 次
                   </div>
                 </div>

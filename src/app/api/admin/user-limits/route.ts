@@ -54,18 +54,31 @@ export async function GET() {
 
     const configData = config[0];
     
-    // 获取环境变量默认值
-    const envRegularLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10);
-    const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '500', 10);
+    // 获取环境变量默认值（优质300，首批100，新用户50）
+    const envRegularLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
+    const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
+    const envNewLimit = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
 
-    return NextResponse.json({
-      regularUserDailyLimit: configData.regularUserDailyLimit ?? envRegularLimit,
-      premiumUserDailyLimit: configData.premiumUserDailyLimit ?? envPremiumLimit,
-      usingEnvRegular: configData.regularUserDailyLimit === null,
-      usingEnvPremium: configData.premiumUserDailyLimit === null,
-      envRegularLimit,
-      envPremiumLimit,
-    });
+    return NextResponse.json(
+      {
+        regularUserDailyLimit: configData.regularUserDailyLimit ?? envRegularLimit,
+        premiumUserDailyLimit: configData.premiumUserDailyLimit ?? envPremiumLimit,
+        newUserDailyLimit: configData.newUserDailyLimit ?? envNewLimit,
+        usingEnvRegular: configData.regularUserDailyLimit === null,
+        usingEnvPremium: configData.premiumUserDailyLimit === null,
+        usingEnvNew: configData.newUserDailyLimit === null,
+        envRegularLimit,
+        envPremiumLimit,
+        envNewLimit,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching user limit config:', error);
     return NextResponse.json(
@@ -104,7 +117,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { regularUserDailyLimit, premiumUserDailyLimit, useEnvForRegular, useEnvForPremium } = body;
+    const {
+      regularUserDailyLimit,
+      premiumUserDailyLimit,
+      newUserDailyLimit,
+      useEnvForRegular,
+      useEnvForPremium,
+      useEnvForNew,
+    } = body;
 
     // 验证参数
     if (useEnvForRegular !== true && useEnvForRegular !== false && regularUserDailyLimit !== undefined) {
@@ -120,6 +140,15 @@ export async function PATCH(request: NextRequest) {
       if (typeof premiumUserDailyLimit !== 'number' || premiumUserDailyLimit < 0) {
         return NextResponse.json(
           { error: '优质用户限额必须是大于等于0的数字' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (useEnvForNew !== true && useEnvForNew !== false && newUserDailyLimit !== undefined) {
+      if (typeof newUserDailyLimit !== 'number' || newUserDailyLimit < 0) {
+        return NextResponse.json(
+          { error: '新用户限额必须是大于等于0的数字' },
           { status: 400 }
         );
       }
@@ -144,6 +173,7 @@ export async function PATCH(request: NextRequest) {
     const updateData: {
       regularUserDailyLimit?: number | null;
       premiumUserDailyLimit?: number | null;
+      newUserDailyLimit?: number | null;
       updatedAt: Date;
     } = {
       updatedAt: new Date(),
@@ -159,6 +189,12 @@ export async function PATCH(request: NextRequest) {
       updateData.premiumUserDailyLimit = null;
     } else if (premiumUserDailyLimit !== undefined) {
       updateData.premiumUserDailyLimit = premiumUserDailyLimit;
+    }
+
+    if (useEnvForNew === true) {
+      updateData.newUserDailyLimit = null;
+    } else if (newUserDailyLimit !== undefined) {
+      updateData.newUserDailyLimit = newUserDailyLimit;
     }
 
     // 更新配置

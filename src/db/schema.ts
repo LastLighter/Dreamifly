@@ -89,6 +89,7 @@ export const userLimitConfig = pgTable("user_limit_config", {
   id: integer("id").primaryKey().default(1), // 单例配置，id固定为1
   regularUserDailyLimit: integer("regular_user_daily_limit"), // 普通用户每日限额，null表示使用环境变量
   premiumUserDailyLimit: integer("premium_user_daily_limit"), // 优质用户每日限额，null表示使用环境变量
+  newUserDailyLimit: integer("new_user_daily_limit"), // 新用户每日限额，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

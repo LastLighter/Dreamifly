@@ -46,18 +46,23 @@ export default function SettingsPage() {
 
   // 用户限额配置状态
   const [limitConfig, setLimitConfig] = useState({
-    regularUserDailyLimit: 200,
-    premiumUserDailyLimit: 500,
+    regularUserDailyLimit: 100,
+    premiumUserDailyLimit: 300,
+    newUserDailyLimit: 50,
     usingEnvRegular: false,
     usingEnvPremium: false,
-    envRegularLimit: 200,
-    envPremiumLimit: 500,
+    usingEnvNew: false,
+    envRegularLimit: 100,
+    envPremiumLimit: 300,
+    envNewLimit: 50,
   })
   const [limitInputs, setLimitInputs] = useState({
     regular: '',
     premium: '',
+    newer: '',
     useEnvRegular: false,
     useEnvPremium: false,
+    useEnvNew: false,
   })
 
   // 积分配置状态
@@ -158,15 +163,19 @@ export default function SettingsPage() {
   // 获取用户限额配置
   const fetchLimitConfig = async () => {
     try {
-      const response = await fetch('/api/admin/user-limits')
+      const response = await fetch(`/api/admin/user-limits?t=${Date.now()}`, {
+        cache: 'no-store',
+      })
       if (response.ok) {
         const data = await response.json()
         setLimitConfig(data)
         setLimitInputs({
           regular: data.usingEnvRegular ? '' : data.regularUserDailyLimit.toString(),
           premium: data.usingEnvPremium ? '' : data.premiumUserDailyLimit.toString(),
+          newer: data.usingEnvNew ? '' : data.newUserDailyLimit.toString(),
           useEnvRegular: data.usingEnvRegular,
           useEnvPremium: data.usingEnvPremium,
+          useEnvNew: data.usingEnvNew,
         })
       }
     } catch (error) {
@@ -346,6 +355,17 @@ export default function SettingsPage() {
         body.premiumUserDailyLimit = premiumValue
       }
 
+      if (limitInputs.useEnvNew) {
+        body.useEnvForNew = true
+      } else {
+        const newValue = parseInt(limitInputs.newer, 10)
+        if (isNaN(newValue) || newValue < 0) {
+          showDialog('error', '验证失败', '新用户限额必须是大于等于0的数字')
+          return
+        }
+        body.newUserDailyLimit = newValue
+      }
+
       const response = await fetch('/api/admin/user-limits', {
         method: 'PATCH',
         headers: {
@@ -451,10 +471,10 @@ export default function SettingsPage() {
               </div>
               
               <div className="space-y-6">
-                {/* 普通用户限额 */}
+                {/* 首批用户（老用户）限额 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    普通用户每日限额
+                    首批用户每日限额
                   </label>
                   <div className="flex items-center gap-3">
                     <label className="flex items-center gap-2">
@@ -522,6 +542,43 @@ export default function SettingsPage() {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
                     当前值: {limitConfig.usingEnvPremium ? `环境变量 (${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit}
+                  </p>
+                </div>
+
+                {/* 新用户限额 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    新用户每日限额
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={limitInputs.useEnvNew}
+                        onChange={(e) => {
+                          setLimitInputs({
+                            ...limitInputs,
+                            useEnvNew: e.target.checked,
+                            newer: e.target.checked ? '' : limitConfig.newUserDailyLimit.toString(),
+                          })
+                        }}
+                        className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                      />
+                      <span className="text-sm text-gray-600">使用环境变量 ({limitConfig.envNewLimit})</span>
+                    </label>
+                    {!limitInputs.useEnvNew && (
+                      <input
+                        type="number"
+                        value={limitInputs.newer}
+                        onChange={(e) => setLimitInputs({ ...limitInputs, newer: e.target.value })}
+                        placeholder="输入限额"
+                        min="0"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      />
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    当前值: {limitConfig.usingEnvNew ? `环境变量 (${limitConfig.envNewLimit})` : limitConfig.newUserDailyLimit}
                   </p>
                 </div>
 

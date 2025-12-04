@@ -119,9 +119,9 @@ export async function GET(request: Request) {
     const startDate = getTimeRangeDate(timeRange)
     const endDate = getTimeRangeEndDate(timeRange)
 
-    // 获取用户限额配置
-    let regularUserDailyLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10)
-    let premiumUserDailyLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '500', 10)
+    // 获取用户限额配置（优质300，首批100）
+    let regularUserDailyLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10)
+    let premiumUserDailyLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10)
     
     try {
       const config = await db.select()

@@ -301,31 +301,32 @@ export async function POST(request: Request) {
             if (config.length > 0) {
               const configData = config[0];
               if (isPremium) {
-                // 优质用户不受影响
+                // 优质用户额度：数据库 > 环境变量 > 默认
                 const dbPremiumLimit = configData.premiumUserDailyLimit;
-                const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '500', 10);
+                const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
                 maxDailyRequests = dbPremiumLimit ?? envPremiumLimit;
-                // 调试日志
                 console.log(`[Generate API] Premium user limit - DB: ${dbPremiumLimit}, Env: ${envPremiumLimit}, Final: ${maxDailyRequests}`);
               } else {
-                // 普通用户根据是否老用户使用不同额度
+                // 首批用户 & 新用户额度：数据库 > 环境变量 > 默认
                 if (isOldUser) {
-                  maxDailyRequests = configData.regularUserDailyLimit ?? 
-                    parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10);
+                  const dbRegularLimit = configData.regularUserDailyLimit;
+                  const envRegularLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
+                  maxDailyRequests = dbRegularLimit ?? envRegularLimit;
                 } else {
-                  maxDailyRequests = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '200', 10);
+                  const dbNewLimit = configData.newUserDailyLimit;
+                  const envNewLimit = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
+                  maxDailyRequests = dbNewLimit ?? envNewLimit;
                 }
               }
             } else {
-              // 配置不存在，使用环境变量
+              // 配置不存在，仅使用环境变量 > 默认
               if (isPremium) {
-                maxDailyRequests = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '500', 10);
+                maxDailyRequests = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
               } else {
-                // 普通用户根据是否老用户使用不同额度
                 if (isOldUser) {
-                  maxDailyRequests = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10);
+                  maxDailyRequests = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
                 } else {
-                  maxDailyRequests = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '200', 10);
+                  maxDailyRequests = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
                 }
               }
             }
@@ -333,13 +334,12 @@ export async function POST(request: Request) {
             // 如果查询配置失败，使用环境变量作为后备
             console.error('Error fetching user limit config:', error);
             if (isPremium) {
-              maxDailyRequests = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '500', 10);
+              maxDailyRequests = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
             } else {
-              // 普通用户根据是否老用户使用不同额度
               if (isOldUser) {
-                maxDailyRequests = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10);
+                maxDailyRequests = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
               } else {
-                maxDailyRequests = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '200', 10);
+                maxDailyRequests = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
               }
             }
           }
