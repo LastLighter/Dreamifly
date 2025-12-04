@@ -70,7 +70,7 @@ export const auth = betterAuth({
         type: "number",
         required: false,
         unique: true,
-        // uid 将在注册后通过 signup-handler API 自动生成
+        // uid 将在注册时自动生成（在注册路由中处理）
       },
       avatar: {
         type: "string",
@@ -80,7 +80,7 @@ export const auth = betterAuth({
       nickname: {
         type: "string",
         required: false,
-        // 昵称将在注册后设置为 Dreamer-{uid}
+        // 昵称将在注册时设置为用户输入的 name（在注册路由中处理）
       },
       signature: {
         type: "string",

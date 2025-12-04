@@ -174,26 +174,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             return
           }
 
-          // 注册成功，处理响应
-          // 注册成功后，设置 UID 和昵称
-          if (signUpData?.user?.id) {
-            try {
-              // 获取动态token（使用服务器时间）
-              const token = await generateDynamicTokenWithServerTime()
-              
-              await fetch('/api/auth/signup-handler', {
-                method: 'POST',
-                headers: { 
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ userId: signUpData.user.id }),
-              });
-            } catch (err) {
-              console.error('Failed to set UID:', err);
-            }
-          }
-          
+          // 注册成功，UID 和昵称已由后端自动设置
           setMode('verify')
           setSuccess(t('success.registerCheckEmail'))
         } catch (signUpErr) {

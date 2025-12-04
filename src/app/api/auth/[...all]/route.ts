@@ -3,6 +3,8 @@ import { isEmailDomainAllowed } from "@/utils/email-domain-validator";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from 'crypto';
+import { db } from "@/db";
+import { sql } from "drizzle-orm";
 
 const handler = toNextJsHandler(auth);
 const SIGNUP_EMAIL_PATH = "/api/auth/sign-up/email";
@@ -90,6 +92,19 @@ async function ensureAllowedEmailDomain(request: NextRequest) {
   return null;
 }
 
+// 获取下一个可用的 UID
+async function getNextUid(): Promise<number> {
+  try {
+    const result = await db.execute(sql`
+      SELECT COALESCE(MAX(uid), 0) + 1 as next_uid FROM "user"
+    `);
+    return (result[0] as any).next_uid;
+  } catch (error) {
+    console.error('Error getting next UID:', error);
+    return 1; // 如果出错，从 1 开始
+  }
+}
+
 export const GET = async (request: NextRequest) => {
   return handler.GET(request);
 };
@@ -114,6 +129,62 @@ export const POST = async (request: NextRequest) => {
   const validationResponse = await ensureAllowedEmailDomain(request);
   if (validationResponse) {
     return validationResponse;
+  }
+
+  // 如果是注册请求，需要在注册成功后设置 UID 和昵称
+  if (request.nextUrl.pathname === SIGNUP_EMAIL_PATH) {
+    // 先读取请求体，保存用户输入的昵称
+    let userNickname: string | undefined;
+    try {
+      const bodyText = await request.clone().text();
+      const payload = bodyText ? JSON.parse(bodyText) : {};
+      userNickname = payload.name; // 用户输入的昵称
+    } catch {
+      // 如果解析失败，继续处理，使用默认值
+    }
+
+    // 调用 better-auth 的注册处理
+    const response = await handler.POST(request);
+    
+    // 如果注册成功，设置 UID 和昵称
+    if (response.status === 200 || response.status === 201) {
+      try {
+        const responseData = await response.clone().json();
+        
+        // 检查是否有用户ID（注册成功）
+        if (responseData?.user?.id) {
+          const userId = responseData.user.id;
+          
+          // 获取下一个 UID
+          const nextUid = await getNextUid();
+          
+          // 使用用户输入的昵称，如果没有则使用默认格式
+          const nickname = userNickname || `Dreamer-${nextUid}`;
+          
+          // 更新用户的 UID 和昵称
+          await db.execute(sql`
+            UPDATE "user" 
+            SET uid = ${nextUid}, 
+                nickname = ${nickname}
+            WHERE id = ${userId}
+          `);
+          
+          // 更新响应数据，包含新设置的 UID 和昵称
+          responseData.user.uid = nextUid;
+          responseData.user.nickname = nickname;
+          
+          return NextResponse.json(responseData, {
+            status: response.status,
+            headers: response.headers,
+          });
+        }
+      } catch (error) {
+        console.error('Error setting UID and nickname:', error);
+        // 即使设置 UID 失败，也返回原始响应，避免影响注册流程
+      }
+    }
+    
+    return response;
   }
 
   return handler.POST(request);
