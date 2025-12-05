@@ -79,11 +79,24 @@ export default function CrawlerAnalysisPage() {
   const [detailData, setDetailData] = useState<{
     timeDistribution: Array<{ date: string; hour: number; count: number }>
     modelDistribution: Array<{ modelName: string; count: number }>
-    ipUsers?: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; callCount: number }>
+    ipUsers?: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; isActive: boolean; isAdmin: boolean; callCount: number }>
     dailyDistribution?: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }>
     dailyHourlyDistribution?: Array<{ date: string; hour: number; total: number; authenticated?: number; unauthenticated?: number }>
   } | null>(null)
   const [detailActiveTab, setDetailActiveTab] = useState<'users' | 'all-ip' | 'auth-ip' | 'unauth-ip'>('users')
+  
+  // 确认对话框状态
+  const [confirmDialog, setConfirmDialog] = useState<{
+    show: boolean
+    title: string
+    message: string
+    onConfirm?: () => void
+    onCancel?: () => void
+  }>({
+    show: false,
+    title: '',
+    message: '',
+  })
 
   // 获取当前用户完整信息（包括头像）
   useEffect(() => {
@@ -232,6 +245,98 @@ export default function CrawlerAnalysisPage() {
       setDetailLoading(false)
     }
   }, [timeRange, activeTab])
+
+  // 显示确认对话框
+  const showConfirmDialog = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void
+  ) => {
+    setConfirmDialog({
+      show: true,
+      title,
+      message,
+      onConfirm,
+      onCancel,
+    })
+  }
+
+  // 关闭确认对话框
+  const closeConfirmDialog = () => {
+    setConfirmDialog({
+      show: false,
+      title: '',
+      message: '',
+    })
+  }
+
+  // 确认对话框确认
+  const handleConfirm = () => {
+    if (confirmDialog.onConfirm) {
+      confirmDialog.onConfirm()
+    }
+    closeConfirmDialog()
+  }
+
+  // 确认对话框取消
+  const handleCancel = () => {
+    if (confirmDialog.onCancel) {
+      confirmDialog.onCancel()
+    }
+    closeConfirmDialog()
+  }
+
+  // 封禁/解封用户
+  const handleToggleUserActive = (userId: string, currentIsActive: boolean, isAdmin: boolean) => {
+    if (isAdmin) {
+      showConfirmDialog(
+        '无法操作',
+        '无法封禁管理员账号',
+        () => {}
+      )
+      return
+    }
+
+    const action = currentIsActive ? '封禁' : '解封'
+    showConfirmDialog(
+      `确认${action}`,
+      `确定要${action}该用户吗？${currentIsActive ? '封禁后用户将无法发起生图请求和签到获得积分。' : '解封后用户将恢复为活跃状态。'}`,
+      async () => {
+        try {
+          const response = await fetch(`/api/admin/users?_t=${Date.now()}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache',
+            },
+            body: JSON.stringify({
+              userId,
+              isActive: !currentIsActive,
+            }),
+          })
+
+          if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.error || `${action}失败`)
+          }
+
+          // 刷新详情数据
+          if (detailType === 'ip' && detailTitle) {
+            const identifier = detailTitle.replace(' - 详情', '')
+            await openDetailModal('ip', identifier, detailTitle)
+          }
+        } catch (error: any) {
+          console.error(`Error ${action} user:`, error)
+          showConfirmDialog(
+            '操作失败',
+            error.message || `${action}用户失败`,
+            () => {}
+          )
+        }
+      }
+    )
+  }
 
   // 格式化时间分布数据用于图表
   // 对于hour范围，按分钟显示；其他范围按小时汇总显示
@@ -1107,6 +1212,8 @@ export default function CrawlerAnalysisPage() {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">占比</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -1146,6 +1253,36 @@ export default function CrawlerAnalysisPage() {
                                           {percentage.toFixed(1)}%
                                         </span>
                                       </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <div className="flex items-center gap-2">
+                                        {ipUser.isActive ? (
+                                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            活跃
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            已封禁
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                      {!ipUser.isAdmin && (
+                                        <button
+                                          onClick={() => handleToggleUserActive(ipUser.userId, ipUser.isActive, ipUser.isAdmin)}
+                                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                            ipUser.isActive
+                                              ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                                              : 'text-green-600 bg-green-50 hover:bg-green-100'
+                                          }`}
+                                        >
+                                          {ipUser.isActive ? '封禁' : '解封'}
+                                        </button>
+                                      )}
+                                      {ipUser.isAdmin && (
+                                        <span className="text-xs text-gray-400">管理员</span>
+                                      )}
                                     </td>
                                   </tr>
                                 )
@@ -1213,6 +1350,53 @@ export default function CrawlerAnalysisPage() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 确认对话框 */}
+      {confirmDialog.show && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          style={{ animation: 'fadeInUp 0.2s ease-out forwards' }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            style={{ animation: 'scaleIn 0.15s ease-out forwards' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 图标 */}
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100">
+              <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            
+            {/* 标题 */}
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              {confirmDialog.title}
+            </h3>
+            
+            {/* 消息 */}
+            <p className="text-gray-600 text-center mb-6">
+              {confirmDialog.message}
+            </p>
+            
+            {/* 按钮 */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancel}
+                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-all duration-200"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                确认
+              </button>
             </div>
           </div>
         </div>
