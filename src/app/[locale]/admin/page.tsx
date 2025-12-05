@@ -92,6 +92,8 @@ export default function AdminPage() {
   const [emailVerifiedFilter, setEmailVerifiedFilter] = useState<string>('') // '', 'true', 'false'
   const [emailTypeFilter, setEmailTypeFilter] = useState<string>('all') // all, gmail, outlook, qq, 163, other
   const [roleFilter, setRoleFilter] = useState<string>('all') // all, admin, premium, regular
+  const [statusFilter, setStatusFilter] = useState<string>('active') // active, banned, all
+  const [isAdvancedSearchExpanded, setIsAdvancedSearchExpanded] = useState(false) // 高级搜索折叠状态，默认折叠
 
   // 用户限额配置状态（仅用于显示）
   const [limitConfig, setLimitConfig] = useState({
@@ -228,6 +230,7 @@ export default function AdminPage() {
         ...(emailVerifiedFilter && { emailVerified: emailVerifiedFilter }),
         emailType: emailTypeFilter,
         role: roleFilter,
+        status: statusFilter,
         t: Date.now().toString(), // 添加时间戳避免缓存
       })
 
@@ -293,7 +296,7 @@ export default function AdminPage() {
       fetchEmailDomains()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter])
+  }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter, statusFilter])
 
   // 获取头像框列表
   const fetchAvatarFrames = async () => {
@@ -701,10 +704,32 @@ export default function AdminPage() {
                 
                 {/* 筛选和排序控件 */}
                 <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                    {/* 排序字段 */}
-                    <div className="flex flex-col">
-                      <label className="text-xs text-gray-600 mb-1">排序字段</label>
+                  {/* 高级搜索标题和折叠按钮 */}
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-gray-700">高级搜索</h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsAdvancedSearchExpanded(!isAdvancedSearchExpanded)}
+                      className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <span>{isAdvancedSearchExpanded ? '收起' : '展开'}</span>
+                      <svg
+                        className={`w-4 h-4 transform transition-transform duration-200 ${isAdvancedSearchExpanded ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  {/* 高级搜索内容（可折叠） */}
+                  {isAdvancedSearchExpanded && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                      {/* 排序字段 */}
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">排序字段</label>
                       <select
                         value={sortBy}
                         onChange={(e) => {
@@ -842,10 +867,28 @@ export default function AdminPage() {
                         <option value="regular">普通用户</option>
                       </select>
                     </div>
-                  </div>
+                    
+                    {/* 状态筛选 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">状态</label>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="active">活跃</option>
+                        <option value="banned">封禁</option>
+                        <option value="all">全部</option>
+                      </select>
+                    </div>
+                    </div>
+                  )}
                   
                   {/* 重置筛选按钮 */}
-                  {(sortBy !== 'createdAt' || sortOrder !== 'desc' || emailVerifiedFilter || emailTypeFilter !== 'all' || roleFilter !== 'all') && (
+                  {(sortBy !== 'createdAt' || sortOrder !== 'desc' || emailVerifiedFilter || emailTypeFilter !== 'all' || roleFilter !== 'all' || statusFilter !== 'active') && (
                     <div className="mt-3">
                       <button
                         type="button"
@@ -855,6 +898,7 @@ export default function AdminPage() {
                           setEmailVerifiedFilter('')
                           setEmailTypeFilter('all')
                           setRoleFilter('all')
+                          setStatusFilter('active')
                           setCurrentPage(1)
                         }}
                         className="px-4 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"

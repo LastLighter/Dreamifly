@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
     const emailVerifiedFilter = searchParams.get('emailVerified'); // true, false, 或空（全部）
     const emailTypeFilter = searchParams.get('emailType') || 'all'; // gmail, outlook, qq, 163, other, all
     const roleFilter = searchParams.get('role') || 'all'; // admin, premium, regular, all
+    const statusFilter = searchParams.get('status') || 'active'; // active, banned, all
 
     // 构建筛选条件
     const filterConditions = [];
@@ -67,6 +68,14 @@ export async function GET(request: NextRequest) {
     } else if (roleFilter === 'regular') {
       filterConditions.push(and(eq(user.isAdmin, false), eq(user.isPremium, false)));
     }
+    
+    // 状态筛选
+    if (statusFilter === 'active') {
+      filterConditions.push(eq(user.isActive, true));
+    } else if (statusFilter === 'banned') {
+      filterConditions.push(eq(user.isActive, false));
+    }
+    // statusFilter === 'all' 时不添加筛选条件
     
     // 构建查询
     let query = db.select().from(user);
