@@ -30,6 +30,15 @@ export async function POST(request: NextRequest) {
 
     const userData = currentUser[0];
     const isAdmin = userData.isAdmin || false;
+    
+    // 检查用户是否被封禁
+    if (!userData.isActive) {
+      return NextResponse.json({ 
+        error: '您的账号已被封禁，无法签到获得积分',
+        code: 'USER_BANNED'
+      }, { status: 403 });
+    }
+    
     const config = await getPointsConfig();
     const expiresInDays = config.pointsExpiryDays;
     const userType = userData.isPremium ? 'premium' : 'regular';

@@ -128,6 +128,7 @@ export default function AdminPage() {
   const [avatarFrameCategories, setAvatarFrameCategories] = useState<string[]>([])
   const [selectedRole, setSelectedRole] = useState<'regular' | 'premium'>('regular')
   const [selectedUserType, setSelectedUserType] = useState<'old' | 'new'>('new') // 老用户/新用户选择
+  const [selectedIsActive, setSelectedIsActive] = useState<boolean>(true) // 用户是否封禁
   const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState<number | null>(null)
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
   const [directFrameIdInput, setDirectFrameIdInput] = useState<string>('')
@@ -475,6 +476,7 @@ export default function AdminPage() {
     setSelectedUser(user)
     setSelectedRole(user.isPremium ? 'premium' : 'regular')
     setSelectedUserType(user.isOldUser ? 'old' : 'new') // 初始化老用户/新用户选择
+    setSelectedIsActive(user.isActive !== undefined ? user.isActive : true) // 初始化封禁状态
     setSelectedAvatarFrameId(user.avatarFrameId)
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput(user.avatarFrameId?.toString() || '')
@@ -488,6 +490,7 @@ export default function AdminPage() {
     setSelectedUser(null)
     setSelectedRole('regular')
     setSelectedUserType('new') // 重置为新用户
+    setSelectedIsActive(true) // 重置为活跃状态
     setSelectedAvatarFrameId(null)
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput('')
@@ -542,6 +545,7 @@ export default function AdminPage() {
           userId: selectedUser.id,
           isPremium,
           isOldUser,
+          isActive: selectedIsActive,
           avatarFrameId: selectedAvatarFrameId,
         }),
       })
@@ -1219,6 +1223,45 @@ export default function AdminPage() {
               </div>
               {selectedUser.isAdmin && (
                 <p className="mt-2 text-xs text-gray-500">管理员类型无法修改</p>
+              )}
+            </div>
+
+            {/* 设置用户封禁状态 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                账号状态
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="userActive"
+                    value="active"
+                    checked={selectedIsActive === true}
+                    onChange={() => setSelectedIsActive(true)}
+                    disabled={selectedUser.isAdmin || updatingUser}
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">活跃</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="userActive"
+                    value="banned"
+                    checked={selectedIsActive === false}
+                    onChange={() => setSelectedIsActive(false)}
+                    disabled={selectedUser.isAdmin || updatingUser}
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">已封禁</span>
+                </label>
+              </div>
+              {selectedUser.isAdmin && (
+                <p className="mt-2 text-xs text-gray-500">管理员账号无法封禁</p>
+              )}
+              {!selectedIsActive && (
+                <p className="mt-2 text-xs text-orange-600">封禁后用户将无法发起生图请求和签到获得积分</p>
               )}
             </div>
 

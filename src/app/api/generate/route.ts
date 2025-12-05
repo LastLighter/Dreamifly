@@ -197,6 +197,7 @@ export async function POST(request: Request) {
         isAdmin: user.isAdmin,
         isPremium: user.isPremium,
         isOldUser: user.isOldUser,
+        isActive: user.isActive,
         dailyRequestCount: user.dailyRequestCount,
         // 将 timestamptz 转换为 UTC 时间字符串，确保读取正确
         lastRequestResetDate: sql<string | null>`${user.lastRequestResetDate} AT TIME ZONE 'UTC'`,
@@ -208,6 +209,15 @@ export async function POST(request: Request) {
 
       if (currentUser.length > 0) {
         const userData = currentUser[0];
+        
+        // 检查用户是否被封禁
+        if (!userData.isActive) {
+          return NextResponse.json({ 
+            error: '您的账号已被封禁，无法使用此服务',
+            code: 'USER_BANNED'
+          }, { status: 403 })
+        }
+        
         // 更新isAdmin和isPremium（如果之前没有获取到）
         if (!isAdmin) isAdmin = userData.isAdmin || false;
         if (!isPremium) isPremium = userData.isPremium || false;

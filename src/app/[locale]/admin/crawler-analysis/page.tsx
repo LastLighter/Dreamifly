@@ -34,6 +34,7 @@ interface UserCallRanking {
   isAdmin: boolean
   isPremium: boolean
   isOldUser: boolean
+  isActive: boolean
   dailyRequestCount: number
   maxDailyLimit: number | null
   callCount: number
@@ -471,6 +472,7 @@ export default function CrawlerAnalysisPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户信息</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">身份标识</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">今日额度</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
@@ -479,7 +481,7 @@ export default function CrawlerAnalysisPage() {
                         <tbody className="bg-white divide-y divide-gray-200">
                           {data.userCallRanking.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                                 暂无数据
                               </td>
                             </tr>
@@ -526,6 +528,19 @@ export default function CrawlerAnalysisPage() {
                                     ) : (
                                       <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
                                         新用户
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    {user.isActive ? (
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        活跃
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        已封禁
                                       </span>
                                     )}
                                   </div>

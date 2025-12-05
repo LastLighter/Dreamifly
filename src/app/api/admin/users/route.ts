@@ -227,7 +227,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, isPremium, isOldUser, avatarFrameId } = body;
+    const { userId, isPremium, isOldUser, isActive, avatarFrameId } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -236,10 +236,32 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // 检查目标用户是否存在，并防止封禁管理员
+    const targetUser = await db.select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (targetUser.length === 0) {
+      return NextResponse.json(
+        { error: '用户不存在' },
+        { status: 404 }
+      );
+    }
+
+    // 如果尝试封禁管理员，拒绝操作
+    if (targetUser[0].isAdmin && typeof isActive === 'boolean' && !isActive) {
+      return NextResponse.json(
+        { error: '无法封禁管理员账号' },
+        { status: 400 }
+      );
+    }
+
     // 构建更新数据
     const updateData: {
       isPremium?: boolean;
       isOldUser?: boolean;
+      isActive?: boolean;
       avatarFrameId?: number | null;
       updatedAt: Date;
     } = {
@@ -254,6 +276,11 @@ export async function PATCH(request: NextRequest) {
     // 如果提供了isOldUser，更新老用户标记
     if (typeof isOldUser === 'boolean') {
       updateData.isOldUser = isOldUser;
+    }
+
+    // 如果提供了isActive，更新封禁状态
+    if (typeof isActive === 'boolean') {
+      updateData.isActive = isActive;
     }
 
     // 如果提供了avatarFrameId，验证并更新
