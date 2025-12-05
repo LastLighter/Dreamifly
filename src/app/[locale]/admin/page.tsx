@@ -127,6 +127,7 @@ export default function AdminPage() {
   const [avatarFrames, setAvatarFrames] = useState<Array<{ id: number; category: string; imageUrl: string | null }>>([])
   const [avatarFrameCategories, setAvatarFrameCategories] = useState<string[]>([])
   const [selectedRole, setSelectedRole] = useState<'regular' | 'premium'>('regular')
+  const [selectedUserType, setSelectedUserType] = useState<'old' | 'new'>('new') // 老用户/新用户选择
   const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState<number | null>(null)
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
   const [directFrameIdInput, setDirectFrameIdInput] = useState<string>('')
@@ -473,6 +474,7 @@ export default function AdminPage() {
   const handleOpenUserActionModal = (user: User) => {
     setSelectedUser(user)
     setSelectedRole(user.isPremium ? 'premium' : 'regular')
+    setSelectedUserType(user.isOldUser ? 'old' : 'new') // 初始化老用户/新用户选择
     setSelectedAvatarFrameId(user.avatarFrameId)
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput(user.avatarFrameId?.toString() || '')
@@ -485,6 +487,7 @@ export default function AdminPage() {
     setShowUserActionModal(false)
     setSelectedUser(null)
     setSelectedRole('regular')
+    setSelectedUserType('new') // 重置为新用户
     setSelectedAvatarFrameId(null)
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput('')
@@ -527,6 +530,7 @@ export default function AdminPage() {
     setUpdatingUser(true)
     try {
       const isPremium = selectedRole === 'premium'
+      const isOldUser = selectedUserType === 'old'
       
       const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
         method: 'PATCH',
@@ -537,6 +541,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           userId: selectedUser.id,
           isPremium,
+          isOldUser,
           avatarFrameId: selectedAvatarFrameId,
         }),
       })
@@ -1178,6 +1183,42 @@ export default function AdminPage() {
               </div>
               {selectedUser.isAdmin && (
                 <p className="mt-2 text-xs text-gray-500">管理员角色无法修改</p>
+              )}
+            </div>
+
+            {/* 设置用户类型（老用户/新用户） */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                用户类型
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="old"
+                    checked={selectedUserType === 'old'}
+                    onChange={(e) => setSelectedUserType(e.target.value as 'old' | 'new')}
+                    disabled={selectedUser.isAdmin || updatingUser}
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">老用户</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="new"
+                    checked={selectedUserType === 'new'}
+                    onChange={(e) => setSelectedUserType(e.target.value as 'old' | 'new')}
+                    disabled={selectedUser.isAdmin || updatingUser}
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">新用户</span>
+                </label>
+              </div>
+              {selectedUser.isAdmin && (
+                <p className="mt-2 text-xs text-gray-500">管理员类型无法修改</p>
               )}
             </div>
 
