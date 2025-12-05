@@ -131,6 +131,7 @@ export default function AdminPage() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
   const [directFrameIdInput, setDirectFrameIdInput] = useState<string>('')
   const [updatingUser, setUpdatingUser] = useState(false)
+  const [isAvatarFrameExpanded, setIsAvatarFrameExpanded] = useState(false) // 头像框模块默认折叠
   
   // 邮箱白名单状态
   const [emailDomains, setEmailDomains] = useState<Array<{ id: number; domain: string; isEnabled: boolean }>>([])
@@ -475,6 +476,7 @@ export default function AdminPage() {
     setSelectedAvatarFrameId(user.avatarFrameId)
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput(user.avatarFrameId?.toString() || '')
+    setIsAvatarFrameExpanded(false) // 重置为折叠状态
     setShowUserActionModal(true)
   }
 
@@ -487,6 +489,7 @@ export default function AdminPage() {
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput('')
     setUpdatingUser(false)
+    setIsAvatarFrameExpanded(false) // 重置为折叠状态
   }
 
   // 处理直接输入头像框ID
@@ -1180,17 +1183,36 @@ export default function AdminPage() {
 
             {/* 设置用户头像框 */}
             <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  头像框
-                </label>
-                {selectedUser.avatarFrameId && (
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    当前ID: {selectedUser.avatarFrameId}
-                  </span>
-                )}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    头像框
+                  </label>
+                  {selectedUser.avatarFrameId && (
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      当前ID: {selectedUser.avatarFrameId}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAvatarFrameExpanded(!isAvatarFrameExpanded)}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <span>{isAvatarFrameExpanded ? '收起' : '展开'}</span>
+                  <svg
+                    className={`w-4 h-4 transform transition-transform duration-200 ${isAvatarFrameExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
               </div>
 
+              {isAvatarFrameExpanded && (
+                <>
               {/* 直接输入头像框ID */}
               <div className="mb-4">
                 <label className="block text-xs font-medium text-gray-600 mb-2">
@@ -1323,6 +1345,8 @@ export default function AdminPage() {
               )}
               {avatarFrames.length === 0 && (
                 <p className="mt-2 text-xs text-gray-500">暂无头像框，请先在装饰管理中添加</p>
+              )}
+                </>
               )}
             </div>
 
