@@ -119,9 +119,10 @@ export async function GET(request: Request) {
     const startDate = getTimeRangeDate(timeRange)
     const endDate = getTimeRangeEndDate(timeRange)
 
-    // 获取用户限额配置（优质300，首批100）
+    // 获取用户限额配置（优质300，首批100，新用户50）
     let regularUserDailyLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10)
     let premiumUserDailyLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10)
+    let newUserDailyLimit = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10)
     
     try {
       const config = await db.select()
@@ -133,6 +134,7 @@ export async function GET(request: Request) {
         const configData = config[0]
         regularUserDailyLimit = configData.regularUserDailyLimit ?? regularUserDailyLimit
         premiumUserDailyLimit = configData.premiumUserDailyLimit ?? premiumUserDailyLimit
+        newUserDailyLimit = configData.newUserDailyLimit ?? newUserDailyLimit
       }
     } catch (error) {
       console.error('Error fetching user limit config:', error)
@@ -157,6 +159,7 @@ export async function GET(request: Request) {
         userNickname: user.nickname,
         isAdmin: user.isAdmin,
         isPremium: user.isPremium,
+        isOldUser: user.isOldUser,
         dailyRequestCount: user.dailyRequestCount,
         // 将 timestamptz 转换为 UTC 时间字符串，确保读取正确（与generate/route.ts中的逻辑一致）
         lastRequestResetDate: sql<string | null>`${user.lastRequestResetDate} AT TIME ZONE 'UTC'`,
@@ -165,7 +168,7 @@ export async function GET(request: Request) {
       .from(modelUsageStats)
       .innerJoin(user, eq(modelUsageStats.userId, user.id))
       .where(and(...userCallRankingWhereConditions))
-      .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname, user.isAdmin, user.isPremium, user.dailyRequestCount, sql`${user.lastRequestResetDate} AT TIME ZONE 'UTC'`)
+      .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname, user.isAdmin, user.isPremium, user.isOldUser, user.dailyRequestCount, sql`${user.lastRequestResetDate} AT TIME ZONE 'UTC'`)
       .orderBy(sql`count(*) DESC`)
       .limit(100)
 
@@ -295,8 +298,9 @@ export async function GET(request: Request) {
         userCallRanking: userCallRanking.map((item) => {
           const isAdmin = item.isAdmin || false
           const isPremium = item.isPremium || false
-          // 计算用户的最大限额：管理员为null（无限），优质用户使用premiumUserDailyLimit，普通用户使用regularUserDailyLimit
-          const maxDailyLimit = isAdmin ? null : (isPremium ? premiumUserDailyLimit : regularUserDailyLimit)
+          const isOldUser = item.isOldUser || false
+          // 计算用户的最大限额：管理员为null（无限），优质用户使用premiumUserDailyLimit，老用户使用regularUserDailyLimit，新用户使用newUserDailyLimit
+          const maxDailyLimit = isAdmin ? null : (isPremium ? premiumUserDailyLimit : (isOldUser ? regularUserDailyLimit : newUserDailyLimit))
           
           // 判断是否跨天（与generate/route.ts中的逻辑一致）
           let dailyRequestCount = item.dailyRequestCount || 0
@@ -329,6 +333,7 @@ export async function GET(request: Request) {
             userNickname: item.userNickname,
             isAdmin,
             isPremium,
+            isOldUser,
             dailyRequestCount,
             maxDailyLimit,
             callCount: Number(item.callCount),
