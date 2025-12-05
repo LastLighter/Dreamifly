@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
   const locale = params?.locale as string || 'zh'
   const [isAdmin, setIsAdmin] = useState(false)
   const [checkingAdmin, setCheckingAdmin] = useState(true)
-  const [timeRange, setTimeRange] = useState<TimeRange>('week')
+  const [timeRange, setTimeRange] = useState<TimeRange>('today')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [stats, setStats] = useState<StatsResponse | null>(null)
