@@ -146,15 +146,51 @@ export const POST = async (request: NextRequest) => {
     // 调用 better-auth 的注册处理
     const response = await handler.POST(request);
     
-    // 如果注册成功，设置 UID 和昵称
-    if (response.status === 200 || response.status === 201) {
+    // 尝试解析响应数据（无论状态码如何）
+    let responseData = null;
+    let emailSendFailed = false;
+    try {
+      responseData = await response.clone().json();
+    } catch {
+      // 如果解析失败，继续处理
+    }
+    
+    // 检查是否有用户ID（用户可能已被创建，即使邮件发送失败）
+    let userId: string | null = null;
+    if (responseData?.user?.id) {
+      userId = responseData.user.id;
+      // 如果响应中有用户ID但状态码不是成功，可能是邮件发送失败
+      if (response.status !== 200 && response.status !== 201) {
+        emailSendFailed = true;
+      }
+    } else {
+      // 如果响应中没有用户ID，尝试从请求体中获取邮箱，查询是否已创建用户
       try {
-        const responseData = await response.clone().json();
+        const bodyText = await request.clone().text();
+        const payload = bodyText ? JSON.parse(bodyText) : {};
+        if (payload.email) {
+          const existingUser = await db.execute(sql`
+            SELECT id FROM "user" WHERE email = ${payload.email} ORDER BY created_at DESC LIMIT 1
+          `);
+          if (existingUser.length > 0) {
+            userId = (existingUser[0] as any).id;
+            emailSendFailed = true; // 用户已创建但响应是错误，可能是邮件发送失败
+          }
+        }
+      } catch (error) {
+        console.error('Error checking existing user:', error);
+      }
+    }
+    
+    // 如果用户已创建（无论响应状态码如何），设置 UID 和昵称
+    if (userId) {
+      try {
+        // 检查用户是否已经有 UID（避免重复分配）
+        const existingUser = await db.execute(sql`
+          SELECT uid, nickname FROM "user" WHERE id = ${userId}
+        `);
         
-        // 检查是否有用户ID（注册成功）
-        if (responseData?.user?.id) {
-          const userId = responseData.user.id;
-          
+        if (existingUser.length > 0 && !existingUser[0].uid) {
           // 获取下一个 UID
           const nextUid = await getNextUid();
           
@@ -169,18 +205,37 @@ export const POST = async (request: NextRequest) => {
             WHERE id = ${userId}
           `);
           
-          // 更新响应数据，包含新设置的 UID 和昵称
-          responseData.user.uid = nextUid;
-          responseData.user.nickname = nickname;
-          
-          return NextResponse.json(responseData, {
-            status: response.status,
-            headers: response.headers,
-          });
+          // 更新响应数据
+          if (responseData) {
+            responseData.user = responseData.user || {};
+            responseData.user.id = userId;
+            responseData.user.uid = nextUid;
+            responseData.user.nickname = nickname;
+          } else {
+            responseData = { user: { id: userId, uid: nextUid, nickname } };
+          }
         }
       } catch (error) {
         console.error('Error setting UID and nickname:', error);
-        // 即使设置 UID 失败，也返回原始响应，避免影响注册流程
+      }
+    }
+    
+    // 如果邮件发送失败但用户已创建，返回明确的错误信息
+    if (emailSendFailed && userId && (response.status !== 200 && response.status !== 201)) {
+      return jsonError(
+        'EMAIL_SEND_FAILED',
+        'EMAIL_SEND_FAILED',
+        response.status || 500
+      );
+    }
+    
+    // 如果注册成功（200/201），返回更新后的响应
+    if (response.status === 200 || response.status === 201) {
+      if (responseData) {
+        return NextResponse.json(responseData, {
+          status: response.status,
+          headers: response.headers,
+        });
       }
     }
     

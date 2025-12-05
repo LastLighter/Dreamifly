@@ -168,6 +168,14 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 errorMessage === 'EMAIL_DOMAIN_NOT_ALLOWED' ||
                 errorMessage.includes('EMAIL_DOMAIN_NOT_ALLOWED')) {
               setError(t('error.emailDomainNotAllowed'))
+            } else if (errorCode === 'EMAIL_SEND_FAILED' || 
+                       errorMessage === 'EMAIL_SEND_FAILED' ||
+                       errorMessage.includes('EMAIL_SEND_FAILED')) {
+              // 邮件发送失败，但用户已创建
+              setError(t('error.emailSendFailed'))
+              setMode('verify') // 切换到验证模式，用户可以重发验证邮件
+            } else if (errorCode === 'UNAUTHORIZED' || errorCode === 'INVALID_TOKEN') {
+              setError(t('error.unauthorized'))
             } else {
               setError(t('error.registerFailed'))
             }

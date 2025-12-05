@@ -407,7 +407,9 @@
       "invalidFileType": "Only JPG, PNG, GIF formats are supported",
       "emailNotVerified": "Please verify your email address first",
       "resendFailed": "Failed to send, please try again later",
-      "emailDomainNotAllowed": "This email domain is not allowed for registration"
+      "emailDomainNotAllowed": "This email domain is not allowed for registration",
+      "emailSendFailed": "Registration successful, but verification email failed to send. Please click the button below to resend",
+      "unauthorized": "Unauthorized, please refresh the page and try again"
     },
     "validation": {
       "minLength": "Must be at least {min} characters",

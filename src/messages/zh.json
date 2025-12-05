@@ -391,7 +391,9 @@
       "invalidFileType": "只支持 JPG、PNG、GIF 格式的图片",
       "emailNotVerified": "请先验证你的邮箱地址",
       "resendFailed": "发送失败，请稍后重试",
-      "emailDomainNotAllowed": "不支持该邮箱类型注册"
+      "emailDomainNotAllowed": "不支持该邮箱类型注册",
+      "emailSendFailed": "注册成功，但验证邮件发送失败，请点击下方按钮重新发送",
+      "unauthorized": "未授权，请刷新页面后重试"
     },
     "validation": {
       "minLength": "至少需要 {min} 个字符",

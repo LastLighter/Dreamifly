@@ -386,7 +386,9 @@
       "invalidFileType": "只支援 JPG、PNG、GIF 格式的圖片",
       "emailNotVerified": "請先驗證你的電子郵件地址",
       "resendFailed": "發送失敗，請稍後重試",
-      "emailDomainNotAllowed": "不支援該電子郵件類型註冊"
+      "emailDomainNotAllowed": "不支援該電子郵件類型註冊",
+      "emailSendFailed": "註冊成功，但驗證郵件發送失敗，請點擊下方按鈕重新發送",
+      "unauthorized": "未授權，請重新整理頁面後重試"
     },
     "validation": {
       "minLength": "至少需要 {min} 個字元",
