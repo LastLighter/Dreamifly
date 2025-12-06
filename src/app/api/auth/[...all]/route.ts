@@ -9,6 +9,7 @@ import { canRegister, recordRegistration } from "@/utils/ipRegistrationLimitMana
 
 const handler = toNextJsHandler(auth);
 const SIGNUP_EMAIL_PATH = "/api/auth/sign-up/email";
+const SEND_VERIFICATION_EMAIL_PATH = "/api/auth/send-verification-email";
 
 /**
  * 验证动态API token
@@ -162,6 +163,77 @@ export const POST = async (request: NextRequest) => {
     return validationResponse;
   }
 
+  // 如果是发送验证邮件请求，需要在发送前检查IP注册次数，并在发送后检查错误
+  if (request.nextUrl.pathname === SEND_VERIFICATION_EMAIL_PATH) {
+    const clientIP = getClientIP(request);
+    
+    if (clientIP) {
+      // 检查IP注册限制
+      const registrationCheck = await canRegister(clientIP);
+      
+      if (!registrationCheck.canRegister) {
+        return jsonError(
+          registrationCheck.message || `24小时内最多只能注册${registrationCheck.maxRegistrations}次`,
+          'IP_REGISTRATION_LIMIT_EXCEEDED',
+          429
+        );
+      }
+    }
+
+    // 调用 better-auth 的发送验证邮件处理
+    const response = await handler.POST(request);
+    
+    // 如果响应失败，检查是否是配额限制错误
+    if (response.status !== 200 && response.status !== 201) {
+      // 429 状态码通常是配额限制错误
+      if (response.status === 429) {
+        return jsonError(
+          '邮件发送失败：已达到每日发送配额限制',
+          'daily_quota_exceeded',
+          429
+        );
+      }
+      
+      try {
+        const responseData = await response.clone().json();
+        const errorMessage = (responseData?.error?.message || '').toLowerCase();
+        const errorCode = responseData?.error?.code || '';
+        
+        // 检查是否是配额限制错误（通过错误码或错误消息）
+        if (errorCode === 'daily_quota_exceeded' ||
+            errorMessage.includes('配额') || 
+            errorMessage.includes('quota') ||
+            errorMessage.includes('daily email sending quota') ||
+            errorMessage.includes('已达到每日发送配额')) {
+          return jsonError(
+            '邮件发送失败：已达到每日发送配额限制',
+            'daily_quota_exceeded',
+            429
+          );
+        }
+      } catch {
+        // 如果解析失败，500 状态码也可能是配额限制错误
+        if (response.status === 500) {
+          return jsonError(
+            '邮件发送失败：已达到每日发送配额限制',
+            'daily_quota_exceeded',
+            429
+          );
+        }
+      }
+    } else {
+      // 发送验证邮件成功，记录IP注册次数
+      if (clientIP) {
+        await recordRegistration(clientIP).catch(err => {
+          console.error('Error recording registration for resend verification:', err);
+          // 不阻止邮件发送流程，只记录错误
+        });
+      }
+    }
+    
+    return response;
+  }
+
   // 如果是注册请求，需要在注册成功后设置 UID 和昵称
   if (request.nextUrl.pathname === SIGNUP_EMAIL_PATH) {
     // 获取客户端IP并检查注册限制
@@ -179,12 +251,15 @@ export const POST = async (request: NextRequest) => {
         );
       }
     }
-    // 先读取请求体，保存用户输入的昵称
+    // 先读取请求体，保存用户输入的昵称和邮箱（请求体只能读取一次）
     let userNickname: string | undefined;
+    let userEmail: string | undefined;
     try {
       const bodyText = await request.clone().text();
       const payload = bodyText ? JSON.parse(bodyText) : {};
       userNickname = payload.name; // 用户输入的昵称
+      userEmail = payload.email; // 用户输入的邮箱
+      userEmail = payload.email; // 用户输入的邮箱
     } catch {
       // 如果解析失败，继续处理，使用默认值
     }
@@ -210,21 +285,101 @@ export const POST = async (request: NextRequest) => {
         emailSendFailed = true;
       }
     } else {
-      // 如果响应中没有用户ID，尝试从请求体中获取邮箱，查询是否已创建用户
-      try {
-        const bodyText = await request.clone().text();
-        const payload = bodyText ? JSON.parse(bodyText) : {};
-        if (payload.email) {
+      // 如果响应中没有用户ID，使用之前保存的邮箱查询是否已创建用户
+      if (userEmail) {
+        try {
           const existingUser = await db.execute(sql`
-            SELECT id FROM "user" WHERE email = ${payload.email} ORDER BY created_at DESC LIMIT 1
+            SELECT id, created_at FROM "user" WHERE email = ${userEmail} ORDER BY created_at DESC LIMIT 1
           `);
           if (existingUser.length > 0) {
-            userId = (existingUser[0] as any).id;
-            emailSendFailed = true; // 用户已创建但响应是错误，可能是邮件发送失败
+            const existingUserId = (existingUser[0] as any).id;
+            const existingUserCreatedAt = (existingUser[0] as any).created_at;
+            
+            // 检查用户是否已经有 UID
+            const userWithUid = await db.execute(sql`
+              SELECT uid FROM "user" WHERE id = ${existingUserId}
+            `);
+            const hasUid = userWithUid.length > 0 && userWithUid[0].uid !== null;
+            
+            // 检查错误消息，判断错误类型
+            // better-auth 的错误可能在不同的字段中，需要检查多个可能的位置
+            const errorMessage = (
+              responseData?.error?.message || 
+              responseData?.message || 
+              (responseData?.error as any)?.toString() || 
+              ''
+            ).toLowerCase();
+            const errorCode = responseData?.error?.code || responseData?.code || '';
+            
+            // 优先检查是否是邮件发送失败的错误（包括配额限制）
+            // 邮件发送失败的错误消息通常包含：邮件、发送、quota、配额等关键词
+            const isEmailSendFailedError = 
+              errorMessage.includes('邮件发送失败') ||
+              errorMessage.includes('发送邮件失败') ||
+              (errorMessage.includes('邮件') && (errorMessage.includes('发送') || errorMessage.includes('失败'))) ||
+              (errorMessage.includes('email') && (errorMessage.includes('send') || errorMessage.includes('fail'))) ||
+              errorMessage.includes('quota') ||
+              errorMessage.includes('配额') ||
+              errorMessage.includes('daily email sending quota') ||
+              errorMessage.includes('已达到每日发送配额') ||
+              errorCode === 'daily_quota_exceeded' ||
+              errorCode === 'EMAIL_SEND_FAILED';
+            
+            // 检查是否是邮箱已存在的错误
+            const isEmailExistsError = 
+              errorMessage.includes('already exists') ||
+              errorMessage.includes('already in use') ||
+              errorMessage.includes('duplicate') ||
+              errorMessage.includes('unique') ||
+              errorMessage.includes('已存在') ||
+              errorMessage.includes('已被使用') ||
+              errorMessage.includes('重复') ||
+              errorCode === 'EMAIL_ALREADY_EXISTS' ||
+              errorCode === 'DUPLICATE_EMAIL';
+            
+            // 检查用户是否是刚刚创建的（5分钟内），用于判断是否是本次注册创建的用户
+            const now = new Date();
+            const userCreatedAt = existingUserCreatedAt ? new Date(existingUserCreatedAt) : null;
+            const minutesSinceCreation = userCreatedAt 
+              ? (now.getTime() - userCreatedAt.getTime()) / (1000 * 60)
+              : Infinity;
+            const isRecentlyCreated = minutesSinceCreation <= 5;
+            
+            // 核心逻辑：如果用户没有 UID，无论错误消息是什么，都应该分配 UID
+            // 因为如果用户是旧用户，应该已经有 UID 了；如果没有 UID，说明是新用户
+            if (!hasUid) {
+              // 用户没有 UID，说明是新创建的用户，需要分配 UID
+              userId = existingUserId;
+              // 判断是否是邮件发送失败
+              if (isEmailSendFailedError || (response.status === 500 && !isEmailExistsError)) {
+                emailSendFailed = true;
+              } else {
+                emailSendFailed = false;
+              }
+            } else {
+              // 用户已经有 UID，说明是旧用户，根据错误消息判断
+              if (isEmailSendFailedError) {
+                // 明确是邮件发送失败的错误（可能是重新发送验证邮件的情况）
+                userId = existingUserId;
+                emailSendFailed = true;
+              } else if (isEmailExistsError) {
+                // 明确是邮箱已存在的错误，且用户是旧用户，直接返回原始错误
+                userId = null;
+                emailSendFailed = false;
+              } else if (response.status === 500 && !isEmailExistsError) {
+                // 响应状态是 500（服务器错误），且没有明确的"邮箱已存在"错误
+                userId = existingUserId;
+                emailSendFailed = true;
+              } else {
+                // 其他情况，无法确定，返回原始错误
+                userId = null;
+                emailSendFailed = false;
+              }
+            }
           }
+        } catch (error) {
+          console.error('Error checking existing user:', error);
         }
-      } catch (error) {
-        console.error('Error checking existing user:', error);
       }
     }
     

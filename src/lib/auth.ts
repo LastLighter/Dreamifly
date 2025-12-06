@@ -56,12 +56,32 @@ export const auth = betterAuth({
       console.log('提示: 如果QQ邮箱拦截localhost链接，请直接复制上面的链接到浏览器');
       console.log('='.repeat(80) + '\n');
       
-      // 发送邮箱验证邮件
-      await sendEmail({
-        to: user.email,
-        subject: "验证你的 Dreamifly 邮箱",
-        html: createVerificationEmailHTML(url, user.name),
-      });
+      try {
+        // 发送邮箱验证邮件
+        await sendEmail({
+          to: user.email,
+          subject: "验证你的 Dreamifly 邮箱",
+          html: createVerificationEmailHTML(url, user.name),
+        });
+      } catch (error: any) {
+        // 捕获错误并检查是否是配额限制错误
+        const errorMessage = (error?.message || '').toLowerCase();
+        const isQuotaError = 
+          errorMessage.includes('配额') ||
+          errorMessage.includes('quota') ||
+          errorMessage.includes('daily email sending quota') ||
+          errorMessage.includes('已达到每日发送配额');
+        
+        // 如果是配额限制错误，抛出带有错误码的自定义错误
+        if (isQuotaError) {
+          const quotaError: any = new Error('邮件发送失败：已达每日限制验证人数上限');
+          quotaError.code = 'daily_quota_exceeded';
+          throw quotaError;
+        }
+        
+        // 其他错误直接抛出
+        throw error;
+      }
     },
   },
   user: {

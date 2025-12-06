@@ -387,8 +387,9 @@
       "invalidFileType": "只支援 JPG、PNG、GIF 格式的圖片",
       "emailNotVerified": "請先驗證你的電子郵件地址",
       "resendFailed": "發送失敗，請稍後重試",
+      "emailQuotaExceeded": "郵件發送失敗：已達到每日發送配額限制，建議加入官方群聯繫管理員處理",
       "emailDomainNotAllowed": "不支援該電子郵件類型註冊",
-      "emailSendFailed": "註冊成功，但驗證郵件發送失敗，請點擊下方按鈕重新發送",
+      "emailSendFailed": "註冊成功，但驗證郵件發送失敗，建議加入官方群聯繫管理員處理",
       "unauthorized": "未授權，請重新整理頁面後重試",
       "ipRegistrationLimitExceeded": "24小時內最多只能註冊2次，請稍後再試"
     },

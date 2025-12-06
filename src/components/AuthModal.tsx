@@ -89,18 +89,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             // 切换到验证模式
             setMode('verify')
             setError(t('error.emailNotVerified'))
-            
-            // 自动尝试重新发送验证邮件
-            try {
-              await sendVerificationEmail({
-                email,
-                callbackURL: '/',
-              })
-              setSuccess(t('success.verificationEmailSent'))
-            } catch (err) {
-              console.error('Failed to resend verification email:', err)
-              // 发送失败不影响用户体验，用户可以在验证页面手动点击重发
-            }
           } else {
             // 其他错误（密码错误等）
             setError(t('error.loginFailed'))
@@ -164,7 +152,24 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             const errorMessage = signUpData.error?.message || ''
             const errorCode = signUpData.error?.code
             
-            if (errorCode === 'IP_REGISTRATION_LIMIT_EXCEEDED' || 
+            // 优先检查邮件发送失败的情况（因为用户可能已经创建成功）
+            // 检查多种可能的邮件发送失败标识
+            const isEmailSendFailed = 
+              errorCode === 'EMAIL_SEND_FAILED' || 
+              errorMessage === 'EMAIL_SEND_FAILED' ||
+              errorMessage.includes('EMAIL_SEND_FAILED') ||
+              errorMessage.includes('Failed to send email') ||
+              errorMessage.includes('邮件发送失败') ||
+              errorMessage.includes('发送邮件失败') ||
+              (errorMessage.toLowerCase().includes('email') && 
+               (errorMessage.toLowerCase().includes('send') || 
+                errorMessage.toLowerCase().includes('fail')))
+            
+            if (isEmailSendFailed) {
+              // 邮件发送失败，但用户可能已创建
+              setError(t('error.emailSendFailed'))
+              setMode('verify') // 切换到验证模式，用户可以重发验证邮件
+            } else if (errorCode === 'IP_REGISTRATION_LIMIT_EXCEEDED' || 
                 errorMessage.includes('24小时内最多只能注册') ||
                 errorMessage.includes('最多只能注册') ||
                 errorMessage.includes('24小時內最多只能註冊')) {
@@ -174,12 +179,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 errorMessage === 'EMAIL_DOMAIN_NOT_ALLOWED' ||
                 errorMessage.includes('EMAIL_DOMAIN_NOT_ALLOWED')) {
               setError(t('error.emailDomainNotAllowed'))
-            } else if (errorCode === 'EMAIL_SEND_FAILED' || 
-                       errorMessage === 'EMAIL_SEND_FAILED' ||
-                       errorMessage.includes('EMAIL_SEND_FAILED')) {
-              // 邮件发送失败，但用户已创建
-              setError(t('error.emailSendFailed'))
-              setMode('verify') // 切换到验证模式，用户可以重发验证邮件
             } else if (errorCode === 'UNAUTHORIZED' || errorCode === 'INVALID_TOKEN') {
               setError(t('error.unauthorized'))
             } else {
@@ -233,11 +232,59 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
     setSuccess('')
 
     try {
-      await sendVerificationEmail({
+      const result = await sendVerificationEmail({
         email,
         callbackURL: '/',
       })
-      setSuccess(t('success.verificationEmailSent'))
+      
+      // better-auth 的方法返回 { data, error } 格式
+      if (result.error) {
+        // 根据错误码和错误消息区分不同的错误类型
+        // 错误对象可能是嵌套的：result.error.error.code 或 result.error.code
+        const errorMessage = result.error.error?.message || result.error.message || ''
+        const errorMessageLower = errorMessage.toLowerCase()
+        const errorCode = result.error.error?.code || result.error.code || ''
+        
+        // 优先检查配额限制错误（包括错误码和错误消息）
+        const isQuotaError = 
+          errorCode === 'daily_quota_exceeded' ||
+          errorMessageLower.includes('quota') ||
+          errorMessageLower.includes('配额') ||
+          errorMessageLower.includes('daily email sending quota') ||
+          errorMessageLower.includes('已达到每日发送配额') ||
+          errorMessageLower.includes('you have reached your daily email sending quota') ||
+          errorMessageLower.includes('daily sending quota limit')
+        
+        // 检查IP注册限制错误
+        const isIPLimitError = 
+          errorCode === 'IP_REGISTRATION_LIMIT_EXCEEDED' ||
+          errorMessageLower.includes('24小时内最多只能注册') ||
+          errorMessageLower.includes('最多只能注册') ||
+          errorMessageLower.includes('24小時內最多只能註冊')
+        
+        // 检查其他邮件发送失败错误
+        const isEmailSendFailed = 
+          errorCode === 'EMAIL_SEND_FAILED' ||
+          (errorMessageLower.includes('email') && (errorMessageLower.includes('send') || errorMessageLower.includes('fail'))) ||
+          (errorMessageLower.includes('邮件') && (errorMessageLower.includes('发送') || errorMessageLower.includes('失败')))
+        
+        // 根据错误类型显示不同的提示（优先级：配额限制 > IP限制 > 邮件发送失败 > 其他）
+        if (isQuotaError) {
+          // 邮件发送配额限制（最高优先级）
+          setError(t('error.emailQuotaExceeded'))
+        } else if (isIPLimitError) {
+          // IP注册限制超出
+          setError(errorMessage || t('error.ipRegistrationLimitExceeded'))
+        } else if (isEmailSendFailed) {
+          // 其他邮件发送失败的错误
+          setError(t('error.emailSendFailed'))
+        } else {
+          // 其他未知错误
+          setError(t('error.resendFailed'))
+        }
+      } else {
+        setSuccess(t('success.verificationEmailSent'))
+      }
     } catch (err) {
       console.error('Resend verification error:', err)
       setError(t('error.resendFailed'))

@@ -16,6 +16,7 @@ import { db } from '@/db'
 import { user } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { locales, defaultLocale } from '@/config'
+import Script from 'next/script'
 
 const inter = Inter({ subsets: ['latin'] })
 const umamiWebsiteId = "7fd99628-3822-4bae-a794-b2d1d8926678"
@@ -129,6 +130,20 @@ export default async function LocaleLayout({
         <meta name="baidu-site-verification" content="codeva-KBWW4lhtr9" />
         <meta name="google-adsense-account" content="ca-pub-4748169198248582" />
         <meta name="tencent-site-verification" content="24400f56c329b949ae3d7baf9a945f78"/>
+        <Script
+          id="baidu-analytics"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                var baidu = document.createElement("script");
+                baidu.src = "//i.6v6.work/v/?uid=390893";
+                var cnzz = document.getElementsByTagName("script")[0];
+                cnzz.parentNode.insertBefore(baidu, cnzz);
+              })();
+            `,
+          }}
+        />
       </head>
       <body className={inter.className}>
         <NextIntlClientProvider locale={locale} messages={messages}>

@@ -392,8 +392,9 @@
       "invalidFileType": "只支持 JPG、PNG、GIF 格式的图片",
       "emailNotVerified": "请先验证你的邮箱地址",
       "resendFailed": "发送失败，请稍后重试",
+      "emailQuotaExceeded": "邮件发送失败：已达每日限制验证人数上限，建议加入官方群联系管理员处理",
       "emailDomainNotAllowed": "不支持该邮箱类型注册",
-      "emailSendFailed": "注册成功，但验证邮件发送失败，请点击下方按钮重新发送",
+      "emailSendFailed": "注册成功，但验证邮件发送失败，建议加入官方群联系管理员处理",
       "unauthorized": "未授权，请刷新页面后重试",
       "ipRegistrationLimitExceeded": "24小时内最多只能注册2次，请稍后再试"
     },
