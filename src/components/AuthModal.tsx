@@ -241,9 +241,11 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
       if (result.error) {
         // 根据错误码和错误消息区分不同的错误类型
         // 错误对象可能是嵌套的：result.error.error.code 或 result.error.code
-        const errorMessage = result.error.error?.message || result.error.message || ''
+        // 使用类型断言处理可能的嵌套错误结构
+        const errorObj = result.error as any
+        const errorMessage = errorObj.error?.message || errorObj.message || ''
         const errorMessageLower = errorMessage.toLowerCase()
-        const errorCode = result.error.error?.code || result.error.code || ''
+        const errorCode = errorObj.error?.code || errorObj.code || ''
         
         // 优先检查配额限制错误（包括错误码和错误消息）
         const isQuotaError = 

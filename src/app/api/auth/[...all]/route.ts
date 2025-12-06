@@ -289,11 +289,10 @@ export const POST = async (request: NextRequest) => {
       if (userEmail) {
         try {
           const existingUser = await db.execute(sql`
-            SELECT id, created_at FROM "user" WHERE email = ${userEmail} ORDER BY created_at DESC LIMIT 1
+            SELECT id FROM "user" WHERE email = ${userEmail} ORDER BY created_at DESC LIMIT 1
           `);
           if (existingUser.length > 0) {
             const existingUserId = (existingUser[0] as any).id;
-            const existingUserCreatedAt = (existingUser[0] as any).created_at;
             
             // 检查用户是否已经有 UID
             const userWithUid = await db.execute(sql`
@@ -336,14 +335,6 @@ export const POST = async (request: NextRequest) => {
               errorMessage.includes('重复') ||
               errorCode === 'EMAIL_ALREADY_EXISTS' ||
               errorCode === 'DUPLICATE_EMAIL';
-            
-            // 检查用户是否是刚刚创建的（5分钟内），用于判断是否是本次注册创建的用户
-            const now = new Date();
-            const userCreatedAt = existingUserCreatedAt ? new Date(existingUserCreatedAt) : null;
-            const minutesSinceCreation = userCreatedAt 
-              ? (now.getTime() - userCreatedAt.getTime()) / (1000 * 60)
-              : Infinity;
-            const isRecentlyCreated = minutesSinceCreation <= 5;
             
             // 核心逻辑：如果用户没有 UID，无论错误消息是什么，都应该分配 UID
             // 因为如果用户是旧用户，应该已经有 UID 了；如果没有 UID，说明是新用户

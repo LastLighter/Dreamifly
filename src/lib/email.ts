@@ -22,7 +22,8 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
       console.error('Error sending email:', error);
       // 保留原始错误信息，特别是配额限制等关键信息
       const errorMessage = error.message || 'Failed to send email';
-      const errorName = error.name || '';
+      // 使用类型断言处理 error.name，因为 Resend 的错误类型可能不包含所有可能的错误名称
+      const errorName = (error.name as string) || '';
       const statusCode = (error as any).statusCode || 0;
       
       // 精确检测配额限制错误：
