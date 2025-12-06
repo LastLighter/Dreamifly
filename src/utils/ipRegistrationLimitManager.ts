@@ -98,22 +98,11 @@ export async function canRegister(
   const firstRegistrationTime = record.firstRegistrationAt
   const hoursSinceFirstRegistration = (now.getTime() - firstRegistrationTime.getTime()) / (1000 * 60 * 60)
 
-  // 如果超过24小时，重置计数
+  // 如果超过24小时，允许注册（但不在这里重置，由 recordRegistration 统一处理重置逻辑）
   if (hoursSinceFirstRegistration >= 24) {
-    // 重置记录
-    await db
-      .update(ipRegistrationLimit)
-      .set({
-        registrationCount: 0,
-        firstRegistrationAt: null,
-        lastRegistrationAt: null,
-        updatedAt: now,
-      })
-      .where(eq(ipRegistrationLimit.ipAddress, ipAddress))
-
     return {
       canRegister: true,
-      registrationCount: 0,
+      registrationCount: 0, // 返回0表示可以重新开始计数
       maxRegistrations,
       resetAt: null
     }
@@ -146,12 +135,12 @@ export async function recordRegistration(ipAddress: string): Promise<void> {
   const now = new Date()
   const record = await getOrCreateIPRegistrationRecord(ipAddress)
 
-  // 如果是第一次注册，设置firstRegistrationAt
+  // 如果是第一次注册（firstRegistrationAt 为 null），设置时间戳并设置计数为 1
   if (!record.firstRegistrationAt) {
     await db
       .update(ipRegistrationLimit)
       .set({
-        registrationCount: sql`${ipRegistrationLimit.registrationCount} + 1`,
+        registrationCount: 1,
         firstRegistrationAt: now,
         lastRegistrationAt: now,
         updatedAt: now,
