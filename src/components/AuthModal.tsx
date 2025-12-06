@@ -164,7 +164,13 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             const errorMessage = signUpData.error?.message || ''
             const errorCode = signUpData.error?.code
             
-            if (errorCode === 'EMAIL_DOMAIN_NOT_ALLOWED' || 
+            if (errorCode === 'IP_REGISTRATION_LIMIT_EXCEEDED' || 
+                errorMessage.includes('24小时内最多只能注册') ||
+                errorMessage.includes('最多只能注册') ||
+                errorMessage.includes('24小時內最多只能註冊')) {
+              // IP注册限制超出，优先显示后端返回的详细消息（包含重置时间）
+              setError(errorMessage || t('error.ipRegistrationLimitExceeded'))
+            } else if (errorCode === 'EMAIL_DOMAIN_NOT_ALLOWED' || 
                 errorMessage === 'EMAIL_DOMAIN_NOT_ALLOWED' ||
                 errorMessage.includes('EMAIL_DOMAIN_NOT_ALLOWED')) {
               setError(t('error.emailDomainNotAllowed'))
@@ -184,7 +190,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
 
           // 注册成功，UID 和昵称已由后端自动设置
           setMode('verify')
-          setSuccess(t('success.registerCheckEmail'))
+          // 显示带限制提示的成功消息
+          setSuccess(t('success.registerCheckEmailWithLimit'))
         } catch (signUpErr) {
           console.error('Sign up error:', signUpErr)
           setError(t('error.registerFailed'))

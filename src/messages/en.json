@@ -383,6 +383,7 @@
       "login": "Login successful",
       "register": "Registration successful",
       "registerCheckEmail": "Registration successful! Please check your email to verify",
+      "registerCheckEmailWithLimit": "Registration successful! Please check your email to verify. Note: Each IP can only register up to 2 times within 24 hours",
       "logout": "Logged out successfully",
       "profileUpdated": "Profile updated successfully",
       "passwordChanged": "Password changed successfully",
@@ -409,7 +410,8 @@
       "resendFailed": "Failed to send, please try again later",
       "emailDomainNotAllowed": "This email domain is not allowed for registration",
       "emailSendFailed": "Registration successful, but verification email failed to send. Please click the button below to resend",
-      "unauthorized": "Unauthorized, please refresh the page and try again"
+      "unauthorized": "Unauthorized, please refresh the page and try again",
+      "ipRegistrationLimitExceeded": "You can only register up to 2 times within 24 hours. Please try again later"
     },
     "validation": {
       "minLength": "Must be at least {min} characters",

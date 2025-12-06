@@ -113,6 +113,16 @@ export const ipBlacklist = pgTable("ip_blacklist", {
   createdBy: text("created_by"), // 创建者（管理员ID）
 });
 
+// IP注册限制表
+export const ipRegistrationLimit = pgTable("ip_registration_limit", {
+  ipAddress: text("ip_address").primaryKey(), // IP地址作为主键
+  registrationCount: integer("registration_count").default(0).notNull(), // 注册次数
+  firstRegistrationAt: timestamp("first_registration_at"), // 第一次注册时间，用于计算24小时窗口
+  lastRegistrationAt: timestamp("last_registration_at"), // 最后一次注册时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+});
+
 // 头像框表
 export const avatarFrame = pgTable("avatar_frame", {
   id: serial("id").primaryKey(), // 头像框ID，自增

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from 'crypto';
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
+import { canRegister, recordRegistration } from "@/utils/ipRegistrationLimitManager";
 
 const handler = toNextJsHandler(auth);
 const SIGNUP_EMAIL_PATH = "/api/auth/sign-up/email";
@@ -92,6 +93,36 @@ async function ensureAllowedEmailDomain(request: NextRequest) {
   return null;
 }
 
+// 获取客户端IP地址
+function getClientIP(request: NextRequest): string | null {
+  const forwarded = request.headers.get('x-forwarded-for')
+  const realIP = request.headers.get('x-real-ip')
+  const cfConnectingIP = request.headers.get('cf-connecting-ip') // Cloudflare
+  
+  let ip: string | null = null
+  
+  if (forwarded) {
+    // x-forwarded-for 可能包含多个IP，取第一个
+    ip = forwarded.split(',')[0].trim()
+  } else if (realIP) {
+    ip = realIP.trim()
+  } else if (cfConnectingIP) {
+    ip = cfConnectingIP.trim()
+  }
+  
+  // 处理本地回环地址：将 IPv6 的 ::1 转换为 IPv4 的 127.0.0.1，便于统一显示
+  if (ip === '::1' || ip === '::ffff:127.0.0.1') {
+    ip = '127.0.0.1'
+  }
+  
+  // 处理IPv4映射的IPv6格式（::ffff:192.168.1.1 -> 192.168.1.1）
+  if (ip && ip.startsWith('::ffff:')) {
+    ip = ip.substring(7) // 移除 '::ffff:' 前缀
+  }
+  
+  return ip
+}
+
 // 获取下一个可用的 UID
 async function getNextUid(): Promise<number> {
   try {
@@ -133,6 +164,21 @@ export const POST = async (request: NextRequest) => {
 
   // 如果是注册请求，需要在注册成功后设置 UID 和昵称
   if (request.nextUrl.pathname === SIGNUP_EMAIL_PATH) {
+    // 获取客户端IP并检查注册限制
+    const clientIP = getClientIP(request);
+    
+    if (clientIP) {
+      // 检查IP注册限制
+      const registrationCheck = await canRegister(clientIP);
+      
+      if (!registrationCheck.canRegister) {
+        return jsonError(
+          registrationCheck.message || `24小时内最多只能注册${registrationCheck.maxRegistrations}次`,
+          'IP_REGISTRATION_LIMIT_EXCEEDED',
+          429
+        );
+      }
+    }
     // 先读取请求体，保存用户输入的昵称
     let userNickname: string | undefined;
     try {
@@ -184,6 +230,14 @@ export const POST = async (request: NextRequest) => {
     
     // 如果用户已创建（无论响应状态码如何），设置 UID 和昵称
     if (userId) {
+      // 记录IP注册（用户创建成功即记录，无论邮件是否发送成功）
+      if (clientIP) {
+        await recordRegistration(clientIP).catch(err => {
+          console.error('Error recording registration:', err);
+          // 不阻止注册流程，只记录错误
+        });
+      }
+
       try {
         // 检查用户是否已经有 UID（避免重复分配）
         const existingUser = await db.execute(sql`

@@ -367,6 +367,7 @@
       "login": "登录成功",
       "register": "注册成功",
       "registerCheckEmail": "注册成功！请查看邮箱完成验证",
+      "registerCheckEmailWithLimit": "注册成功！请查看邮箱完成验证。注意：24小时内每个IP最多只能注册2次",
       "logout": "已退出登录",
       "profileUpdated": "资料更新成功",
       "passwordChanged": "密码修改成功",
@@ -393,7 +394,8 @@
       "resendFailed": "发送失败，请稍后重试",
       "emailDomainNotAllowed": "不支持该邮箱类型注册",
       "emailSendFailed": "注册成功，但验证邮件发送失败，请点击下方按钮重新发送",
-      "unauthorized": "未授权，请刷新页面后重试"
+      "unauthorized": "未授权，请刷新页面后重试",
+      "ipRegistrationLimitExceeded": "24小时内最多只能注册2次，请稍后再试"
     },
     "validation": {
       "minLength": "至少需要 {min} 个字符",
