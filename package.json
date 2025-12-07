@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/reset-concurrency-on-startup.js && next dev",
     "build": "node -e \"try { require('fs').rmSync('.next', { recursive: true, force: true }); } catch(e) {}\" && next build",
     "build:clean": "rimraf .next && next build",
-    "start": "next start",
+    "start": "node scripts/reset-concurrency-on-startup.js && next start",
     "lint": "next lint"
   },
   "dependencies": {
