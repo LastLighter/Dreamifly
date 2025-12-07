@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { runSupirRepairWorkflow } from '@/utils/supirRepairWorkflow'
+import { runSupirUpscaleWorkflow } from '@/utils/supirUpscaleWorkflow'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { db } from '@/db'
@@ -92,10 +92,14 @@ export async function POST(request: Request) {
 
     // 4. 处理请求
     const body = await request.json()
-    const { image, positivePrompt, negativePrompt, steps, seed } = body || {}
+    const { image, scaleBy, positivePrompt, negativePrompt, steps, seed } = body || {}
 
     if (!image || typeof image !== 'string') {
       return NextResponse.json({ error: '缺少图片数据' }, { status: 400 })
+    }
+
+    if (!scaleBy || typeof scaleBy !== 'number' || scaleBy <= 0) {
+      return NextResponse.json({ error: '放大倍数必须大于0' }, { status: 400 })
     }
 
     const sanitizedImage = image.startsWith('data:')
@@ -148,7 +152,7 @@ export async function POST(request: Request) {
         }
       }
       
-      // 如果无法解析尺寸，返回错误（前端应该已经验证过，这里作为二次验证）
+      // 如果无法解析尺寸，返回错误
       if (width === 0 || height === 0) {
         return NextResponse.json(
           { error: '无法解析图片尺寸，请确保上传的是有效的 PNG 或 JPEG 图片' },
@@ -156,7 +160,7 @@ export async function POST(request: Request) {
         )
       }
       
-      // 验证尺寸范围：宽高需不小于 500 像素
+      // 验证图片尺寸：宽高需不小于 500 像素
       if (width < 500 || height < 500) {
         return NextResponse.json(
           { error: '图片宽高需不小于 500 像素' },
@@ -173,6 +177,19 @@ export async function POST(request: Request) {
           { status: 400 }
         )
       }
+      
+      // 计算放大后的尺寸并验证
+      const scaledWidth = Math.round(width * scaleBy)
+      const scaledHeight = Math.round(height * scaleBy)
+      const scaledPixels = scaledWidth * scaledHeight
+      
+      // 验证放大后的总像素必须小于2K标准（2560x1440 = 3,686,400）
+      if (scaledPixels >= pixels2K) {
+        return NextResponse.json(
+          { error: `放大后的图片分辨率不能超过 2K（2560x1440），当前放大倍数过大` },
+          { status: 400 }
+        )
+      }
     } catch (sizeError) {
       // 如果尺寸验证失败，返回错误
       console.error('Failed to validate image dimensions:', sizeError)
@@ -182,33 +199,28 @@ export async function POST(request: Request) {
       )
     }
 
-    // 6. 根据图片分辨率计算积分费用
-    // 判断分辨率：通过总像素数（宽×高）来判断
-    // 1K标准：1920x1080 = 2,073,600 像素
-    // 2K标准：2560x1440 = 3,686,400 像素
-    const totalPixels = width * height
-    const pixels1K = 1920 * 1080 // 2,073,600
-    const pixels2K = 2560 * 1440 // 3,686,400
+    // 6. 根据放大后的分辨率计算积分费用
+    // 计费标准：以1920x1080像素为标准，默认5个积分（数据库不为空使用数据库的）
+    // 计算放大后的总像素数
+    const scaledWidth = Math.round(width * scaleBy)
+    const scaledHeight = Math.round(height * scaleBy)
+    const scaledPixels = scaledWidth * scaledHeight
     
-    const is1K = totalPixels < pixels1K // 小于1K（1920x1080）
-    const is2K = totalPixels >= pixels1K && totalPixels < pixels2K // 大于等于1K且小于2K
+    // 标准像素 = 1920x1080 = 2,073,600
+    const standardPixels = 1920 * 1080 // 2,073,600
+    
+    // 计算倍率：放大后的像素是标准像素的多少倍（保留小数）
+    const multiplier = scaledPixels / standardPixels
     
     // 获取基础积分配置（数据库值，默认5）
     const config = await getPointsConfig()
-    const baseCost = config.repairWorkflowCost ?? 5 // 如果数据库没有值，默认5
+    const baseCost = config.upscaleWorkflowCost ?? 5 // 如果数据库没有值，默认5
     
-    // 根据分辨率计算费用
-    let cost: number
-    if (is1K) {
-      // 小于等于1K：使用基础费用（数据库值，默认5）
-      cost = baseCost
-    } else if (is2K) {
-      // 大于1K且小于等于2K：基础费用的两倍（默认10）
-      cost = baseCost * 2
-    } else {
-      // 超过2K的情况（虽然验证已经限制在2000以内，但这里作为兜底）
-      cost = baseCost * 2
-    }
+    // 费用 = 基础费用 * 倍率，然后向上取整
+    let cost = Math.ceil(baseCost * multiplier)
+    
+    // 如果计算出来的值低于基础费用（默认5积分），则按基础费用算
+    cost = Math.max(cost, baseCost)
 
     // 管理员不扣积分，普通用户和优质用户需要检查并扣除积分
     if (!isAdmin) {
@@ -222,24 +234,25 @@ export async function POST(request: Request) {
       }
     }
 
-    // 7. 执行修复工作流
-    let repairedImage: string
+    // 7. 执行放大工作流
+    let upscaledImage: string
     try {
-      repairedImage = await runSupirRepairWorkflow(sanitizedImage, {
+      upscaledImage = await runSupirUpscaleWorkflow(sanitizedImage, {
+        scaleBy,
         positivePrompt,
         negativePrompt,
         steps,
         seed
       })
 
-      // 修复成功后扣除积分（管理员不扣）
+      // 放大成功后扣除积分（管理员不扣）
       // 注意：cost 已经在前面根据分辨率计算好了
       let newBalance = null
       if (!isAdmin) {
-        const deducted = await deductPoints(session.user.id, cost, '工作流修复消费')
+        const deducted = await deductPoints(session.user.id, cost, '工作流放大消费')
         if (!deducted) {
           // 如果扣除失败（理论上不应该发生，因为前面已经检查过），记录错误但不影响结果
-          console.error('Failed to deduct points after repair workflow')
+          console.error('Failed to deduct points after upscale workflow')
         } else {
           // 获取扣除后的新积分余额
           newBalance = await getPointsBalance(session.user.id)
@@ -247,20 +260,19 @@ export async function POST(request: Request) {
       }
 
       return NextResponse.json({ 
-        imageUrl: repairedImage,
+        imageUrl: upscaledImage,
         pointsBalance: newBalance
       })
     } catch (workflowError) {
-      // 工作流失败，不扣除积分（因为前面已经检查过积分，这里如果失败应该回滚，但为了简化，我们只在成功时扣除）
+      // 工作流失败，不扣除积分
       throw workflowError
     }
   } catch (error) {
-    console.error('Error running Supir Repair workflow:', error)
+    console.error('Error running Supir Upscale workflow:', error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : '修复失败，请稍后重试' },
+      { error: error instanceof Error ? error.message : '放大失败，请稍后重试' },
       { status: 500 }
     )
   }
 }
-
 

@@ -1,4 +1,4 @@
-const supirRepairWorkflowTemplate = {
+const supirUpscaleWorkflowTemplate = {
   "1": {
     "inputs": {
       "supir_model": "SUPIR-v0Q.ckpt",
@@ -64,7 +64,8 @@ const supirRepairWorkflowTemplate = {
   }
 } as const
 
-interface SupirRepairOptions {
+interface SupirUpscaleOptions {
+  scaleBy?: number
   positivePrompt?: string
   negativePrompt?: string
   steps?: number
@@ -75,9 +76,9 @@ interface SupirResponsePayload {
   images?: string[]
 }
 
-export async function runSupirRepairWorkflow(
+export async function runSupirUpscaleWorkflow(
   imageBase64: string,
-  options: SupirRepairOptions = {}
+  options: SupirUpscaleOptions = {}
 ): Promise<string> {
   if (!imageBase64) {
     throw new Error('缺少输入图片')
@@ -88,7 +89,7 @@ export async function runSupirRepairWorkflow(
     throw new Error('Supir_Repair_URL 未配置，请在环境变量中设置')
   }
 
-  const workflow: Record<string, any> = JSON.parse(JSON.stringify(supirRepairWorkflowTemplate))
+  const workflow: Record<string, any> = JSON.parse(JSON.stringify(supirUpscaleWorkflowTemplate))
 
   if (!workflow['2']) {
     throw new Error('工作流中缺少上传节点（2）')
@@ -96,6 +97,11 @@ export async function runSupirRepairWorkflow(
 
   workflow['2'].inputs.image = imageBase64
   workflow['2'].inputs.upload = 'image'
+
+  // 设置放大倍数
+  if (typeof options.scaleBy === 'number' && options.scaleBy > 0) {
+    workflow['1'].inputs.scale_by = options.scaleBy
+  }
 
   if (options.positivePrompt) {
     workflow['1'].inputs.a_prompt = options.positivePrompt
@@ -110,8 +116,6 @@ export async function runSupirRepairWorkflow(
   }
 
   // 如果没有传递 seed，动态生成一个随机种子
-  // ComfyUI 种子范围：0 到 2^32-1 (4294967295)，但也可以使用更大的数字
-  // 使用 0 到 Number.MAX_SAFE_INTEGER (9007199254740991) 的范围
   if (typeof options.seed === 'number') {
     workflow['1'].inputs.seed = options.seed
   } else {
@@ -129,10 +133,10 @@ export async function runSupirRepairWorkflow(
 
   if (!response.ok) {
     const errorText = await response.text()
-    let errorMessage = `Supir Repair 服务错误 (${response.status})`
+    let errorMessage = `Supir Upscale 服务错误 (${response.status})`
     
     if (response.status === 404) {
-      errorMessage = 'Supir Repair 服务不可用，请检查服务配置或联系管理员'
+      errorMessage = 'Supir Upscale 服务不可用，请检查服务配置或联系管理员'
     } else if (response.status === 500) {
       // 尝试解析详细错误信息
       if (errorText) {
@@ -142,13 +146,13 @@ export async function runSupirRepairWorkflow(
         } catch {
           // 如果不是 JSON，使用原始文本（限制长度避免过长）
           if (errorText.length < 500) {
-            errorMessage = `Supir Repair 服务内部错误: ${errorText}`
+            errorMessage = `Supir Upscale 服务内部错误: ${errorText}`
           } else {
-            errorMessage = `Supir Repair 服务内部错误: ${errorText.substring(0, 500)}...`
+            errorMessage = `Supir Upscale 服务内部错误: ${errorText.substring(0, 500)}...`
           }
         }
       } else {
-        errorMessage = 'Supir Repair 服务内部错误，请稍后重试'
+        errorMessage = 'Supir Upscale 服务内部错误，请稍后重试'
       }
     } else if (errorText) {
       try {
@@ -168,13 +172,13 @@ export async function runSupirRepairWorkflow(
   const text = await response.text()
 
   if (text.includes('no healthy upstream') || text.includes('upstream')) {
-    throw new Error(`Supir Repair 服务不可用: ${text}`)
+    throw new Error(`Supir Upscale 服务不可用: ${text}`)
   }
 
   const data = JSON.parse(text) as SupirResponsePayload
 
   if (!data.images || data.images.length === 0) {
-    throw new Error('Supir Repair 服务未返回图片')
+    throw new Error('Supir Upscale 服务未返回图片')
   }
 
   return `data:image/png;base64,${data.images[0]}`

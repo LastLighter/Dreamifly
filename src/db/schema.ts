@@ -162,6 +162,7 @@ export const pointsConfig = pgTable("points_config", {
   premiumUserDailyPoints: integer("premium_user_daily_points"), // 优质用户每日积分
   pointsExpiryDays: integer("points_expiry_days"), // 积分过期天数
   repairWorkflowCost: integer("repair_workflow_cost"), // 工作流修复消耗
+  upscaleWorkflowCost: integer("upscale_workflow_cost"), // 工作流放大消耗
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

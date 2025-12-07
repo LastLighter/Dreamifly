@@ -20,13 +20,15 @@ export async function getPointsConfig() {
   const envRegularPoints = parseInt(process.env.REGULAR_USER_DAILY_POINTS || '20', 10);
   const envPremiumPoints = parseInt(process.env.PREMIUM_USER_DAILY_POINTS || '40', 10);
   const envExpiryDays = parseInt(process.env.POINTS_EXPIRY_DAYS || '7', 10);
-  const envRepairCost = parseInt(process.env.REPAIR_WORKFLOW_COST || '3', 10);
+  const envRepairCost = parseInt(process.env.REPAIR_WORKFLOW_COST || '5', 10);
+  const envUpscaleCost = parseInt(process.env.UPSCALE_WORKFLOW_COST || '5', 10);
 
   return {
     regularUserDailyPoints: configData?.regularUserDailyPoints ?? envRegularPoints,
     premiumUserDailyPoints: configData?.premiumUserDailyPoints ?? envPremiumPoints,
     pointsExpiryDays: configData?.pointsExpiryDays ?? envExpiryDays,
     repairWorkflowCost: configData?.repairWorkflowCost ?? envRepairCost,
+    upscaleWorkflowCost: configData?.upscaleWorkflowCost ?? envUpscaleCost,
   };
 }
 
