@@ -8,7 +8,6 @@ import { useParams, useRouter } from 'next/navigation'
 import community from './communityWorks'
 import SiteStats from '@/components/SiteStats'
 import { transferUrl } from '@/utils/locale'
-import TencentAds from '@/components/TencentAds'
 
 interface FAQItem {
   q: string;
@@ -291,11 +290,6 @@ export default function HomeClient() {
           </div>
         </section>
 
-        {/* Tencent Ads - Above Community Section */}
-        <div className="relative py-6 px-5 sm:px-8 lg:px-40 z-20">
-          <div id="home-ad-above-community"></div>
-          <TencentAds placementId="5222868351048167" containerId="home-ad-above-community" />
-        </div>
 
         {/* Community Showcase Section - 改进响应式设计 */}
         <section id="community-showcase" className="py-14 sm:py-20 px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 bg-gray-50/90 backdrop-blur-md relative">

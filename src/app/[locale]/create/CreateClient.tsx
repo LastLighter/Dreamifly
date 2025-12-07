@@ -3,7 +3,6 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import GenerateSection from '@/components/GenerateSection'
-import TencentAds from '@/components/TencentAds'
 import community from '../communityWorks'
 
 export default function CreateClient() {
@@ -22,10 +21,6 @@ export default function CreateClient() {
           initialPrompt={initialPrompt}
         />
 
-        <div className="relative py-6 px-5 sm:px-8 lg:px-40 z-20">
-          <div id="create-ad-bottom"></div>
-          <TencentAds placementId="8232358642752084" containerId="create-ad-bottom" />
-        </div>
       </main>
     </div>
   )
