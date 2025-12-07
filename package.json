@@ -22,15 +22,15 @@
     "drizzle-kit": "^0.31.1",
     "drizzle-orm": "^0.43.1",
     "http2-wrapper": "^2.2.1",
-    "next": "15.2.4",
+    "next": "15.2.6",
     "next-intl": "^4.0.2",
     "next-umami": "^1.0.0",
     "openai": "^6.8.1",
     "pg": "^8.16.0",
     "postcss": "^8.4.35",
     "postgres": "^3.4.6",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
+    "react": "19.1.2",
+    "react-dom": "19.1.2",
     "react-easy-crop": "^5.5.3",
     "react-hook-form": "^7.51.0",
     "recharts": "^3.3.0",
@@ -47,7 +47,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.2.4",
+    "eslint-config-next": "15.2.6",
     "typescript": "^5"
   }
 }
