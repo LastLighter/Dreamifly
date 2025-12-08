@@ -77,7 +77,7 @@ Dreamifly 是一个轻量级、高性能的 AI 绘画网站模板，集成多种
 
 ```bash
 git clone https://github.com/LastLighter/Dreamifly.git
-cd Dreamify
+cd Dreamifly
 ```
 
 ### 2. 安装依赖
