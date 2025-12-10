@@ -270,6 +270,18 @@ export default function Navbar() {
               <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('workflows')}</span>
             </Link>
 
+            {/* 价格/会员菜单 */}
+            <Link
+              href={transferUrl('/pricing', locale)}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-orange-100/50 to-amber-100/50 hover:from-orange-200/50 hover:to-amber-200/50 border border-orange-200/30 transition-all duration-300"
+            >
+              <svg className="w-6 h-6 text-orange-600 group-hover:text-orange-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-sm font-medium text-orange-700 group-hover:text-orange-800">{t('pricing')}</span>
+            </Link>
+
             <button
               onClick={() => handleNavItemClick('community-showcase')}
               className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"

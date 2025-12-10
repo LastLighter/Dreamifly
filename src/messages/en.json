@@ -308,12 +308,12 @@
     "home": "Home",
     "faq": "FAQ",
     "community": "Community",
-
     "quickGenerate": "Quick Generate",
     "siteName": "Dreamifly",
     "switchLanguage": "Switch Language",
     "friends": "Friends",
-    "workflows": "Workflows"
+    "workflows": "Workflows",
+    "pricing": "Subscription"
   },
   "friends": {
     "title": "Friends",
@@ -418,6 +418,145 @@
       "minLength": "Must be at least {min} characters",
       "maxLength": "Must be at most {max} characters",
       "emailFormat": "Please enter a valid email address"
+    }
+  },
+  "pricing": {
+    "title": "Pricing",
+    "subtitle": "Choose the plan that's right for you and start your AI creative journey",
+    "heroLabel": "Membership",
+    "heroTitle": "Designer-grade creative power",
+    "heroSubtitle": "Aesthetics-first experience with stable performance and polished outputs, so ideas and efficiency stay in sync.",
+    "heroCtaSubscribe": "Start Membership",
+    "heroCtaPoints": "Buy credits only",
+    "highlights": {
+      "instant": "Instant activation",
+      "instantDesc": "Priority compute and perks the moment you subscribe",
+      "flexible": "Flexible mix",
+      "flexibleDesc": "Blend subscription with on-demand credits as you need",
+      "aesthetic": "Aesthetic-friendly",
+      "aestheticDesc": "Curated models and refined presets to reduce rework"
+    },
+    "stats": {
+      "value1": { "value": "3×", "label": "Priority at peak hours" },
+      "value2": { "value": "3000+", "label": "Credits on activation" },
+      "value3": { "value": "24/7", "label": "Always-on stability" }
+    },
+    "viewBenefits": "View detailed benefits comparison",
+    "subscriptionTab": "Subscription",
+    "pointsTab": "Buy Credits",
+    "recommended": "Recommended",
+    "popular": "Popular",
+    "perMonth": "/month",
+    "perYear": "/year",
+    "perQuarter": "/quarter",
+    "bonusPoints": "Get {points} credits instantly",
+    "dailyDouble": "Double daily check-in credits",
+    "subscribe": "Subscribe Now",
+    "buy": "Buy Now",
+    "pointsExchange": "Credits exchange rate:",
+    "points": "credits",
+    "subscriptionEmptyTitle": "No subscription plans yet",
+    "subscriptionEmptyDesc": "We are crafting better member benefits. Stay tuned.",
+    "pointsEmptyTitle": "No credit bundles now",
+    "pointsEmptyDesc": "Please try again later or reach out to support.",
+    "loginRequired": "Please login first to purchase",
+    "paymentComingSoon": "Payment feature coming soon!",
+    "notice": "All plans are virtual products and non-refundable after purchase. Please contact support if you have any questions.",
+    "comparison": {
+      "title": "Benefits Comparison",
+      "subtitle": "Compare benefits across different user types",
+      "feature": "Feature",
+      "member": "Subscriber",
+      "registered": "Registered User",
+      "guest": "Guest",
+      "features": {
+        "bonusPoints": {
+          "name": "Subscription Bonus Credits",
+          "member": "Get 3000 credits instantly",
+          "registered": "-",
+          "guest": "-"
+        },
+        "dailyPoints": {
+          "name": "Daily Check-in Credits",
+          "member": "40 credits/day (2x)",
+          "registered": "20 credits/day",
+          "guest": "No check-in"
+        },
+        "watermark": {
+          "name": "Watermark",
+          "member": "No watermark",
+          "registered": "No watermark",
+          "guest": "With watermark"
+        },
+        "adFree": {
+          "name": "Ad Experience",
+          "member": "Ad-free",
+          "registered": "Ad-free",
+          "guest": "With ads"
+        },
+        "speed": {
+          "name": "Generation Speed",
+          "member": "Priority speed",
+          "registered": "Slower at peak times",
+          "guest": "Queue required"
+        },
+        "privacy": {
+          "name": "Privacy & Safety",
+          "member": "Generations stay private",
+          "registered": "May appear in public feed",
+          "guest": "May appear in public feed"
+        }
+      }
+    }
+  },
+  "membership": {
+    "title": "Membership Benefits",
+    "subtitle": "Unlock exclusive benefits and enjoy more creative perks",
+    "currentMember": "You are a Member",
+    "expiresAt": "Membership expires: {date}",
+    "renew": "Renew Membership",
+    "regularUser": "Regular User",
+    "upgradeTip": "Upgrade to enjoy more benefits",
+    "upgrade": "Upgrade Now",
+    "regularUserTitle": "Regular User",
+    "subscribedUserTitle": "Subscriber",
+    "free": "Free",
+    "startFrom": "From $5.99",
+    "viewPricing": "View Pricing Plans",
+    "benefits": {
+      "title": "Benefits Comparison",
+      "dailyPoints": {
+        "name": "Daily Check-in Credits",
+        "description": "Get credit rewards by checking in daily",
+        "regular": "20 credits/day",
+        "subscribed": "40 credits/day (2x)"
+      },
+      "bonusPoints": {
+        "name": "Subscription Bonus Credits",
+        "description": "Get a large amount of credits immediately upon subscription",
+        "regular": "None",
+        "subscribed": "3000+ credits"
+      },
+      "memberBadge": {
+        "name": "Exclusive Member Badge",
+        "description": "Show off your membership status"
+      },
+      "prioritySupport": {
+        "name": "Priority Support",
+        "description": "Dedicated support channel with fast response"
+      },
+      "exclusiveFrame": {
+        "name": "Exclusive Avatar Frame",
+        "description": "Unlock member-exclusive avatar decorations"
+      },
+      "adFree": {
+        "name": "Ad-Free Experience",
+        "description": "Enjoy a pure, ad-free creative environment"
+      },
+      "privacy": {
+        "name": "Privacy & Safety",
+        "description": "Your generated content will stay private"
+      }
     }
   }
 } 

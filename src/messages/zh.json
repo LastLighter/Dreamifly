@@ -313,12 +313,12 @@
     "home": "首页",
     "faq": "常见问题",
     "community": "社区",
-
     "quickGenerate": "快速生成",
     "siteName": "Dreamifly",
     "switchLanguage": "切换语言",
     "friends": "友链",
-    "workflows": "工作流"
+    "workflows": "工作流",
+    "pricing": "会员订阅"
   },
   "footer": {
     "copyright": "Dreamifly 版权所有"
@@ -423,6 +423,145 @@
       "title": "即将推出",
       "subtitle": "更多友链",
       "description": "更多精彩的AI工具平台即将加入"
+    }
+  },
+  "pricing": {
+    "title": "定价方案",
+    "subtitle": "选择最适合您的方案，开启AI创作之旅",
+    "heroLabel": "会员订阅",
+    "heroTitle": "为审美而生的创作力加速",
+    "heroSubtitle": "精心打磨的设计级体验，稳定生成、高品质呈现，让灵感与效率并行。",
+    "heroCtaSubscribe": "开通会员",
+    "heroCtaPoints": "先买积分试水",
+    "highlights": {
+      "instant": "即刻启用",
+      "instantDesc": "开通后立即享受优先算力与权益",
+      "flexible": "自由切换",
+      "flexibleDesc": "订阅与积分组合，按需灵活",
+      "aesthetic": "美学友好",
+      "aestheticDesc": "精选模型与细腻预设，减少反复调参"
+    },
+    "stats": {
+      "value1": { "value": "3×", "label": "高峰期优先队列" },
+      "value2": { "value": "3000+", "label": "开通即得积分" },
+      "value3": { "value": "24/7", "label": "全程稳定服务" }
+    },
+    "viewBenefits": "查看详细权益对比",
+    "subscriptionTab": "订阅会员",
+    "pointsTab": "购买积分",
+    "recommended": "推荐",
+    "popular": "热门",
+    "perMonth": "/月",
+    "perYear": "/年",
+    "perQuarter": "/季度",
+    "bonusPoints": "立即获得 {points} 积分",
+    "dailyDouble": "每日签到双倍积分",
+    "subscribe": "立即订阅",
+    "buy": "立即购买",
+    "pointsExchange": "积分兑换比例：",
+    "points": "积分",
+    "subscriptionEmptyTitle": "还没有订阅方案",
+    "subscriptionEmptyDesc": "我们正在准备更好的会员权益，敬请期待。",
+    "pointsEmptyTitle": "暂无积分包",
+    "pointsEmptyDesc": "请稍后再试或联系支持团队。",
+    "loginRequired": "请先登录后再购买",
+    "paymentComingSoon": "支付功能即将上线，敬请期待！",
+    "notice": "所有套餐均为虚拟商品，购买后不支持退款。如有疑问请联系客服。",
+    "comparison": {
+      "title": "权益对比",
+      "subtitle": "了解不同用户类型的权益差异",
+      "feature": "权益",
+      "member": "订阅会员",
+      "registered": "注册用户",
+      "guest": "未登录用户",
+      "features": {
+        "bonusPoints": {
+          "name": "订阅赠送积分",
+          "member": "立即获得3000积分",
+          "registered": "-",
+          "guest": "-"
+        },
+        "dailyPoints": {
+          "name": "每日签到积分",
+          "member": "40积分/天（双倍）",
+          "registered": "20积分/天",
+          "guest": "不可签到"
+        },
+        "watermark": {
+          "name": "生成水印",
+          "member": "无水印",
+          "registered": "无水印",
+          "guest": "携带网站水印"
+        },
+        "adFree": {
+          "name": "广告体验",
+          "member": "无广告",
+          "registered": "无广告",
+          "guest": "有广告"
+        },
+        "speed": {
+          "name": "生成速度",
+          "member": "急速生成",
+          "registered": "高峰期较慢",
+          "guest": "需要排队"
+        },
+        "privacy": {
+          "name": "隐私安全",
+          "member": "生成内容不公开",
+          "registered": "生成内容可能公开展示",
+          "guest": "生成内容可能公开展示"
+        }
+      }
+    }
+  },
+  "membership": {
+    "title": "会员权益",
+    "subtitle": "解锁专属权益，享受更多创作福利",
+    "currentMember": "您已是会员",
+    "expiresAt": "会员到期时间：{date}",
+    "renew": "续费会员",
+    "regularUser": "普通用户",
+    "upgradeTip": "升级会员享受更多权益",
+    "upgrade": "升级会员",
+    "regularUserTitle": "普通用户",
+    "subscribedUserTitle": "订阅会员",
+    "free": "免费",
+    "startFrom": "¥39.9起",
+    "viewPricing": "查看订阅方案",
+    "benefits": {
+      "title": "权益对比",
+      "dailyPoints": {
+        "name": "每日签到积分",
+        "description": "每天登录签到可获得积分奖励",
+        "regular": "20积分/天",
+        "subscribed": "40积分/天（双倍）"
+      },
+      "bonusPoints": {
+        "name": "订阅赠送积分",
+        "description": "订阅后立即获得大量积分",
+        "regular": "无",
+        "subscribed": "3000积分起"
+      },
+      "memberBadge": {
+        "name": "专属会员标识",
+        "description": "彰显您的会员身份"
+      },
+      "prioritySupport": {
+        "name": "优先客服支持",
+        "description": "专属客服通道，快速响应"
+      },
+      "exclusiveFrame": {
+        "name": "专属头像框",
+        "description": "解锁会员专属头像装饰"
+      },
+      "adFree": {
+        "name": "无广告体验",
+        "description": "享受纯净无广告的创作环境"
+      },
+      "privacy": {
+        "name": "隐私安全",
+        "description": "生成内容将不被公开"
+      }
     }
   }
 }

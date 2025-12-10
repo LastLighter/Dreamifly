@@ -10,27 +10,24 @@ const nextConfig = {
     ],
   },
 
-  // 添加 headers 配置项来控制 HTTP 响应头
+  // 根据资源类型设置合适的缓存策略，避免页面/JS 长时间不更新
   async headers() {
     return [
+      // 页面与 API，禁止中长期缓存
       {
         source: '/:path*',
         headers: [
-          // 设置合理的缓存策略
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable', // 静态资源建议缓存一年
-          },
-          // 清理不必要的 Vary header
-          {
-            key: 'Vary',
-            value: 'Accept-Encoding, User-Agent',
-          },
-          // 移除 Next.js 默认暴露的技术栈信息
-          {
-            key: 'X-Powered-By',
-            value: '',
-          },
+          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'Vary', value: 'Accept-Encoding, User-Agent' },
+          { key: 'X-Powered-By', value: '' },
+        ],
+      },
+      // Next.js 构建产物可长时间缓存
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+          { key: 'Vary', value: 'Accept-Encoding' },
         ],
       },
     ];
@@ -42,8 +39,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
-    // 禁用输出文件跟踪以避免权限问题
-    outputFileTracingIncludes: {},
   },
 
   // 修复构建时的 .nft.json 和 trace 文件错误

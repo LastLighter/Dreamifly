@@ -6,6 +6,13 @@ import { eq } from 'drizzle-orm';
 import { getPointsConfig, hasAwardedToday } from '@/utils/points';
 import { randomUUID } from 'crypto';
 
+// 检查用户订阅是否有效
+function isSubscriptionActive(userData: { isSubscribed: boolean | null; subscriptionExpiresAt: Date | null }): boolean {
+  if (!userData.isSubscribed) return false;
+  if (!userData.subscriptionExpiresAt) return false;
+  return new Date(userData.subscriptionExpiresAt) > new Date();
+}
+
 // 每日积分发放API
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +37,7 @@ export async function POST(request: NextRequest) {
 
     const userData = currentUser[0];
     const isAdmin = userData.isAdmin || false;
+    const isSubscribed = isSubscriptionActive(userData);
     
     // 检查用户是否被封禁
     if (!userData.isActive) {
@@ -41,7 +49,14 @@ export async function POST(request: NextRequest) {
     
     const config = await getPointsConfig();
     const expiresInDays = config.pointsExpiryDays;
-    const userType = userData.isPremium ? 'premium' : 'regular';
+    
+    // 确定用户类型
+    let userType = 'regular';
+    if (isSubscribed) {
+      userType = 'subscribed';
+    } else if (userData.isPremium) {
+      userType = 'premium';
+    }
 
     // 管理员不发放积分
     if (isAdmin) {
@@ -67,10 +82,14 @@ export async function POST(request: NextRequest) {
     }
 
     // 根据用户角色获取应发放的积分数
+    // 订阅用户获得双倍积分
     const isPremium = userData.isPremium || false;
-    const pointsToAward = isPremium 
+    const basePoints = isPremium 
       ? config.premiumUserDailyPoints 
       : config.regularUserDailyPoints;
+    
+    // 订阅用户双倍积分
+    const pointsToAward = isSubscribed ? basePoints * 2 : basePoints;
 
     // 计算过期时间（获得时间 + 过期天数）
     const earnedAt = new Date();
@@ -78,12 +97,13 @@ export async function POST(request: NextRequest) {
     expiresAt.setDate(expiresAt.getDate() + config.pointsExpiryDays);
 
     // 插入积分记录
+    const description = isSubscribed ? '每日登录奖励（会员双倍）' : '每日登录奖励';
     await db.insert(userPoints).values({
       id: randomUUID(),
       userId: session.user.id,
       points: pointsToAward,
       type: 'earned',
-      description: '每日登录奖励',
+      description,
       earnedAt,
       expiresAt,
     });
@@ -94,6 +114,7 @@ export async function POST(request: NextRequest) {
       points: pointsToAward,
       expiresInDays,
       userType,
+      isSubscribed,
     });
   } catch (error) {
     console.error('Error awarding daily points:', error);

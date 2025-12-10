@@ -1,0 +1,401 @@
+支付调用流程如下：
+1. 商家系统调用 alipay.trade.page.pay（统一收单下单并支付页面接口）向支付宝发起支付请求，支付宝对商家请求参数进行校验，而后重新定向至用户登录页面。
+2. 用户确认支付后，支付宝通过 get 请求 returnUrl（商户入参传入），返回同步返回参数。
+3. 交易成功后，支付宝通过 post 请求 notifyUrl（商户入参传入），返回异步通知参数。
+4. 若由于网络等原因，导致商家系统没有收到异步通知，商家可自行调用 alipay.trade.query（统一收单交易查询接口）查询交易以及支付信息（商家也可以直接调用该查询接口，不需要依赖异步通知）。
+注意： 
+● 由于同步返回的不可靠性，支付结果必须以异步通知或查询接口返回为准，不能依赖同步跳转。
+● 商家系统接收到异步通知以后，必须通过验签（验证通知中的 sign 参数）来确保支付通知是由支付宝发送的。详细验签规则可查看 异步通知验签。
+● 接收到异步通知并验签通过后，请务必核对通知中的 app_id、out_trade_no、total_amount 等参数值是否与请求中的一致，并根据 trade_status 进行后续业务处理。
+● 在支付宝端，partnerId 与 out_trade_no 唯一对应一笔单据，商家端保证不同次支付 out_trade_no 不可重复；若重复，支付宝会关联到原单据，基本信息一致的情况下会以原单据为准进行支付。
+
+接口详情：
+接口1——alipay.trade.page.pay(统一收单下单并支付页面接口)
+PC场景下单并支付
+
+公共请求参数
+参数	类型	是否必选	最大长度	描述	示例值
+app_id	String	必选	32	
+支付宝分配给开发者的应用ID
+2014072300007148
+method	String	必选	128	
+接口名称
+alipay.trade.page.pay
+format	String	可选	40	
+仅支持JSON
+JSON
+return_url	String	可选	256	
+HTTP/HTTPS开头字符串
+https://m.alipay.com/Gk8NF23
+charset	String	必选	10	
+请求使用的编码格式，如utf-8,gbk,gb2312等
+utf-8
+sign_type	String	必选	10	
+商户生成签名字符串所使用的签名算法类型，目前支持RSA2和RSA，推荐使用RSA2
+RSA2
+sign	String	必选	344	
+商户请求参数的签名串，详见签名
+详见示例
+timestamp	String	必选	19	
+发送请求的时间，格式"yyyy-MM-dd HH:mm:ss"
+2014-07-24 03:07:50
+version	String	必选	3	
+调用的接口版本，固定为：1.0
+1.0
+notify_url	String	可选	256	
+支付宝服务器主动通知商户服务器里指定的页面http/https路径。
+http://api.test.alipay.net/atinterface/receive_notify.htm
+app_auth_token	String	可选	40	
+详见应用授权概述
+biz_content	String	必选		
+请求参数的集合，最大长度不限，除公共参数外所有请求参数都必须放在这个参数中传递，具体参照各产品快速接入文档
+
+业务请求参数
+out_trade_no必选string(64)
+【描述】商户订单号。
+由商家自定义，64个字符以内，仅支持字母、数字、下划线且需保证在商户端不重复。
+【示例值】20150320010101001
+total_amount必选price(11)
+【描述】订单总金额，单位为元，精确到小数点后两位，取值范围为 [0.01,100000000]。金额不能为0。
+【示例值】88.88
+subject必选string(256)
+【描述】订单标题。
+注意：不可使用特殊字符，如 /，=，& 等。
+【示例值】Iphone6 16G
+product_code必选string(64)
+【描述】销售产品码，与支付宝签约的产品码名称。注：目前电脑支付场景下仅支持FAST_INSTANT_TRADE_PAY
+【示例值】FAST_INSTANT_TRADE_PAY
+qr_pay_mode可选string(2)
+【描述】PC扫码支付的方式。
+支持前置模式和跳转模式。
+前置模式是将二维码前置到商户的订单确认页的模式。需要商户在自己的页面中以 iframe 方式请求支付宝页面。具体支持的枚举值有以下几种：
+0：订单码-简约前置模式，对应 iframe 宽度不能小于600px，高度不能小于300px；
+1：订单码-前置模式，对应iframe 宽度不能小于 300px，高度不能小于600px；
+3：订单码-迷你前置模式，对应 iframe 宽度不能小于 75px，高度不能小于75px；
+4：订单码-可定义宽度的嵌入式二维码，商户可根据需要设定二维码的大小。
+跳转模式下，用户的扫码界面是由支付宝生成的，不在商户的域名下。支持传入的枚举值有：
+2：订单码-跳转模式
+【枚举值】
+订单码-简约前置模式: 0
+订单码-前置模式: 1
+订单码-迷你前置模式: 3
+更多
+【示例值】1
+qrcode_width可选number(4)
+【描述】商户自定义二维码宽度。
+注：qr_pay_mode=4时该参数有效
+【示例值】100
+goods_detail可选GoodsDetail[]
+【描述】订单包含的商品列表信息，json格式。
+time_expire可选string(32)
+【描述】订单绝对超时时间。
+格式为yyyy-MM-dd HH:mm:ss。超时时间范围：1m~15d。
+注：time_expire和timeout_express两者只需传入一个或者都不传，两者均传入时，优先使用time_expire。
+【示例值】2016-12-31 10:05:01
+sub_merchant可选SubMerchant
+【描述】二级商户信息。
+直付通模式和机构间连模式下必传，其它场景下不需要传入。
+extend_params可选ExtendParams
+【描述】业务扩展参数
+business_params可选string(512)
+【描述】商户传入业务信息，具体值要和支付宝约定，应用于安全，营销等参数直传场景，格式为json格式
+【示例值】{"mc_create_trade_ip":"127.0.0.1"}
+promo_params可选string(512)
+【描述】优惠参数。为 JSON 格式。注：仅与支付宝协商后可用
+【示例值】{"storeIdType":"1"}
+integration_type可选string(16)
+【描述】请求后页面的集成方式。
+枚举值：
+ALIAPP：支付宝钱包内
+PCWEB：PC端访问
+默认值为PCWEB。
+【枚举值】
+支付宝钱包内: ALIAPP
+PC端访问: PCWEB
+【示例值】PCWEB
+request_from_url可选string(256)
+【描述】请求来源地址。如果使用ALIAPP的集成方式，用户中途取消支付会返回该地址。
+【示例值】https://
+store_id可选string(32)
+【描述】商户门店编号。
+指商户创建门店时输入的门店编号。
+【示例值】NJ_001
+merchant_order_no可选string(32)
+【描述】商户原始订单号，最大长度限制 32 位
+【示例值】20161008001
+ext_user_info可选ExtUserInfo
+【描述】外部指定买家
+invoice_info可选InvoiceInfo
+【描述】开票信息
+常见请求示例
+默认示例
+const { AlipaySdk } = require("alipay-sdk");
+
+const alipaySdk = new AlipaySdk({
+  appId: "<-- 请填写您的AppId，例如：2019091767145019 -->",
+  privateKey: "<-- 请填写您的应用私钥，例如：MIIEvQIBADANB ... ... -->",
+  alipayPublicKey: "<-- 请填写您的支付宝公钥，例如：MIIBIjANBg... -->",
+  gateway: "https://openapi.alipay.com/gateway.do",
+  appAuthToken: "<-- 请填写应用授权令牌 -->",
+});
+const result = await alipaySdk.pageExec("alipay.trade.page.pay", {
+  bizContent: {
+    out_trade_no: "20150320010101001",
+    total_amount: "88.88",
+    subject: "Iphone6+16G",
+    product_code: "FAST_INSTANT_TRADE_PAY",
+    qr_pay_mode: "1",
+    qrcode_width: 100,
+    goods_detail: [
+      {
+        goods_name: "ipad",
+        alipay_goods_id: "20010001",
+        quantity: 1,
+        price: "2000",
+        goods_id: "apple-01",
+        goods_category: "34543238",
+        categories_tree: "124868003|126232002|126252004",
+        show_url: "http://www.alipay.com/xxx.jpg",
+      },
+    ],
+    time_expire: "2016-12-31+10:05:01",
+    sub_merchant: {
+      merchant_id: "2088000603999128",
+      merchant_type: "alipay",
+    },
+    extend_params: {
+      sys_service_provider_id: "2088511833207846",
+      hb_fq_seller_percent: "100",
+      hb_fq_num: "3",
+      industry_reflux_info:
+        '{\\"scene_code\\":\\"metro_tradeorder\\",\\"channel\\":\\"xxxx\\",\\"scene_data\\":{\\"asset_name\\":\\"ALIPAY\\"}}',
+      royalty_freeze: "true",
+      card_type: "S0JP0000",
+    },
+    business_params: '{"mc_create_trade_ip":"127.0.0.1"}',
+    promo_params: '{"storeIdType":"1"}',
+    integration_type: "PCWEB",
+    request_from_url: "https://",
+    store_id: "NJ_001",
+    merchant_order_no: "20161008001",
+    ext_user_info: {
+      cert_type: "IDENTITY_CARD",
+      cert_no: "362334768769238881",
+      mobile: "16587658765",
+      name: "李明",
+      min_age: "18",
+      need_check_info: "F",
+      identity_hash:
+        "27bfcd1dee4f22c8fe8a2374af9b660419d1361b1c207e9b41a754a113f38fcc",
+    },
+    invoice_info: {
+      key_info: {
+        tax_num: "1464888883494",
+        is_support_invoice: true,
+        invoice_merchant_name: "ABC|003",
+      },
+      details:
+        '[{"code":"100294400","name":"服饰","num":"2","sumPrice":"200.00","taxRate":"6%"}]',
+    },
+  },
+});
+说明：本示例仅供参考。
+公共响应参数
+无公共响应参数
+
+业务响应参数
+pageRedirectionData｜跳转页面数据必选string(16384)
+【描述】用于跳转支付宝页面的信息，POST和GET方法生成内容不同：使用POST方法执行，结果为html form表单，在浏览器渲染即可；使用GET方法会得到支付宝URL，需要打开或重定向到该URL。建议使用POST方式。具体使用方法请参考 接入指南
+【示例值】
+<form name="punchout_form" method="post" action="https://openapi.alipay.com/gateway.do?charset=UTF-8&method=alipay.trade.page.pay&format=json&sign=ERITJKEIJKJHKKKKKKKHJEREEEEEEEEEEE&version=1.0&app_id=2017060101317939&sign_type=RSA2&timestamp=2014-07-24+03%3A07%3A50">
+<input type="hidden" name="biz_content" value="{&quot;time_expire&quot;:&quot;2016-12-31 10:05:01&quot;,&quot;extend_params&quot;:&quot;&quot;,&quot;query_options&quot;:&quot;[\&quot;hyb_amount\&quot;,\&quot;enterprise_pay_info\&quot;]&quot;,&quot;settle_info&quot;:&quot;&quot;,&quot;subject&quot;:&quot;Iphone6 16G&quot;,&quot;product_code&quot;:&quot;FAST_INSTANT_TRADE_PAY&quot;,&quot;body&quot;:&quot;Iphone6 16G&quot;,&quot;qr_pay_mode&quot;:&quot;1&quot;,&quot;integration_type&quot;:&quot;PCWEB&quot;,&quot;merchant_order_no&quot;:&quot;20161008001&quot;,&quot;sub_merchant&quot;:&quot;&quot;,&quot;invoice_info&quot;:&quot;&quot;,&quot;ext_user_info&quot;:&quot;&quot;,&quot;timeout_express&quot;:&quot;90m&quot;,&quot;disable_pay_channels&quot;:&quot;pcredit,moneyFund,debitCardExpress&quot;,&quot;agreement_sign_params&quot;:&quot;&quot;,&quot;royalty_info&quot;:&quot;&quot;,&quot;store_id&quot;:&quot;NJ_001&quot;,&quot;request_from_url&quot;:&quot;https://&quot;,&quot;qrcode_width&quot;:&quot;100&quot;,&quot;goods_detail&quot;:&quot;&quot;,&quot;enable_pay_channels&quot;:&quot;pcredit,moneyFund,debitCardExpress&quot;,&quot;out_trade_no&quot;:&quot;20150320010101001&quot;,&quot;total_amount&quot;:&quot;88.88&quot;,&quot;business_params&quot;:&quot;{\&quot;mc_create_trade_ip\&quot;:\&quot;127.0.0.1\&quot;}&quot;,&quot;promo_params&quot;:&quot;{\&quot;storeIdType\&quot;:\&quot;1\&quot;}&quot;}">
+<input type="submit" value="立即支付" style="display:none" >
+</form>
+<script>document.forms[0].submit();</script>
+
+接口2——alipay.trade.query(统一收单交易查询)
+该接口提供所有支付宝支付订单的查询，商户可以通过该接口主动查询订单状态，完成下一步的业务逻辑。 需要调用查询接口的情况： 当商户后台、网络、服务器等出现异常，商户系统最终未接收到支付通知； 调用支付接口后，返回系统错误或未知交易状态情况； 调用alipay.trade.pay，返回INPROCESS的状态； 调用alipay.trade.cancel之前，需确认支付状态
+公共请求参数
+参数	类型	是否必选	最大长度	描述	示例值
+app_id	String	必选	32	
+支付宝分配给开发者的应用ID
+2014072300007148
+method	String	必选	128	
+接口名称
+alipay.trade.query
+format	String	可选	40	
+仅支持JSON
+JSON
+charset	String	必选	10	
+请求使用的编码格式，如utf-8,gbk,gb2312等
+utf-8
+sign_type	String	必选	10	
+商户生成签名字符串所使用的签名算法类型，目前支持RSA2和RSA，推荐使用RSA2
+RSA2
+sign	String	必选	344	
+商户请求参数的签名串，详见签名
+详见示例
+timestamp	String	必选	19	
+发送请求的时间，格式"yyyy-MM-dd HH:mm:ss"
+2014-07-24 03:07:50
+version	String	必选	3	
+调用的接口版本，固定为：1.0
+1.0
+app_auth_token	String	可选	40	
+详见应用授权概述
+biz_content	String	必选		
+请求参数的集合，最大长度不限，除公共参数外所有请求参数都必须放在这个参数中传递，具体参照各产品快速接入文档
+业务请求参数
+以下参数 二选一 传入
+out_trade_nostring(64)
+【描述】订单支付时传入的商户订单号,和支付宝交易号不能同时为空。
+trade_no,out_trade_no如果同时存在优先取trade_no
+【示例值】20150320010101001
+trade_nostring(64)
+【描述】支付宝交易号，和商户订单号不能同时为空
+【示例值】2014112611001004680 073956707
+query_options可选string[](128)
+【描述】查询选项，商户通过上送该参数来定制同步需要额外返回的信息字段，数组格式。
+【枚举值】
+交易结算信息: trade_settle_info
+交易支付使用的资金渠道: fund_bill_list
+交易支付时使用的所有优惠券信息: voucher_detail_list
+更多
+【示例值】trade_settle_info
+示例代码
+const { AlipaySdk } = require("alipay-sdk");
+
+const alipaySdk = new AlipaySdk({
+  appId: "<-- 请填写您的AppId，例如：2019091767145019 -->",
+  privateKey: "<-- 请填写您的应用私钥，例如：MIIEvQIBADANB ... ... -->",
+  alipayPublicKey: "<-- 请填写您的支付宝公钥，例如：MIIBIjANBg... -->",
+  gateway: "https://openapi.alipay.com/gateway.do",
+  appAuthToken: "<-- 请填写应用授权令牌 -->",
+});
+const result = await alipaySdk.exec("alipay.trade.query", {
+  bizContent: {
+    out_trade_no: "20150320010101001",
+    trade_no: "2014112611001004680+073956707",
+    query_options: ["trade_settle_info"],
+  },
+});
+
+公共响应参数
+参数	类型	是否必选	最大长度	描述	示例值
+code	String	必选	-	
+网关返回码,详见文档
+40004
+msg	String	必选	-	
+网关返回码描述,详见文档
+Business Failed
+sub_code	String	可选	-	
+业务返回码，参见具体的API接口文档
+ACQ.TRADE_HAS_SUCCESS
+sub_msg	String	可选	-	
+业务返回码描述，参见具体的API接口文档
+交易已被支付
+sign	String	必选	-	
+签名,详见文档
+DZXh8eeTuAHoYE3w1J+POiPhfDxOYBfUNn1lkeT/V7P4zJdyojWEa6IZs6Hz0yDW5Cp/viufUb5I0/V5WENS3OYR8zRedqo6D+fUTdLHdc+EFyCkiQhBxIzgngPdPdfp1PIS7BdhhzrsZHbRqb7o4k3Dxc+AAnFauu4V6Zdwczo=
+业务响应参数
+展开所有属性
+trade_no必选string(64)
+【描述】支付宝交易号
+【注意事项】在未生成真实交易时，不返回，需要商户多次调用该接口或支付通知，获取最终的交易号
+【示例值】2013112011001004330000121536
+out_trade_no必选string(64)
+【描述】商家订单号
+【示例值】6823789339978248
+trade_status必选string(32)
+【描述】交易状态：WAIT_BUYER_PAY（交易创建，等待买家付款）、TRADE_CLOSED（未付款交易超时关闭，或支付完成后全额退款）、TRADE_SUCCESS（交易支付成功）、TRADE_FINISHED（交易结束，不可退款）
+【示例值】TRADE_CLOSED
+total_amount必选price(11)
+【描述】交易的订单金额，单位为元，两位小数。该参数的值为支付时传入的total_amount
+【示例值】88.88
+fund_bill_list必选TradeFundBill[]
+【描述】交易支付使用的资金渠道。
+只有在签约中指定需要返回资金明细，或者入参的query_options中指定时才返回该字段信息。
+buyer_user_id必选string(16)
+【描述】买家在支付宝的用户id新商户建议使用buyer_open_id替代该字段。对于新商户，buyer_user_id字段未来计划逐步回收，存量商户可继续使用。如使用buyer_open_id，请确认 应用-开发配置-openid配置管理 已启用。无该配置项，可查看openid配置申请。
+【示例值】2088101117955611
+send_pay_date特殊可选date(32)
+【描述】本次交易打款给卖家的时间
+【示例值】2014-11-27 15:45:57
+receipt_amount特殊可选string(11)
+【描述】实收金额，单位为元，两位小数。该金额为本笔交易，商户账户能够实际收到的金额
+【示例值】15.25
+store_id特殊可选string(32)
+【描述】商户门店编号
+【示例值】NJ_S_001
+terminal_id特殊可选string(32)
+【描述】商户机具终端编号
+【示例值】NJ_T_001
+store_name特殊可选string(512)
+【描述】请求交易支付中的商户店铺的名称
+【示例值】证大五道口店
+buyer_open_id特殊可选string(128)
+【描述】买家支付宝用户唯一标识  详情可查看 openid简介
+【示例值】01501o8f93I3nJAGB1jG4ONxtxV25DCN3Gec3uggnC4CJU0
+discount_amount特殊可选string(11)
+【描述】平台优惠金额
+【示例值】88.88
+ext_infos特殊可选string(1024)
+【描述】交易额外信息，特殊场景下与支付宝约定返回。
+json格式。
+【示例值】{"action":"cancel"}
+buyer_user_type特殊可选string(18)
+【描述】买家用户类型。CORPORATE:企业用户；PRIVATE:个人用户。
+【枚举值】
+企业用户: CORPORATE
+个人用户: PRIVATE
+【示例值】PRIVATE
+mdiscount_amount特殊可选string(11)
+【描述】商家优惠金额
+【示例值】88.88
+buyer_logon_id可选string(100)
+【描述】买家支付宝账号
+【注意事项】在未生成真实交易时，不返回，需要商户多次调用该接口或支付通知，获取最终的用户信息
+【示例值】159****5620
+invoice_amount可选price(11)
+【描述】交易中用户支付的可开具发票的金额，单位为元，两位小数。该金额代表该笔交易中可以给用户开具发票的金额
+【示例值】12.11
+buyer_pay_amount可选price(11)
+【描述】买家实付金额，单位为元，两位小数。该金额代表该笔交易买家实际支付的金额，不包含商户折扣等金额
+【示例值】8.88
+point_amount可选price(11)
+【描述】积分支付的金额，单位为元，两位小数。该金额代表该笔交易中用户使用积分支付的金额，比如集分宝或者支付宝实时优惠等
+【示例值】10
+响应示例
+{
+    "alipay_trade_query_response": {
+        "code": "10000",
+        "msg": "Success",
+        "trade_no": "2013112011001004330000121536",
+        "out_trade_no": "6823789339978248",
+        "buyer_logon_id": "159****5620",
+        "trade_status": "TRADE_CLOSED",
+        "total_amount": "88.88",
+        "invoice_amount": "12.11",
+        "send_pay_date": "2014-11-27 15:45:57",
+        "buyer_pay_amount": "8.88",
+        "point_amount": "10",
+        "receipt_amount": "15.25",
+        "store_id": "NJ_S_001",
+        "terminal_id": "NJ_T_001",
+        "fund_bill_list": [
+            {
+                "fund_channel": "ALIPAYACCOUNT",
+                "amount": "10",
+                "real_amount": "11.21"
+            }
+        ],
+        "store_name": "证大五道口店",
+        "buyer_user_id": "2088101117955611",
+        "buyer_open_id": "01501o8f93I3nJAGB1jG4ONxtxV25DCN3Gec3uggnC4CJU0",
+        "discount_amount": "88.88",
+        "ext_infos": "{\"action\":\"cancel\"}",
+        "buyer_user_type": "PRIVATE",
+        "mdiscount_amount": "88.88"
+    },
+    "sign": "ERITJKEIJKJHKKKKKKKHJEREEEEEEEEEEE"
+}

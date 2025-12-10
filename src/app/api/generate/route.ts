@@ -531,7 +531,6 @@ export async function POST(request: Request) {
         console.error('Error decrementing IP concurrency:', err)
       })
     }
-    
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to generate image' },
       { status: 500 }

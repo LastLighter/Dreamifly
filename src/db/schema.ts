@@ -31,6 +31,8 @@ export const user = pgTable("user", {
   dailyRequestCount: integer("daily_request_count").default(0), // 数据库字段名: daily_request_count，当日请求次数
   lastRequestResetDate: timestamp("last_request_reset_date").defaultNow(), // 数据库字段名: last_request_reset_date，上次重置请求次数的日期（类型为 timestamptz）
   avatarFrameId: integer("avatar_frame_id"), // 数据库字段名: avatar_frame_id，头像框ID，为null时使用默认头像框
+  isSubscribed: boolean("is_subscribed").default(false), // 是否为订阅用户
+  subscriptionExpiresAt: timestamp("subscription_expires_at"), // 订阅过期时间
 });
 
 export const session = pgTable("session", {
@@ -165,6 +167,70 @@ export const pointsConfig = pgTable("points_config", {
   upscaleWorkflowCost: integer("upscale_workflow_cost"), // 工作流放大消耗
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 用户订阅表
+export const userSubscription = pgTable("user_subscription", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  planType: text("plan_type").notNull().default('monthly'), // 'monthly', 'quarterly', 'yearly'
+  status: text("status").notNull().default('active'), // 'active', 'expired', 'cancelled'
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 积分套餐表
+export const pointsPackage = pgTable("points_package", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  points: integer("points").notNull(),
+  price: real("price").notNull(), // 价格（人民币）
+  originalPrice: real("original_price"), // 原价（用于显示折扣）
+  isPopular: boolean("is_popular").default(false), // 是否热门
+  isActive: boolean("is_active").default(true), // 是否上架
+  sortOrder: integer("sort_order").default(0), // 排序
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 订阅套餐表
+export const subscriptionPlan = pgTable("subscription_plan", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull().default('monthly'), // 'monthly', 'quarterly', 'yearly'
+  price: real("price").notNull(),
+  originalPrice: real("original_price"),
+  bonusPoints: integer("bonus_points").notNull().default(3000), // 订阅赠送积分
+  dailyPointsMultiplier: real("daily_points_multiplier").notNull().default(2.0), // 每日签到积分倍率
+  description: text("description"),
+  features: text("features"), // JSON格式的功能列表
+  isPopular: boolean("is_popular").default(false), // 是否热门
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 订单表
+export const paymentOrder = pgTable("payment_order", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  orderType: text("order_type").notNull(), // 'subscription', 'points'
+  productId: text("product_id").notNull(), // 关联的套餐ID
+  amount: real("amount").notNull(), // 支付金额
+  pointsAmount: integer("points_amount"), // 积分数量（仅积分订单）
+  status: text("status").notNull().default('pending'), // 'pending', 'paid', 'failed', 'refunded'
+  paymentMethod: text("payment_method"), // 'alipay', 'wechat'
+  paymentId: text("payment_id"), // 第三方支付订单号
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  paidAt: timestamp("paid_at"),
 });
 
 // 用户与头像框的关系

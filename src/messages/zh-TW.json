@@ -308,12 +308,12 @@
     "home": "首頁",
     "faq": "常見問題",
     "community": "社群",
-
     "quickGenerate": "快速生成",
     "siteName": "Dreamifly",
     "switchLanguage": "切換語言",
     "friends": "友鏈",
-    "workflows": "工作流"
+    "workflows": "工作流",
+    "pricing": "會員訂閱"
   },
   "footer": {
     "copyright": "Dreamifly 版權所有。"
@@ -418,6 +418,145 @@
       "title": "即將推出",
       "subtitle": "更多友鏈",
       "description": "更多精彩的AI工具平台即將加入"
+    }
+  },
+  "pricing": {
+    "title": "定價方案",
+    "subtitle": "選擇最適合您的方案，開啟AI創作之旅",
+    "heroLabel": "會員訂閱",
+    "heroTitle": "為審美而生的創作力加速",
+    "heroSubtitle": "精心打磨的設計級體驗，穩定生成、高品質呈現，讓靈感與效率並行。",
+    "heroCtaSubscribe": "開通會員",
+    "heroCtaPoints": "先買積分試水",
+    "highlights": {
+      "instant": "即刻啟用",
+      "instantDesc": "開通後立即享受優先算力與權益",
+      "flexible": "自由切換",
+      "flexibleDesc": "訂閱與積分組合，按需彈性",
+      "aesthetic": "美學友好",
+      "aestheticDesc": "精選模型與細膩預設，減少反覆調參"
+    },
+    "stats": {
+      "value1": { "value": "3×", "label": "高峰期優先隊列" },
+      "value2": { "value": "3000+", "label": "開通即得積分" },
+      "value3": { "value": "24/7", "label": "全程穩定服務" }
+    },
+    "viewBenefits": "查看詳細權益對比",
+    "subscriptionTab": "訂閱會員",
+    "pointsTab": "購買積分",
+    "recommended": "推薦",
+    "popular": "熱門",
+    "perMonth": "/月",
+    "perYear": "/年",
+    "perQuarter": "/季度",
+    "bonusPoints": "立即獲得 {points} 積分",
+    "dailyDouble": "每日簽到雙倍積分",
+    "subscribe": "立即訂閱",
+    "buy": "立即購買",
+    "pointsExchange": "積分兌換比例：",
+    "points": "積分",
+    "subscriptionEmptyTitle": "還沒有訂閱方案",
+    "subscriptionEmptyDesc": "我們正在準備更好的會員權益，敬請期待。",
+    "pointsEmptyTitle": "暫無積分包",
+    "pointsEmptyDesc": "請稍後再試或聯繫支援團隊。",
+    "loginRequired": "請先登入後再購買",
+    "paymentComingSoon": "支付功能即將上線，敬請期待！",
+    "notice": "所有套餐均為虛擬商品，購買後不支援退款。如有疑問請聯繫客服。",
+    "comparison": {
+      "title": "權益對比",
+      "subtitle": "了解不同用戶類型的權益差異",
+      "feature": "權益",
+      "member": "訂閱會員",
+      "registered": "註冊用戶",
+      "guest": "未登入用戶",
+      "features": {
+        "bonusPoints": {
+          "name": "訂閱贈送積分",
+          "member": "立即獲得3000積分",
+          "registered": "-",
+          "guest": "-"
+        },
+        "dailyPoints": {
+          "name": "每日簽到積分",
+          "member": "40積分/天（雙倍）",
+          "registered": "20積分/天",
+          "guest": "不可簽到"
+        },
+        "watermark": {
+          "name": "生成浮水印",
+          "member": "無浮水印",
+          "registered": "無浮水印",
+          "guest": "攜帶網站浮水印"
+        },
+        "adFree": {
+          "name": "廣告體驗",
+          "member": "無廣告",
+          "registered": "無廣告",
+          "guest": "有廣告"
+        },
+        "speed": {
+          "name": "生成速度",
+          "member": "極速生成",
+          "registered": "高峰期較慢",
+          "guest": "需要排隊"
+        },
+        "privacy": {
+          "name": "隱私安全",
+          "member": "生成內容不公開",
+          "registered": "生成內容可能公開展示",
+          "guest": "生成內容可能公開展示"
+        }
+      }
+    }
+  },
+  "membership": {
+    "title": "會員權益",
+    "subtitle": "解鎖專屬權益，享受更多創作福利",
+    "currentMember": "您已是會員",
+    "expiresAt": "會員到期時間：{date}",
+    "renew": "續費會員",
+    "regularUser": "普通用戶",
+    "upgradeTip": "升級會員享受更多權益",
+    "upgrade": "升級會員",
+    "regularUserTitle": "普通用戶",
+    "subscribedUserTitle": "訂閱會員",
+    "free": "免費",
+    "startFrom": "¥39.9起",
+    "viewPricing": "查看訂閱方案",
+    "benefits": {
+      "title": "權益對比",
+      "dailyPoints": {
+        "name": "每日簽到積分",
+        "description": "每天登入簽到可獲得積分獎勵",
+        "regular": "20積分/天",
+        "subscribed": "40積分/天（雙倍）"
+      },
+      "bonusPoints": {
+        "name": "訂閱贈送積分",
+        "description": "訂閱後立即獲得大量積分",
+        "regular": "無",
+        "subscribed": "3000積分起"
+      },
+      "memberBadge": {
+        "name": "專屬會員標識",
+        "description": "彰顯您的會員身份"
+      },
+      "prioritySupport": {
+        "name": "優先客服支援",
+        "description": "專屬客服通道，快速響應"
+      },
+      "exclusiveFrame": {
+        "name": "專屬頭像框",
+        "description": "解鎖會員專屬頭像裝飾"
+      },
+      "adFree": {
+        "name": "無廣告體驗",
+        "description": "享受純淨無廣告的創作環境"
+      },
+      "privacy": {
+        "name": "隱私安全",
+        "description": "生成內容將不被公開"
+      }
     }
   }
 } 
