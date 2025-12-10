@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       if (productIdInt === TEST_PLAN_ID && process.env.NODE_ENV !== 'production') {
         // 本地测试计划（0.1元）
         amount = 0.1;
-        pointsAmount = 0;
+        pointsAmount = 3000; // 与正式月度会员一致的权益积分
         productName = `Dreamifly测试会员 - 本地`;
       } else {
         const plans = await db

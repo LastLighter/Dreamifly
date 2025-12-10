@@ -434,7 +434,9 @@
       "flexible": "Flexible mix",
       "flexibleDesc": "Blend subscription with on-demand credits as you need",
       "aesthetic": "Aesthetic-friendly",
-      "aestheticDesc": "Curated models and refined presets to reduce rework"
+      "aestheticDesc": "Curated models and refined presets to reduce rework",
+      "commercialSafe": "Commercial-safe",
+      "commercialSafeDesc": "Use outputs commercially with peace of mind"
     },
     "stats": {
       "value1": { "value": "3×", "label": "Priority at peak hours" },
@@ -546,8 +548,12 @@
         "description": "Dedicated support channel with fast response"
       },
       "exclusiveFrame": {
-        "name": "Exclusive Avatar Frame",
-        "description": "Unlock member-exclusive avatar decorations"
+        "name": "Commercial-safe",
+        "description": "Outputs cleared for commercial use"
+      },
+      "fastGeneration": {
+        "name": "Fast generation",
+        "description": "Access higher-priority queues for quicker results"
       },
       "adFree": {
         "name": "Ad-Free Experience",

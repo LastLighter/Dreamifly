@@ -424,17 +424,19 @@
     "title": "定價方案",
     "subtitle": "選擇最適合您的方案，開啟AI創作之旅",
     "heroLabel": "會員訂閱",
-    "heroTitle": "為審美而生的創作力加速",
+    "heroTitle": "創作力升級",
     "heroSubtitle": "精心打磨的設計級體驗，穩定生成、高品質呈現，讓靈感與效率並行。",
     "heroCtaSubscribe": "開通會員",
-    "heroCtaPoints": "先買積分試水",
+    "heroCtaPoints": "購買積分",
     "highlights": {
       "instant": "即刻啟用",
       "instantDesc": "開通後立即享受優先算力與權益",
       "flexible": "自由切換",
       "flexibleDesc": "訂閱與積分組合，按需彈性",
       "aesthetic": "美學友好",
-      "aestheticDesc": "精選模型與細膩預設，減少反覆調參"
+      "aestheticDesc": "精選模型與細膩預設，減少反覆調參",
+      "commercialSafe": "商用無憂",
+      "commercialSafeDesc": "生成內容可商用，授權合規更安心"
     },
     "stats": {
       "value1": { "value": "3×", "label": "高峰期優先隊列" },
@@ -546,8 +548,12 @@
         "description": "專屬客服通道，快速響應"
       },
       "exclusiveFrame": {
-        "name": "專屬頭像框",
-        "description": "解鎖會員專屬頭像裝飾"
+        "name": "商用無憂",
+        "description": "輸出可商用，授權合規更安心"
+      },
+      "fastGeneration": {
+        "name": "極速生成",
+        "description": "享受高優先級算力隊列，生成更快"
       },
       "adFree": {
         "name": "無廣告體驗",

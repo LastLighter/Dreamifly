@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { paymentOrder } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { queryAlipayOrder } from '@/lib/alipay';
+import { processOrderPaid } from '@/lib/payment';
 
 /**
  * 查询订单支付状态
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     if (!orderId) {
       return NextResponse.json(
         { error: 'Missing orderId parameter' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -44,14 +45,18 @@ export async function GET(request: NextRequest) {
     if (orders.length === 0) {
       return NextResponse.json(
         { error: 'Order not found' },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const order = orders[0];
 
     // 如果订单已支付或已失败，直接返回本地状态
-    if (order.status === 'paid' || order.status === 'failed' || order.status === 'refunded') {
+    if (
+      order.status === 'paid' ||
+      order.status === 'failed' ||
+      order.status === 'refunded'
+    ) {
       return NextResponse.json({
         success: true,
         order: {
@@ -72,23 +77,52 @@ export async function GET(request: NextRequest) {
       });
 
       if (alipayResult.code === '10000') {
-        // 查询成功
-        const tradeStatus = alipayResult.trade_status;
+        // 查询成功（兼容 SDK 返回的两种大小写字段）
+        const tradeStatus =
+          alipayResult.trade_status ||
+          (alipayResult as any).tradeStatus ||
+          undefined;
+        const tradeNo =
+          alipayResult.trade_no || (alipayResult as any).tradeNo || undefined;
+        const totalAmountStr =
+          alipayResult.total_amount ||
+          (alipayResult as any).totalAmount ||
+          undefined;
 
         if (tradeStatus === 'TRADE_SUCCESS' || tradeStatus === 'TRADE_FINISHED') {
-          // 支付成功，但本地还是pending（可能异步通知延迟）
-          // 这里只返回状态，不更新数据库，让异步通知处理
-          return NextResponse.json({
-            success: true,
-            order: {
-              id: order.id,
-              status: 'processing', // 告诉前端正在处理中
-              orderType: order.orderType,
-              amount: order.amount,
-              pointsAmount: order.pointsAmount,
-              alipayStatus: tradeStatus,
-            },
-          });
+          try {
+            const paidResult = await processOrderPaid(order, {
+              tradeNo,
+              totalAmount: totalAmountStr ? parseFloat(totalAmountStr) : undefined,
+            });
+
+            return NextResponse.json({
+              success: true,
+              order: {
+                id: order.id,
+                status: 'paid',
+                orderType: order.orderType,
+                amount: order.amount,
+                pointsAmount: order.pointsAmount,
+                paidAt: paidResult.paidAt,
+                alipayStatus: tradeStatus,
+              },
+            });
+          } catch (err) {
+            console.error('支付宝返回成功，但处理订单失败:', err);
+            // 返回processing让前端继续轮询，等待后续处理
+            return NextResponse.json({
+              success: true,
+              order: {
+                id: order.id,
+                status: 'processing',
+                orderType: order.orderType,
+                amount: order.amount,
+                pointsAmount: order.pointsAmount,
+                alipayStatus: tradeStatus,
+              },
+            });
+          }
         } else if (tradeStatus === 'TRADE_CLOSED') {
           // 交易关闭
           await db

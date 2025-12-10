@@ -429,17 +429,19 @@
     "title": "定价方案",
     "subtitle": "选择最适合您的方案，开启AI创作之旅",
     "heroLabel": "会员订阅",
-    "heroTitle": "为审美而生的创作力加速",
+    "heroTitle": "创作力升级",
     "heroSubtitle": "精心打磨的设计级体验，稳定生成、高品质呈现，让灵感与效率并行。",
     "heroCtaSubscribe": "开通会员",
-    "heroCtaPoints": "先买积分试水",
+    "heroCtaPoints": "购买积分",
     "highlights": {
       "instant": "即刻启用",
       "instantDesc": "开通后立即享受优先算力与权益",
       "flexible": "自由切换",
       "flexibleDesc": "订阅与积分组合，按需灵活",
       "aesthetic": "美学友好",
-      "aestheticDesc": "精选模型与细腻预设，减少反复调参"
+      "aestheticDesc": "精选模型与细腻预设，减少反复调参",
+      "commercialSafe": "商用无忧",
+      "commercialSafeDesc": "生成内容可商用，授权合规更安心"
     },
     "stats": {
       "value1": { "value": "3×", "label": "高峰期优先队列" },
@@ -551,8 +553,12 @@
         "description": "专属客服通道，快速响应"
       },
       "exclusiveFrame": {
-        "name": "专属头像框",
-        "description": "解锁会员专属头像装饰"
+        "name": "商用无忧",
+        "description": "输出可商用，授权合规更安心"
+      },
+      "fastGeneration": {
+        "name": "极速生成",
+        "description": "享受高优先级算力队列，生成更快"
       },
       "adFree": {
         "name": "无广告体验",

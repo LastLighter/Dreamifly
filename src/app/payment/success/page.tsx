@@ -2,10 +2,12 @@
 
 import { Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const locale = useLocale()
   const orderId = searchParams.get('orderId')
 
   return (
@@ -32,7 +34,7 @@ function PaymentSuccessContent() {
           返回首页
         </button>
         <button
-          onClick={() => router.push('/[locale]/profile')}
+          onClick={() => router.push(`/${locale}/profile`)}
           className="px-4 py-2 rounded-lg bg-white border border-orange-200 text-orange-700 font-semibold shadow-sm hover:bg-orange-50 transition"
         >
           查看账户

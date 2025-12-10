@@ -38,10 +38,12 @@ export default function PricingPage() {
   const [activeTab, setActiveTab] = useState<'subscription' | 'points'>('subscription')
   const [, setSelectedPlan] = useState<number | null>(null)
   const [, setSelectedPackage] = useState<number | null>(null)
-  const [, setPayingPlanId] = useState<number | null>(null)
-  const [, setPayingPackageId] = useState<number | null>(null)
+  const [payingPlanId, setPayingPlanId] = useState<number | null>(null)
+  const [payingPackageId, setPayingPackageId] = useState<number | null>(null)
   const comparisonRef = useRef<HTMLDivElement | null>(null)
   const pollingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const isCreatingOrder = payingPlanId !== null || payingPackageId !== null
 
   const highlightPills = [
     {
@@ -58,6 +60,11 @@ export default function PricingPage() {
       title: t('highlights.aesthetic'),
       desc: t('highlights.aestheticDesc'),
       accent: 'from-orange-500/80 to-pink-500/80',
+    },
+    {
+      title: t('highlights.commercialSafe'),
+      desc: t('highlights.commercialSafeDesc'),
+      accent: 'from-emerald-400/80 to-teal-400/80',
     },
   ]
 
@@ -270,6 +277,10 @@ export default function PricingPage() {
       console.error('创建订单失败:', error)
       setPayingPlanId(null)
       setPayingPackageId(null)
+    } finally {
+      // 创建订单期间展示加载提示，完成后恢复按钮
+      setPayingPlanId((prev) => (options.orderType === 'subscription' && prev === options.productId ? null : prev))
+      setPayingPackageId((prev) => (options.orderType === 'points' && prev === options.productId ? null : prev))
     }
   }
 
@@ -364,14 +375,6 @@ export default function PricingPage() {
                     <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm.75 4a.75.75 0 10-1.5 0v2.25H7a.75.75 0 100 1.5h2.25V12a.75.75 0 101.5 0V9.75H13a.75.75 0 100-1.5h-2.25V6z" />
                   </svg>
                   {t('heroCtaPoints')}
-                </button>
-                <button
-                  type="button"
-                  onClick={scrollToComparison}
-                  className="flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 text-xs text-gray-600 shadow-sm transition hover:text-orange-600"
-                >
-                  <span className="h-1.5 w-6 rounded-full bg-gradient-to-r from-orange-400 to-amber-400" />
-                  {t('comparison.subtitle')}
                 </button>
               </div>
 
@@ -569,13 +572,29 @@ export default function PricingPage() {
 
                     <button
                       onClick={() => handleSubscribe(plan.id)}
+                      disabled={isCreatingOrder}
+                      aria-busy={payingPlanId === plan.id}
                       className={`w-full rounded-xl py-3 text-sm font-semibold transition ${
                         plan.type === 'yearly'
                           ? 'bg-gradient-to-r from-orange-500 to-amber-400 text-white shadow-lg hover:shadow-xl'
                           : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                      }`}
+                      } ${isCreatingOrder ? 'cursor-not-allowed opacity-80' : ''}`}
                     >
-                      {t('subscribe')}
+                      {payingPlanId === plan.id ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          请稍后…
+                        </span>
+                      ) : (
+                        t('subscribe')
+                      )}
                     </button>
                   </div>
                 </div>
@@ -699,13 +718,29 @@ export default function PricingPage() {
 
                     <button
                       onClick={() => handleBuyPoints(pkg.id)}
+                      disabled={isCreatingOrder}
+                      aria-busy={payingPackageId === pkg.id}
                       className={`w-full rounded-xl py-2.5 text-sm font-semibold transition ${
                         pkg.isPopular
                           ? 'bg-gradient-to-r from-orange-500 to-amber-400 text-white shadow-lg hover:shadow-xl'
                           : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
-                      }`}
+                      } ${isCreatingOrder ? 'cursor-not-allowed opacity-80' : ''}`}
                     >
-                      {t('buy')}
+                      {payingPackageId === pkg.id ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          请稍后…
+                        </span>
+                      ) : (
+                        t('buy')
+                      )}
                     </button>
                   </div>
                 </div>
