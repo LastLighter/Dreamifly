@@ -308,6 +308,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   const handleOptimizePrompt = async () => {
     console.log('优化提示词按钮被点击');
     console.log('当前提示词:', prompt);
+    console.log('当前模型:', model);
     
     if (!prompt.trim()) {
       console.log('提示词为空，无法优化');
@@ -320,7 +321,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
     console.log('开始优化提示词...');
     setIsOptimizing(true);
     try {
-      const optimizedPrompt = await optimizePrompt(prompt);
+      const optimizedPrompt = await optimizePrompt(prompt, model);
       console.log('优化成功，结果:', optimizedPrompt);
       setPrompt(optimizedPrompt);
     } catch (error) {
