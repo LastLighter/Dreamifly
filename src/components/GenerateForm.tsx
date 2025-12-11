@@ -71,9 +71,18 @@ export default function GenerateForm({
   const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
   const [modelsLoading, setModelsLoading] = useState(true)
   const [isQueuing, setIsQueuing] = useState(false)
+  const [modelBaseCost, setModelBaseCost] = useState<number | null>(null)
+  const previousModelRef = useRef<string>(model)
   
   // 获取未登录用户延迟时间（秒）
   const unauthDelay = parseInt(process.env.NEXT_PUBLIC_UNAUTHENTICATED_USER_DELAY || '20', 10)
+
+  // 计算额外消耗（无额度时，只显示基础积分）
+  const calculateExtraCost = (baseCost: number | null): number => {
+    if (baseCost === null) return 0;
+    // 只返回基础积分，不考虑高步数和高质量的影响
+    return baseCost;
+  }
 
   // 获取标签样式的函数
   const getTagStyle = (tag: string) => {
@@ -122,6 +131,26 @@ export default function GenerateForm({
 
     loadModels();
   }, []);
+
+  // 获取模型基础积分消耗
+  useEffect(() => {
+    const fetchModelBaseCost = async () => {
+      try {
+        const response = await fetch(`/api/points/model-base-cost?modelId=${encodeURIComponent(model)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setModelBaseCost(data.baseCost);
+        } else {
+          setModelBaseCost(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch model base cost:', error);
+        setModelBaseCost(null);
+      }
+    };
+
+    fetchModelBaseCost();
+  }, [model]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -231,13 +260,18 @@ export default function GenerateForm({
 
   // 当模型切换时，自动调整步数和分辨率到新模型的默认值
   useEffect(() => {
+    // 只在模型真正改变时执行调整逻辑
+    if (previousModelRef.current === model) {
+      return;
+    }
+    
     const thresholds = getModelThresholds(model);
     
-    // 如果模型支持步数修改，且当前步数不在允许范围内，则调整为普通步数
+    // 如果模型支持步数修改，切换到新模型时总是设置为普通步数
+    // 这样可以避免切换到新模型时自动选择高步数
     if (thresholds.normalSteps !== null && thresholds.highSteps !== null) {
-      if (steps !== thresholds.normalSteps && steps !== thresholds.highSteps) {
-        setSteps(thresholds.normalSteps);
-      }
+      // 无论当前步数是什么，切换到新模型时都设置为普通步数
+      setSteps(thresholds.normalSteps);
     }
     
     // 如果模型支持分辨率修改，且当前分辨率不在允许范围内，则调整为普通分辨率
@@ -246,7 +280,6 @@ export default function GenerateForm({
       const normalPixels = thresholds.normalResolutionPixels;
       const highPixels = thresholds.highResolutionPixels;
       const normalSize = Math.sqrt(normalPixels);
-      const highSize = Math.sqrt(highPixels);
       
       // 如果当前分辨率不在允许范围内，调整为普通分辨率
       if (totalPixels !== normalPixels && totalPixels !== highPixels) {
@@ -254,7 +287,10 @@ export default function GenerateForm({
         setHeight(Math.round(normalSize));
       }
     }
-  }, [model, steps, width, height, setSteps, setWidth, setHeight]);
+    
+    // 更新上一次的模型
+    previousModelRef.current = model;
+  }, [model, width, height, setSteps, setWidth, setHeight]); // 移除 steps 依赖，避免循环触发
 
   // Add click outside handler for dropdown
   useEffect(() => {
@@ -787,6 +823,11 @@ export default function GenerateForm({
                 )}
               </div>
               <p className="mt-2 text-sm text-gray-600/80">{t('form.model.hint')}</p>
+              {modelBaseCost !== null && (
+                <p className="mt-1 text-sm text-amber-600/90">
+                  若当前无额度将额外消耗{calculateExtraCost(modelBaseCost)}积分
+                </p>
+              )}
             </div>
           </div>
 
