@@ -9,6 +9,7 @@ import { optimizePrompt } from '../utils/promptOptimizer'
 import { useSession } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { getModelThresholds } from '@/utils/modelConfig'
+import { usePoints } from '@/contexts/PointsContext'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
@@ -19,6 +20,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   const t = useTranslations('home.generate')
   const tHome = useTranslations('home')
   const { data: session, isPending } = useSession()
+  const { refreshPoints } = usePoints()
   const [prompt, setPrompt] = useState(initialPrompt || '');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [width, setWidth] = useState(1024);
@@ -305,6 +307,13 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
                 return newStatuses;
               });
               
+              // 刷新积分显示（如果用户已登录）
+              if (session?.user) {
+                refreshPoints().catch(err => {
+                  console.error('Failed to refresh points:', err);
+                });
+              }
+              
               resolve();
             };
             img.src = data.imageUrl;
@@ -469,6 +478,14 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             startTime,
             endTime
           }]);
+          
+          // 刷新积分显示（如果用户已登录）
+          if (session?.user) {
+            refreshPoints().catch(err => {
+              console.error('Failed to refresh points:', err);
+            });
+          }
+          
           resolve();
         };
         img.src = data.imageUrl;
