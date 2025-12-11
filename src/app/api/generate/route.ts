@@ -421,15 +421,35 @@ export async function POST(request: Request) {
       generationId = concurrencyManager.start(userId);
     }
     
+    // 解析请求体（需要在延迟之前解析，以便检查图改图模型的登录限制）
+    const body = await request.json()
+    const { prompt, width, height, steps, seed, batch_size, model, images, negative_prompt } = body
+    
+    // 检查图改图模型的登录限制
+    // 如果用户未登录且使用图改图模型（有上传图片且模型支持I2I），返回401
+    if (!session?.user && images && images.length > 0) {
+      // 检查模型是否支持I2I（图改图）
+      const i2iModels = ['Qwen-Image-Edit', 'Flux-Dev', 'Flux-Kontext']
+      if (i2iModels.includes(model)) {
+        // 清理已增加的并发计数
+        if (clientIP) {
+          await ipConcurrencyManager.end(clientIP).catch(err => {
+            console.error('Error decrementing IP concurrency after I2I login check:', err)
+          })
+        }
+        return NextResponse.json({ 
+          error: '图改图功能仅限登录用户使用，请先登录后再使用',
+          code: 'LOGIN_REQUIRED_FOR_I2I'
+        }, { status: 401 })
+      }
+    }
+    
     // 如果用户未登录，添加延迟（未登录用户不受用户并发限制）
     // 注意：未登录用户的IP并发计数已在前面增加，所以排队期间也算IP并发
     if (!session?.user) {
       const unauthDelay = parseInt(process.env.UNAUTHENTICATED_USER_DELAY || '20', 10)
       await new Promise(resolve => setTimeout(resolve, unauthDelay * 1000))
     }
-
-    const body = await request.json()
-    const { prompt, width, height, steps, seed, batch_size, model, images, negative_prompt } = body
 
     // 验证输入
     if (width < 64 || width > 1440 || height < 64 || height > 1440) {
