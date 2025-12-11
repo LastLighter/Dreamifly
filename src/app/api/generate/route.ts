@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { generateImage } from '@/utils/comfyApi'
 import { db } from '@/db'
-import { siteStats, modelUsageStats, user, userLimitConfig, ipBlacklist } from '@/db/schema'
+import { siteStats, modelUsageStats, user, userLimitConfig, ipBlacklist, ipDailyUsage } from '@/db/schema'
 import { eq, sql, and, lt } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
@@ -179,6 +179,261 @@ export async function POST(request: Request) {
             currentConcurrency: currentInfo?.currentConcurrency || 0,
             maxConcurrency: ipMaxConcurrency
           }, { status: 429 })
+        }
+      }
+    }
+    
+    // 如果用户未登录，检查IP每日调用次数限制
+    if (!session?.user && clientIP) {
+      // 获取未登录用户IP每日限额配置（优先使用数据库配置，否则使用环境变量，最后使用默认值100）
+      let maxDailyRequests: number;
+      try {
+        const config = await db.select()
+          .from(userLimitConfig)
+          .where(eq(userLimitConfig.id, 1))
+          .limit(1);
+        
+        if (config.length > 0) {
+          const configData = config[0];
+          const dbUnauthLimit = configData.unauthenticatedIpDailyLimit;
+          const envUnauthLimit = parseInt(process.env.UNAUTHENTICATED_IP_DAILY_LIMIT || '100', 10);
+          maxDailyRequests = dbUnauthLimit ?? envUnauthLimit;
+        } else {
+          // 配置不存在，使用环境变量或默认值
+          maxDailyRequests = parseInt(process.env.UNAUTHENTICATED_IP_DAILY_LIMIT || '100', 10);
+        }
+      } catch (error) {
+        // 如果查询配置失败，使用环境变量或默认值作为后备
+        console.error('Error fetching unauthenticated IP limit config:', error);
+        maxDailyRequests = parseInt(process.env.UNAUTHENTICATED_IP_DAILY_LIMIT || '100', 10);
+      }
+      
+      // 获取或创建IP每日使用记录
+      // 注意：ipDailyUsage.lastRequestResetDate 是 timestamp（不带时区），不是 timestamptz
+      // 所以不需要使用 AT TIME ZONE 转换，直接查询即可
+      let ipUsageRecord = await db.select({
+        ipAddress: ipDailyUsage.ipAddress,
+        dailyRequestCount: ipDailyUsage.dailyRequestCount,
+        lastRequestResetDate: ipDailyUsage.lastRequestResetDate,
+      })
+        .from(ipDailyUsage)
+        .where(eq(ipDailyUsage.ipAddress, clientIP))
+        .limit(1);
+      
+      // 辅助函数：获取指定日期在东八区的年月日和时分秒
+      const getShanghaiDateTime = (date: Date) => {
+        // 验证日期是否有效
+        if (!date || isNaN(date.getTime())) {
+          throw new Error('Invalid date value');
+        }
+        const parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Shanghai',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }).formatToParts(date);
+        
+        return {
+          year: parseInt(parts.find(p => p.type === 'year')!.value),
+          month: parseInt(parts.find(p => p.type === 'month')!.value) - 1,
+          day: parseInt(parts.find(p => p.type === 'day')!.value),
+          hour: parseInt(parts.find(p => p.type === 'hour')!.value),
+          minute: parseInt(parts.find(p => p.type === 'minute')!.value),
+          second: parseInt(parts.find(p => p.type === 'second')!.value)
+        };
+      };
+      
+      // 辅助函数：根据东八区时间计算重置日期
+      // 未登录用户的重置时间是东八区凌晨4点（UTC 20点）
+      // 如果当前时间 >= 今天4点，重置日期是今天
+      // 如果当前时间 < 今天4点，重置日期是昨天
+      const getResetDate = (shanghaiDateTime: { year: number; month: number; day: number; hour: number; minute: number; second: number }) => {
+        const resetHour = 4; // 东八区凌晨4点
+        let resetYear = shanghaiDateTime.year;
+        let resetMonth = shanghaiDateTime.month;
+        let resetDay = shanghaiDateTime.day;
+        
+        // 如果当前时间还没到今天的4点，重置日期是昨天
+        if (shanghaiDateTime.hour < resetHour) {
+          // 计算昨天的日期
+          const yesterday = new Date(Date.UTC(resetYear, resetMonth, resetDay));
+          yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+          resetYear = yesterday.getUTCFullYear();
+          resetMonth = yesterday.getUTCMonth();
+          resetDay = yesterday.getUTCDate();
+        }
+        
+        return {
+          year: resetYear,
+          month: resetMonth,
+          day: resetDay
+        };
+      };
+      
+      const now = new Date();
+      const nowShanghai = getShanghaiDateTime(now);
+      const currentResetDate = getResetDate(nowShanghai);
+      const currentResetDateUTC = new Date(Date.UTC(
+        currentResetDate.year,
+        currentResetDate.month,
+        currentResetDate.day
+      ));
+      
+      if (ipUsageRecord.length === 0) {
+        // 创建新记录
+        // 注意：所有 timestamp 字段都需要明确使用 UTC 时间存储
+        await db.insert(ipDailyUsage).values({
+          ipAddress: clientIP,
+          dailyRequestCount: 0,
+          lastRequestResetDate: sql`(now() at time zone 'UTC')`,
+          createdAt: sql`(now() at time zone 'UTC')`,
+          updatedAt: sql`(now() at time zone 'UTC')`,
+        });
+        ipUsageRecord = await db.select({
+          ipAddress: ipDailyUsage.ipAddress,
+          dailyRequestCount: ipDailyUsage.dailyRequestCount,
+          lastRequestResetDate: ipDailyUsage.lastRequestResetDate,
+        })
+          .from(ipDailyUsage)
+          .where(eq(ipDailyUsage.ipAddress, clientIP))
+          .limit(1);
+      }
+      
+      if (ipUsageRecord.length > 0) {
+        const ipUsageData = ipUsageRecord[0];
+        
+        // 检查是否需要重置每日计数（使用东八区时区判断）
+        // 注意：ipDailyUsage.lastRequestResetDate 是 timestamp（不带时区），存储的是 UTC 时间
+        // 需要将其解析为 UTC 时间的 Date 对象
+        let lastResetDate: Date | null = null;
+        if (ipUsageData.lastRequestResetDate) {
+          try {
+            // timestamp 字段返回的可能是 Date 对象或字符串
+            // 由于存储的是 UTC 时间，需要将其解析为 UTC 时间
+            let dateValue: Date;
+            if (ipUsageData.lastRequestResetDate instanceof Date) {
+              // 如果是 Date 对象，直接使用（JavaScript Date 内部存储为 UTC 时间戳）
+              dateValue = ipUsageData.lastRequestResetDate;
+            } else {
+              // 处理字符串格式
+              // 由于存储的是 UTC 时间（不带时区），PostgreSQL 可能返回带时区信息的字符串
+              // 但实际值应该是 UTC 时间，需要将其解析为 UTC
+              const dateStr = String(ipUsageData.lastRequestResetDate);
+              // 移除时区信息（如果有），因为存储的是 UTC 时间
+              // 格式可能是 '2025-12-11 20:57:41.182572' 或 '2025-12-11 20:57:41.182572+08'
+              let cleanDateStr = dateStr;
+              // 如果包含时区信息，移除它（因为存储的是 UTC，时区信息是会话时区，不是实际存储的时区）
+              if (dateStr.includes('+') || dateStr.match(/-\d{2}(:\d{2})?$/)) {
+                // 移除时区部分（+08 或 +08:00 或 -05:00）
+                cleanDateStr = dateStr.replace(/[+-]\d{2}(:\d{2})?$/, '').trim();
+              }
+              // 将空格替换为 T，添加 Z 表示 UTC
+              const isoStr = cleanDateStr.replace(' ', 'T') + 'Z';
+              dateValue = new Date(isoStr);
+            }
+            // 验证日期是否有效
+            if (!isNaN(dateValue.getTime())) {
+              lastResetDate = dateValue;
+            } else {
+              console.error('Invalid date value:', ipUsageData.lastRequestResetDate);
+            }
+          } catch (error) {
+            console.error('Error parsing date:', ipUsageData.lastRequestResetDate, error);
+          }
+        }
+        // 计算上次重置时间对应的重置日期
+        let lastResetDateUTC: Date | null = null;
+        
+        if (lastResetDate) {
+          try {
+            const lastResetShanghai = getShanghaiDateTime(lastResetDate);
+            const lastResetDateInfo = getResetDate(lastResetShanghai);
+            lastResetDateUTC = new Date(Date.UTC(
+              lastResetDateInfo.year,
+              lastResetDateInfo.month,
+              lastResetDateInfo.day
+            ));
+          } catch (error) {
+            console.error('Error getting reset date from lastResetDate:', lastResetDate, error);
+            // 如果日期解析失败，视为需要重置
+            lastResetDateUTC = null;
+          }
+        }
+        
+        let currentCount = ipUsageData.dailyRequestCount || 0;
+        // 比较当前重置日期和上次重置日期是否相同
+        const needsReset = !lastResetDateUTC || lastResetDateUTC.getTime() !== currentResetDateUTC.getTime();
+        
+        // 如果上次重置日期不是今天（东八区），重置计数
+        if (needsReset) {
+          currentCount = 0;
+          // 注意：所有 timestamp 字段都需要明确使用 UTC 时间存储
+          await db
+            .update(ipDailyUsage)
+            .set({
+              dailyRequestCount: 0,
+              lastRequestResetDate: sql`(now() at time zone 'UTC')`,
+              updatedAt: sql`(now() at time zone 'UTC')`,
+            })
+            .where(eq(ipDailyUsage.ipAddress, clientIP));
+        }
+        
+        // 检查是否超过每日限制
+        if (currentCount >= maxDailyRequests) {
+          // 清理已增加的IP并发计数
+          await ipConcurrencyManager.end(clientIP).catch(err => {
+            console.error('Error decrementing IP concurrency after daily limit check:', err)
+          })
+          return NextResponse.json({ 
+            error: `今日生图次数已达上限。未登录用户每日可使用${maxDailyRequests}次生图功能。`,
+            code: 'IP_DAILY_LIMIT_EXCEEDED',
+            dailyCount: currentCount,
+            maxDailyRequests
+          }, { status: 429 });
+        }
+        
+        // 使用条件更新确保并发安全：只有在 dailyRequestCount < maxDailyRequests 时才更新
+        // 注意：所有 timestamp 字段都需要明确使用 UTC 时间存储
+        const updateResult = await db
+          .update(ipDailyUsage)
+          .set({
+            dailyRequestCount: sql`${ipDailyUsage.dailyRequestCount} + 1`,
+            updatedAt: sql`(now() at time zone 'UTC')`,
+          })
+          .where(
+            and(
+              eq(ipDailyUsage.ipAddress, clientIP),
+              lt(ipDailyUsage.dailyRequestCount, maxDailyRequests)
+            )
+          )
+          .returning({ dailyRequestCount: ipDailyUsage.dailyRequestCount });
+        
+        // 如果更新失败（返回空数组），说明已经达到或超过限制
+        if (updateResult.length === 0) {
+          // 重新查询当前计数以获取准确值
+          const currentIpUsageData = await db
+            .select({ dailyRequestCount: ipDailyUsage.dailyRequestCount })
+            .from(ipDailyUsage)
+            .where(eq(ipDailyUsage.ipAddress, clientIP))
+            .limit(1);
+          
+          const finalCount = currentIpUsageData[0]?.dailyRequestCount || 0;
+          
+          // 清理已增加的IP并发计数
+          await ipConcurrencyManager.end(clientIP).catch(err => {
+            console.error('Error decrementing IP concurrency after daily limit check:', err)
+          })
+          
+          return NextResponse.json({ 
+            error: `今日生图次数已达上限。未登录用户每日可使用${maxDailyRequests}次生图功能。`,
+            code: 'IP_DAILY_LIMIT_EXCEEDED',
+            dailyCount: finalCount,
+            maxDailyRequests
+          }, { status: 429 });
         }
       }
     }

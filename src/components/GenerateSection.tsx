@@ -242,7 +242,8 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             const errorCode = errorData.code;
             
             // 根据错误代码区分错误类型
-            if (errorCode === 'DAILY_LIMIT_EXCEEDED') {
+            // 支持 DAILY_LIMIT_EXCEEDED（登录用户）和 IP_DAILY_LIMIT_EXCEEDED（未登录用户）
+            if (errorCode === 'DAILY_LIMIT_EXCEEDED' || errorCode === 'IP_DAILY_LIMIT_EXCEEDED') {
               setErrorType('daily_limit');
             } else {
               setErrorType('concurrency');
@@ -251,7 +252,8 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             setConcurrencyError(errorMessage);
             setShowErrorModal(true);
             setIsGenerating(false);
-            throw new Error(errorCode === 'DAILY_LIMIT_EXCEEDED' ? 'DAILY_LIMIT' : 'CONCURRENCY_LIMIT');
+            const isDailyLimit = errorCode === 'DAILY_LIMIT_EXCEEDED' || errorCode === 'IP_DAILY_LIMIT_EXCEEDED';
+            throw new Error(isDailyLimit ? 'DAILY_LIMIT' : 'CONCURRENCY_LIMIT');
           }
 
           if (res.status !== 200) {
@@ -405,7 +407,9 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
         const errorCode = errorData.code;
         
         // 根据错误代码区分错误类型
-        if (errorCode === 'DAILY_LIMIT_EXCEEDED') {
+        // 支持 DAILY_LIMIT_EXCEEDED（登录用户）和 IP_DAILY_LIMIT_EXCEEDED（未登录用户）
+        const isDailyLimit = errorCode === 'DAILY_LIMIT_EXCEEDED' || errorCode === 'IP_DAILY_LIMIT_EXCEEDED';
+        if (isDailyLimit) {
           setErrorType('daily_limit');
         } else {
           setErrorType('concurrency');
@@ -416,7 +420,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
         setIsGenerating(false);
         setImageStatuses([{
           status: 'error',
-          message: errorCode === 'DAILY_LIMIT_EXCEEDED' ? '每日限额已满' : '并发限制'
+          message: isDailyLimit ? '每日限额已满' : '并发限制'
         }]);
         return;
       }

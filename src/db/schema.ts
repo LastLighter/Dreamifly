@@ -92,6 +92,7 @@ export const userLimitConfig = pgTable("user_limit_config", {
   regularUserDailyLimit: integer("regular_user_daily_limit"), // 普通用户每日限额，null表示使用环境变量
   premiumUserDailyLimit: integer("premium_user_daily_limit"), // 优质用户每日限额，null表示使用环境变量
   newUserDailyLimit: integer("new_user_daily_limit"), // 新用户每日限额，null表示使用环境变量
+  unauthenticatedIpDailyLimit: integer("unauthenticated_ip_daily_limit"), // 未登录用户IP每日限额，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -121,6 +122,15 @@ export const ipRegistrationLimit = pgTable("ip_registration_limit", {
   registrationCount: integer("registration_count").default(0).notNull(), // 注册次数
   firstRegistrationAt: timestamp("first_registration_at"), // 第一次注册时间，用于计算24小时窗口
   lastRegistrationAt: timestamp("last_registration_at"), // 最后一次注册时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+});
+
+// 未登录用户IP每日调用记录表
+export const ipDailyUsage = pgTable("ip_daily_usage", {
+  ipAddress: text("ip_address").primaryKey(), // IP地址作为主键
+  dailyRequestCount: integer("daily_request_count").default(0).notNull(), // 当日请求次数
+  lastRequestResetDate: timestamp("last_request_reset_date").defaultNow().notNull(), // 上次重置请求次数的日期（类型为 timestamptz）
   updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
   createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
 });

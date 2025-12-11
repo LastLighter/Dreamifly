@@ -45,6 +45,8 @@ export async function GET() {
         id: 1,
         regularUserDailyLimit: null,
         premiumUserDailyLimit: null,
+        newUserDailyLimit: null,
+        unauthenticatedIpDailyLimit: null,
       });
       config = await db.select()
         .from(userLimitConfig)
@@ -54,22 +56,26 @@ export async function GET() {
 
     const configData = config[0];
     
-    // 获取环境变量默认值（优质300，首批100，新用户50）
+    // 获取环境变量默认值（优质300，首批100，新用户50，未登录IP 100）
     const envRegularLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
     const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
     const envNewLimit = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
+    const envUnauthIpLimit = parseInt(process.env.UNAUTHENTICATED_IP_DAILY_LIMIT || '100', 10);
 
     return NextResponse.json(
       {
         regularUserDailyLimit: configData.regularUserDailyLimit ?? envRegularLimit,
         premiumUserDailyLimit: configData.premiumUserDailyLimit ?? envPremiumLimit,
         newUserDailyLimit: configData.newUserDailyLimit ?? envNewLimit,
+        unauthenticatedIpDailyLimit: configData.unauthenticatedIpDailyLimit ?? envUnauthIpLimit,
         usingEnvRegular: configData.regularUserDailyLimit === null,
         usingEnvPremium: configData.premiumUserDailyLimit === null,
         usingEnvNew: configData.newUserDailyLimit === null,
+        usingEnvUnauthIp: configData.unauthenticatedIpDailyLimit === null,
         envRegularLimit,
         envPremiumLimit,
         envNewLimit,
+        envUnauthIpLimit,
       },
       {
         headers: {
@@ -121,9 +127,11 @@ export async function PATCH(request: NextRequest) {
       regularUserDailyLimit,
       premiumUserDailyLimit,
       newUserDailyLimit,
+      unauthenticatedIpDailyLimit,
       useEnvForRegular,
       useEnvForPremium,
       useEnvForNew,
+      useEnvForUnauthIp,
     } = body;
 
     // 验证参数
@@ -154,6 +162,15 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    if (useEnvForUnauthIp !== true && useEnvForUnauthIp !== false && unauthenticatedIpDailyLimit !== undefined) {
+      if (typeof unauthenticatedIpDailyLimit !== 'number' || unauthenticatedIpDailyLimit < 0) {
+        return NextResponse.json(
+          { error: '未登录用户IP限额必须是大于等于0的数字' },
+          { status: 400 }
+        );
+      }
+    }
+
     // 检查配置是否存在
     const config = await db.select()
       .from(userLimitConfig)
@@ -166,6 +183,8 @@ export async function PATCH(request: NextRequest) {
         id: 1,
         regularUserDailyLimit: null,
         premiumUserDailyLimit: null,
+        newUserDailyLimit: null,
+        unauthenticatedIpDailyLimit: null,
       });
     }
 
@@ -174,6 +193,7 @@ export async function PATCH(request: NextRequest) {
       regularUserDailyLimit?: number | null;
       premiumUserDailyLimit?: number | null;
       newUserDailyLimit?: number | null;
+      unauthenticatedIpDailyLimit?: number | null;
       updatedAt: Date;
     } = {
       updatedAt: new Date(),
@@ -195,6 +215,12 @@ export async function PATCH(request: NextRequest) {
       updateData.newUserDailyLimit = null;
     } else if (newUserDailyLimit !== undefined) {
       updateData.newUserDailyLimit = newUserDailyLimit;
+    }
+
+    if (useEnvForUnauthIp === true) {
+      updateData.unauthenticatedIpDailyLimit = null;
+    } else if (unauthenticatedIpDailyLimit !== undefined) {
+      updateData.unauthenticatedIpDailyLimit = unauthenticatedIpDailyLimit;
     }
 
     // 更新配置
