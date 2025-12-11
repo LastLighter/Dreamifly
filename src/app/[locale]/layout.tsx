@@ -144,6 +144,6 @@ export default async function LocaleLayout({
           </PointsProvider>
         </NextIntlClientProvider>
       </body>
-    </html >
+    </html>
   )
 }
