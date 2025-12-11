@@ -3,6 +3,7 @@ import { userPoints, pointsConfig } from '@/db/schema';
 import { eq, and, gte, lt, sql, inArray, isNotNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { getModelThresholds } from '@/utils/modelConfig';
+import postgres from 'postgres';
 
 /**
  * 获取积分配置
@@ -151,6 +152,7 @@ export async function checkPointsSufficient(userId: string, amount: number): Pro
 /**
  * 扣除用户积分
  * 使用FIFO（先进先出）原则，优先扣除即将过期的积分
+ * 使用数据库事务和行级锁确保并发安全
  * @param userId 用户ID
  * @param amount 扣除的积分数量
  * @param description 描述
@@ -161,109 +163,153 @@ export async function deductPoints(
   amount: number,
   description: string = '积分消费'
 ): Promise<boolean> {
-  // 检查积分是否足够
-  const balance = await getPointsBalance(userId);
-  if (balance < amount) {
-    return false;
-  }
-
-  // 获取所有未过期的获得积分，按过期时间升序排列（FIFO）
-  const now = new Date();
-  const availablePoints = await db
-    .select()
-    .from(userPoints)
-    .where(
-      and(
-        eq(userPoints.userId, userId),
-        eq(userPoints.type, 'earned'),
-        isNotNull(userPoints.expiresAt),
-        gte(userPoints.expiresAt, now)
-      )
-    )
-    .orderBy(userPoints.expiresAt);
-
-  let remaining = amount;
-  const deductions: Array<{ id: string; points: number }> = [];
-
-  // 按FIFO原则扣除积分
-  for (const pointRecord of availablePoints) {
-    if (remaining <= 0) break;
-
-    const recordPoints = pointRecord.points;
-    if (recordPoints <= remaining) {
-      // 整条记录全部扣除
-      deductions.push({ id: pointRecord.id, points: recordPoints });
-      remaining -= recordPoints;
-    } else {
-      // 部分扣除（需要拆分记录）
-      deductions.push({ id: pointRecord.id, points: remaining });
-      // 更新原记录，减少积分
-      await db
-        .update(userPoints)
-        .set({ points: recordPoints - remaining })
-        .where(eq(userPoints.id, pointRecord.id));
-      remaining = 0;
-    }
-  }
-
-  // 删除已完全扣除的记录
-  // 注意：如果是今天的签到记录，即使积分用完了也要保留（用于判断今天是否已签到）
-  if (deductions.length > 0) {
-    // 计算今天的开始时间（东八区）
-    const timezoneOffsetHours = 8;
-    const timezoneOffsetMs = timezoneOffsetHours * 60 * 60 * 1000;
-    const nowUtc = new Date();
-    const gmt8Now = new Date(nowUtc.getTime() + timezoneOffsetMs);
-    const gmt8StartOfDay = new Date(gmt8Now);
-    gmt8StartOfDay.setHours(0, 0, 0, 0);
-    const utcStart = new Date(gmt8StartOfDay.getTime() - timezoneOffsetMs);
+  // 使用事务确保原子性
+  return await db.transaction(async (tx) => {
+    const now = new Date();
     
-    const idsToDelete = deductions
-      .filter(d => {
-        const originalRecord = availablePoints.find(p => p.id === d.id);
-        if (!originalRecord || originalRecord.points !== d.points) {
-          return false;
-        }
-        // 如果是今天的记录，不删除（保留用于签到判断）
-        const earnedAt = originalRecord.earnedAt;
-        if (earnedAt && earnedAt >= utcStart) {
-          // 今天的记录，即使积分用完了也保留，但将points设为0
-          db.update(userPoints)
-            .set({ points: 0 })
-            .where(eq(userPoints.id, d.id))
-            .catch(err => {
-              console.error('Error updating points to 0:', err);
-            });
-          return false;
-        }
-        return true;
-      })
-      .map(d => d.id);
+    // 使用 FOR UPDATE 锁定行，防止并发修改
+    // 获取所有未过期的获得积分，按过期时间升序排列（FIFO）
+    // 在事务中直接计算积分余额，确保使用锁定的数据
+    // 使用原生 SQL 的 FOR UPDATE 来锁定行
+    // 注意：postgres-js 的 sql 模板需要将 Date 转换为 ISO 字符串
+    const nowISO = now.toISOString();
+    const availablePointsResult = await tx
+      .execute(sql`
+        SELECT id, points, earned_at, expires_at
+        FROM user_points
+        WHERE user_id = ${userId}
+          AND type = 'earned'
+          AND expires_at IS NOT NULL
+          AND expires_at >= ${nowISO}::timestamptz
+        ORDER BY expires_at ASC
+        FOR UPDATE
+      `);
 
-    if (idsToDelete.length > 0) {
-      await db
-        .delete(userPoints)
-        .where(
-          and(
-            eq(userPoints.userId, userId),
-            inArray(userPoints.id, idsToDelete)
-          )
-        );
+    // 计算可用积分总额
+    let totalAvailable = 0;
+    const availablePoints = (availablePointsResult as any[]).map((row: any) => {
+      const points = Number(row.points);
+      totalAvailable += points;
+      return {
+        id: String(row.id),
+        points: points,
+        earnedAt: row.earned_at instanceof Date ? row.earned_at : new Date(row.earned_at),
+        expiresAt: row.expires_at instanceof Date ? row.expires_at : new Date(row.expires_at),
+      };
+    });
+
+    // 检查积分是否足够（使用锁定的数据）
+    if (totalAvailable < amount) {
+      return false;
     }
-  }
 
-  // 创建消费记录
-  await db.insert(userPoints).values({
-    id: randomUUID(),
-    userId,
-    points: -amount,
-    type: 'spent',
-    description,
-    earnedAt: new Date(),
-    expiresAt: null,
+    let remaining = amount;
+    const deductions: Array<{ id: string; points: number; originalPoints: number; earnedAt: Date }> = [];
+
+    // 按FIFO原则扣除积分
+    for (const pointRecord of availablePoints) {
+      if (remaining <= 0) break;
+
+      const recordPoints = pointRecord.points;
+      const earnedAt = pointRecord.earnedAt;
+      
+      if (recordPoints <= remaining) {
+        // 整条记录全部扣除
+        deductions.push({ 
+          id: pointRecord.id, 
+          points: recordPoints,
+          originalPoints: recordPoints,
+          earnedAt
+        });
+        remaining -= recordPoints;
+      } else {
+        // 部分扣除（需要拆分记录）
+        deductions.push({ 
+          id: pointRecord.id, 
+          points: remaining,
+          originalPoints: recordPoints,
+          earnedAt
+        });
+        // 更新原记录，减少积分
+        await tx
+          .update(userPoints)
+          .set({ points: recordPoints - remaining })
+          .where(eq(userPoints.id, pointRecord.id));
+        remaining = 0;
+      }
+    }
+
+    // 如果剩余积分不足，回滚事务
+    if (remaining > 0) {
+      throw new Error('Insufficient points');
+    }
+
+    // 删除已完全扣除的记录
+    // 注意：如果是今天的签到记录，即使积分用完了也要保留（用于判断今天是否已签到）
+    if (deductions.length > 0) {
+      // 计算今天的开始时间（东八区）
+      const timezoneOffsetHours = 8;
+      const timezoneOffsetMs = timezoneOffsetHours * 60 * 60 * 1000;
+      const nowUtc = new Date();
+      const gmt8Now = new Date(nowUtc.getTime() + timezoneOffsetMs);
+      const gmt8StartOfDay = new Date(gmt8Now);
+      gmt8StartOfDay.setHours(0, 0, 0, 0);
+      const utcStart = new Date(gmt8StartOfDay.getTime() - timezoneOffsetMs);
+      
+      const idsToDelete: string[] = [];
+      const idsToUpdate: string[] = [];
+
+      for (const d of deductions) {
+        // 如果是完全扣除的记录
+        if (d.points === d.originalPoints) {
+          // 如果是今天的记录，不删除（保留用于签到判断）
+          if (d.earnedAt >= utcStart) {
+            // 今天的记录，即使积分用完了也保留，但将points设为0
+            idsToUpdate.push(d.id);
+          } else {
+            // 不是今天的记录，可以删除
+            idsToDelete.push(d.id);
+          }
+        }
+      }
+
+      // 更新今天的记录为0（如果存在）
+      if (idsToUpdate.length > 0) {
+        await tx
+          .update(userPoints)
+          .set({ points: 0 })
+          .where(inArray(userPoints.id, idsToUpdate));
+      }
+
+      // 删除已完全扣除的非今天记录
+      if (idsToDelete.length > 0) {
+        await tx
+          .delete(userPoints)
+          .where(
+            and(
+              eq(userPoints.userId, userId),
+              inArray(userPoints.id, idsToDelete)
+            )
+          );
+      }
+    }
+
+    // 创建消费记录
+    await tx.insert(userPoints).values({
+      id: randomUUID(),
+      userId,
+      points: -amount,
+      type: 'spent',
+      description,
+      earnedAt: new Date(),
+      expiresAt: null,
+    });
+
+    return true;
+  }).catch((error) => {
+    console.error('Error deducting points:', error);
+    return false;
   });
-
-  return true;
 }
 
 /**

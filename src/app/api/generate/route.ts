@@ -9,7 +9,7 @@ import { concurrencyManager } from '@/utils/concurrencyManager'
 import { ipConcurrencyManager } from '@/utils/ipConcurrencyManager'
 import { randomUUID, createHash } from 'crypto'
 import { addWatermark } from '@/utils/watermark'
-import { getModelBaseCost, calculateGenerationCost, checkPointsSufficient, deductPoints } from '@/utils/points'
+import { getModelBaseCost, calculateGenerationCost, checkPointsSufficient, deductPoints, getPointsBalance } from '@/utils/points'
 import { getModelThresholds } from '@/utils/modelConfig'
 
 /**
@@ -788,10 +788,23 @@ export async function POST(request: Request) {
                 })
               }
               
-              return NextResponse.json({
-                error: '积分扣除失败，请稍后重试',
-                code: 'POINTS_DEDUCTION_FAILED'
-              }, { status: 500 });
+              // 再次检查积分余额，判断是积分不足还是其他错误
+              const currentBalance = await getPointsBalance(userId);
+              if (currentBalance < pointsCost) {
+                // 积分不足
+                return NextResponse.json({
+                  error: `积分不足。本次生成需要消耗 ${pointsCost} 积分，但您的积分余额不足（当前余额：${currentBalance} 积分）。`,
+                  code: 'INSUFFICIENT_POINTS',
+                  requiredPoints: pointsCost,
+                  currentBalance: currentBalance
+                }, { status: 402 }); // 402 Payment Required
+              } else {
+                // 其他错误（如数据库错误）
+                return NextResponse.json({
+                  error: '积分扣除失败，请稍后重试',
+                  code: 'POINTS_DEDUCTION_FAILED'
+                }, { status: 500 });
+              }
             }
           }
         } else if (!hasQuota) {
