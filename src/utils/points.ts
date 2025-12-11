@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { userPoints, pointsConfig } from '@/db/schema';
+import { userPoints, pointsConfig, user } from '@/db/schema';
 import { eq, and, gte, lt, sql, inArray, isNotNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { getModelThresholds } from '@/utils/modelConfig';
@@ -206,12 +206,22 @@ export async function deductPoints(
     let remaining = amount;
     const deductions: Array<{ id: string; points: number; originalPoints: number; earnedAt: Date }> = [];
 
+    // 计算今天的开始时间（东八区），用于判断是否是今天的签到记录
+    const timezoneOffsetHours = 8;
+    const timezoneOffsetMs = timezoneOffsetHours * 60 * 60 * 1000;
+    const nowUtcForToday = new Date();
+    const gmt8NowForToday = new Date(nowUtcForToday.getTime() + timezoneOffsetMs);
+    const gmt8StartOfDayForToday = new Date(gmt8NowForToday);
+    gmt8StartOfDayForToday.setHours(0, 0, 0, 0);
+    const utcStartForToday = new Date(gmt8StartOfDayForToday.getTime() - timezoneOffsetMs);
+
     // 按FIFO原则扣除积分
     for (const pointRecord of availablePoints) {
       if (remaining <= 0) break;
 
       const recordPoints = pointRecord.points;
       const earnedAt = pointRecord.earnedAt;
+      const isTodayRecord = earnedAt >= utcStartForToday;
       
       if (recordPoints <= remaining) {
         // 整条记录全部扣除
@@ -222,6 +232,9 @@ export async function deductPoints(
           earnedAt
         });
         remaining -= recordPoints;
+        
+        // 如果是今天的签到记录，即使积分用完了也要保留，但将points设为0
+        // 注意：这里不能直接更新，因为后面会统一处理
       } else {
         // 部分扣除（需要拆分记录）
         deductions.push({ 
@@ -231,9 +244,11 @@ export async function deductPoints(
           earnedAt
         });
         // 更新原记录，减少积分
+        // 如果是今天的签到记录，即使剩余积分为0也要保留
+        const newPoints = recordPoints - remaining;
         await tx
           .update(userPoints)
-          .set({ points: recordPoints - remaining })
+          .set({ points: newPoints })
           .where(eq(userPoints.id, pointRecord.id));
         remaining = 0;
       }
@@ -245,43 +260,12 @@ export async function deductPoints(
     }
 
     // 删除已完全扣除的记录
-    // 注意：如果是今天的签到记录，即使积分用完了也要保留（用于判断今天是否已签到）
+    // 现在使用 user 表的 lastDailyAwardDate 字段来判断是否已签到，所以可以正常删除记录
     if (deductions.length > 0) {
-      // 计算今天的开始时间（东八区）
-      const timezoneOffsetHours = 8;
-      const timezoneOffsetMs = timezoneOffsetHours * 60 * 60 * 1000;
-      const nowUtc = new Date();
-      const gmt8Now = new Date(nowUtc.getTime() + timezoneOffsetMs);
-      const gmt8StartOfDay = new Date(gmt8Now);
-      gmt8StartOfDay.setHours(0, 0, 0, 0);
-      const utcStart = new Date(gmt8StartOfDay.getTime() - timezoneOffsetMs);
-      
-      const idsToDelete: string[] = [];
-      const idsToUpdate: string[] = [];
+      const idsToDelete = deductions
+        .filter(d => d.points === d.originalPoints) // 只删除完全扣除的记录
+        .map(d => d.id);
 
-      for (const d of deductions) {
-        // 如果是完全扣除的记录
-        if (d.points === d.originalPoints) {
-          // 如果是今天的记录，不删除（保留用于签到判断）
-          if (d.earnedAt >= utcStart) {
-            // 今天的记录，即使积分用完了也保留，但将points设为0
-            idsToUpdate.push(d.id);
-          } else {
-            // 不是今天的记录，可以删除
-            idsToDelete.push(d.id);
-          }
-        }
-      }
-
-      // 更新今天的记录为0（如果存在）
-      if (idsToUpdate.length > 0) {
-        await tx
-          .update(userPoints)
-          .set({ points: 0 })
-          .where(inArray(userPoints.id, idsToUpdate));
-      }
-
-      // 删除已完全扣除的非今天记录
       if (idsToDelete.length > 0) {
         await tx
           .delete(userPoints)
@@ -314,39 +298,56 @@ export async function deductPoints(
 
 /**
  * 检查今天是否已发放过积分
+ * 使用 user 表的 lastDailyAwardDate 字段判断，以东八区凌晨4点作为刷新时间
  */
 export async function hasAwardedToday(userId: string): Promise<boolean> {
-  // 以东八区（GMT+8）作为“自然日”边界
+  // 获取用户信息
+  const userData = await db
+    .select({
+      lastDailyAwardDate: user.lastDailyAwardDate,
+    })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+
+  if (userData.length === 0 || !userData[0].lastDailyAwardDate) {
+    return false;
+  }
+
+  const lastAwardDate = userData[0].lastDailyAwardDate;
+
+  // 以东八区（GMT+8）凌晨4点作为"自然日"边界
   const timezoneOffsetHours = 8;
   const timezoneOffsetMs = timezoneOffsetHours * 60 * 60 * 1000;
 
   const nowUtc = new Date();
-  // 转换到东八区时间
-  const gmt8Now = new Date(nowUtc.getTime() + timezoneOffsetMs);
+  
+  // 计算当前东八区时间（用于判断是"今天"还是"昨天"）
+  const nowUtcTime = nowUtc.getTime();
+  // 计算当前东八区时间的时间戳（用于日期判断）
+  const gmt8NowTime = nowUtcTime + timezoneOffsetMs;
+  const gmt8NowDate = new Date(gmt8NowTime);
+  
+  // 获取当前东八区的年月日
+  const gmt8Year = gmt8NowDate.getUTCFullYear();
+  const gmt8Month = gmt8NowDate.getUTCMonth();
+  const gmt8Date = gmt8NowDate.getUTCDate();
+  
+  // 计算今天凌晨4点（东八区）对应的UTC时间
+  // 东八区凌晨4点 = UTC前一天20点（4 - 8 = -4，即前一天的20点）
+  let gmt8Today4AMUtc = new Date(Date.UTC(gmt8Year, gmt8Month, gmt8Date, 4 - timezoneOffsetHours, 0, 0, 0));
+  
+  // 如果当前东八区时间还没到凌晨4点，则使用昨天的凌晨4点（东八区）
+  // 判断：当前东八区时间是否 >= 今天凌晨4点（东八区）
+  // gmt8Today4AMUtc 是今天凌晨4点（东八区）对应的UTC时间
+  // 需要将其转换为东八区时间戳来比较
+  const gmt8Today4AMTime = gmt8Today4AMUtc.getTime() + timezoneOffsetMs;
+  if (gmt8NowTime < gmt8Today4AMTime) {
+    // 还没到凌晨4点，使用昨天的凌晨4点
+    gmt8Today4AMUtc = new Date(Date.UTC(gmt8Year, gmt8Month, gmt8Date - 1, 4 - timezoneOffsetHours, 0, 0, 0));
+  }
 
-  const gmt8StartOfDay = new Date(gmt8Now);
-  gmt8StartOfDay.setHours(0, 0, 0, 0);
-
-  const gmt8EndOfDay = new Date(gmt8StartOfDay);
-  gmt8EndOfDay.setDate(gmt8EndOfDay.getDate() + 1);
-
-  // 转回 UTC，用于与数据库中的 UTC 时间进行比较
-  const utcStart = new Date(gmt8StartOfDay.getTime() - timezoneOffsetMs);
-  const utcEnd = new Date(gmt8EndOfDay.getTime() - timezoneOffsetMs);
-
-  const todayAwards = await db
-    .select()
-    .from(userPoints)
-    .where(
-      and(
-        eq(userPoints.userId, userId),
-        eq(userPoints.type, 'earned'),
-        gte(userPoints.earnedAt, utcStart),
-        lt(userPoints.earnedAt, utcEnd)
-      )
-    )
-    .limit(1);
-
-  return todayAwards.length > 0;
+  // 如果最后签到时间 >= 今天凌晨4点（东八区对应的UTC时间），说明今天已签到
+  return lastAwardDate >= gmt8Today4AMUtc;
 }
 

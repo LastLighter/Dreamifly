@@ -108,6 +108,15 @@ export async function POST(request: NextRequest) {
       expiresAt,
     });
 
+    // 更新用户表的最后签到日期
+    await db
+      .update(user)
+      .set({
+        lastDailyAwardDate: earnedAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, session.user.id));
+
     return NextResponse.json({
       success: true,
       awarded: true,

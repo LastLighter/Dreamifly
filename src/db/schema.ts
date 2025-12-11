@@ -33,6 +33,7 @@ export const user = pgTable("user", {
   avatarFrameId: integer("avatar_frame_id"), // 数据库字段名: avatar_frame_id，头像框ID，为null时使用默认头像框
   isSubscribed: boolean("is_subscribed").default(false), // 是否为订阅用户
   subscriptionExpiresAt: timestamp("subscription_expires_at"), // 订阅过期时间
+  lastDailyAwardDate: timestamp("last_daily_award_date"), // 数据库字段名: last_daily_award_date，最后签到日期（东八区凌晨4点刷新）
 });
 
 export const session = pgTable("session", {
