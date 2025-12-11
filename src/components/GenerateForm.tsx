@@ -827,7 +827,7 @@ export default function GenerateForm({
                         <div className="flex items-center justify-between mb-3">
                           <label className="flex items-center text-sm font-medium text-gray-900">
                             <img src="/form/steps.svg" alt="Steps" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-                            {t('form.steps.label')}
+                            启用高步数
                           </label>
                           <button
                             type="button"
@@ -846,9 +846,6 @@ export default function GenerateForm({
                             />
                           </button>
                         </div>
-                        <p className="text-sm font-medium text-gray-900 mb-1">
-                          {isHighSteps ? '高步数' : '普通步数'}
-                        </p>
                         <p className="text-sm text-gray-600/80">
                           {isHighSteps ? '使用高步数生成，质量更高但消耗更多积分' : '使用普通步数生成，平衡速度与质量'}
                         </p>
@@ -875,7 +872,7 @@ export default function GenerateForm({
                         <div className="flex items-center justify-between mb-3">
                           <label className="flex items-center text-sm font-medium text-gray-900">
                             <img src="/form/steps.svg" alt="Resolution" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-                            分辨率
+                            启用高分辨率
                           </label>
                           <button
                             type="button"
@@ -900,9 +897,6 @@ export default function GenerateForm({
                             />
                           </button>
                         </div>
-                        <p className="text-sm font-medium text-gray-900 mb-1">
-                          {isHighResolution ? '高分辨率' : '普通分辨率'}
-                        </p>
                         <p className="text-sm text-gray-600/80">
                           {isHighResolution 
                             ? `高分辨率 ${Math.round(highSize)}×${Math.round(highSize)} 像素，画质更精细但消耗更多积分`

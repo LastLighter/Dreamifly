@@ -36,7 +36,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
     startTime?: number;
     endTime?: number;
   }>>([]);
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
