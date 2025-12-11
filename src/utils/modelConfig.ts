@@ -194,3 +194,115 @@ export function filterModelsByImageCount(
     return 0;
   });
 }
+
+/**
+ * 模型步数和分辨率阈值配置
+ * 如果某个模型的配置为 null，表示该模型不支持该选项的修改
+ */
+export interface ModelThresholds {
+  normalSteps: number | null;      // 普通步数，null表示不支持修改
+  highSteps: number | null;         // 高步数，null表示不支持修改
+  normalResolutionPixels: number | null;  // 普通分辨率总像素，null表示不支持修改
+  highResolutionPixels: number | null;     // 高分辨率总像素，null表示不支持修改
+}
+
+/**
+ * 模型步数和分辨率阈值配置表
+ */
+export const MODEL_THRESHOLDS: Record<string, ModelThresholds> = {
+  "Z-Image-Turbo": {
+    normalSteps: 10,
+    highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,      // 1048576
+    highResolutionPixels: 1416 * 1416,       // 2005056
+  },
+  "Qwen-Image-Edit": {
+    normalSteps: null,      // 不支持修改
+    highSteps: null,        // 不支持修改
+    normalResolutionPixels: null,  // 不支持修改
+    highResolutionPixels: null,    // 不支持修改
+  },
+  "Wai-SDXL-V150": {
+    normalSteps: 20,        // 低步数20
+    highSteps: 30,          // 高步数30
+    normalResolutionPixels: 1024 * 1024,      // 1048576
+    highResolutionPixels: 1416 * 1416,       // 2005056
+  },
+  // 其他模型默认配置（如果需要可以添加）
+  "Flux-Krea": {
+    normalSteps: 10,
+    highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,
+    highResolutionPixels: 1416 * 1416,
+  },
+  "Flux-Kontext": {
+    normalSteps: 10,
+    highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,
+    highResolutionPixels: 1416 * 1416,
+  },
+  "Flux-Dev": {
+    normalSteps: 10,
+    highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,
+    highResolutionPixels: 1416 * 1416,
+  },
+  "Stable-Diffusion-3.5": {
+    normalSteps: 10,
+    highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,
+    highResolutionPixels: 1416 * 1416,
+  },
+  "HiDream-full-fp8": {
+    normalSteps: 10,
+    highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,
+    highResolutionPixels: 1416 * 1416,
+  },
+  "Qwen-Image": {
+    normalSteps: 10,
+    highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,
+    highResolutionPixels: 1416 * 1416,
+  },
+  "Flux-2": {
+    normalSteps: 10,
+    highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,
+    highResolutionPixels: 1416 * 1416,
+  },
+};
+
+/**
+ * 获取模型的步数和分辨率阈值配置
+ * @param modelId 模型ID
+ * @returns 阈值配置，如果模型未配置则返回默认值
+ */
+export function getModelThresholds(modelId: string): ModelThresholds {
+  return MODEL_THRESHOLDS[modelId] || {
+    normalSteps: 10,
+    highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,
+    highResolutionPixels: 1416 * 1416,
+  };
+}
+
+/**
+ * 检查模型是否支持步数修改
+ * @param modelId 模型ID
+ * @returns 是否支持步数修改
+ */
+export function supportsStepsModification(modelId: string): boolean {
+  const thresholds = getModelThresholds(modelId);
+  return thresholds.normalSteps !== null && thresholds.highSteps !== null;
+}
+
+/**
+ * 检查模型是否支持分辨率修改
+ * @param modelId 模型ID
+ * @returns 是否支持分辨率修改
+ */
+export function supportsResolutionModification(modelId: string): boolean {
+  const thresholds = getModelThresholds(modelId);
+  return thresholds.normalResolutionPixels !== null && thresholds.highResolutionPixels !== null;
+}

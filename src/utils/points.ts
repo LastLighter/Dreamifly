@@ -2,6 +2,7 @@ import { db } from '@/db';
 import { userPoints, pointsConfig } from '@/db/schema';
 import { eq, and, gte, lt, sql, inArray, isNotNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { getModelThresholds } from '@/utils/modelConfig';
 
 /**
  * 获取积分配置
@@ -22,6 +23,11 @@ export async function getPointsConfig() {
   const envExpiryDays = parseInt(process.env.POINTS_EXPIRY_DAYS || '7', 10);
   const envRepairCost = parseInt(process.env.REPAIR_WORKFLOW_COST || '5', 10);
   const envUpscaleCost = parseInt(process.env.UPSCALE_WORKFLOW_COST || '5', 10);
+  
+  // 模型积分消耗默认值
+  const envZImageTurboCost = parseInt(process.env.Z_IMAGE_TURBO_COST || '3', 10);
+  const envQwenImageEditCost = parseInt(process.env.QWEN_IMAGE_EDIT_COST || '4', 10);
+  const envWaiSdxlV150Cost = parseInt(process.env.WAI_SDXL_V150_COST || '2', 10);
 
   return {
     regularUserDailyPoints: configData?.regularUserDailyPoints ?? envRegularPoints,
@@ -29,7 +35,82 @@ export async function getPointsConfig() {
     pointsExpiryDays: configData?.pointsExpiryDays ?? envExpiryDays,
     repairWorkflowCost: configData?.repairWorkflowCost ?? envRepairCost,
     upscaleWorkflowCost: configData?.upscaleWorkflowCost ?? envUpscaleCost,
+    zImageTurboCost: configData?.zImageTurboCost ?? envZImageTurboCost,
+    qwenImageEditCost: configData?.qwenImageEditCost ?? envQwenImageEditCost,
+    waiSdxlV150Cost: configData?.waiSdxlV150Cost ?? envWaiSdxlV150Cost,
   };
+}
+
+/**
+ * 获取模型的基础积分消耗
+ * @param modelId 模型ID
+ * @returns 基础积分消耗，如果模型未配置则返回null
+ */
+export async function getModelBaseCost(modelId: string): Promise<number | null> {
+  const config = await getPointsConfig();
+  
+  switch (modelId) {
+    case 'Z-Image-Turbo':
+      return config.zImageTurboCost;
+    case 'Qwen-Image-Edit':
+      return config.qwenImageEditCost;
+    case 'Wai-SDXL-V150':
+      return config.waiSdxlV150Cost;
+    default:
+      return null; // 其他模型未配置积分消耗
+  }
+}
+
+/**
+ * 计算图像生成的积分消耗
+ * @param baseCost 基础积分（按模型）
+ * @param modelId 模型ID
+ * @param steps 步数
+ * @param width 图像宽度
+ * @param height 图像高度
+ * @param hasQuota 是否有额度（未超出每日限额）
+ * @returns 需要扣除的积分数量
+ */
+export function calculateGenerationCost(
+  baseCost: number,
+  modelId: string,
+  steps: number,
+  width: number,
+  height: number,
+  hasQuota: boolean
+): number {
+  // 获取模型的阈值配置
+  const thresholds = getModelThresholds(modelId);
+  
+  // 判断是否为高步数
+  let isHighSteps = false;
+  if (thresholds.normalSteps !== null && thresholds.highSteps !== null) {
+    // 如果步数 >= 高步数阈值，则为高步数
+    isHighSteps = steps >= thresholds.highSteps;
+  }
+  
+  // 判断是否为高分辨率
+  let isHighResolution = false;
+  const totalPixels = width * height;
+  if (thresholds.normalResolutionPixels !== null && thresholds.highResolutionPixels !== null) {
+    // 如果总像素 > 普通分辨率阈值，则为高分辨率
+    isHighResolution = totalPixels > thresholds.normalResolutionPixels;
+  }
+  
+  // 计算总积分消耗
+  let multiplier = 1;
+  if (isHighSteps) multiplier *= 2;
+  if (isHighResolution) multiplier *= 2;
+  
+  const totalCost = baseCost * multiplier;
+  
+  // 如果有额度，只扣除额外部分（总消耗 - 基础消耗）
+  if (hasQuota) {
+    return Math.max(0, totalCost - baseCost);
+  } else {
+    // 超出额度，扣除全部积分
+    return totalCost;
+  }
 }
 
 /**
@@ -126,11 +207,36 @@ export async function deductPoints(
   }
 
   // 删除已完全扣除的记录
+  // 注意：如果是今天的签到记录，即使积分用完了也要保留（用于判断今天是否已签到）
   if (deductions.length > 0) {
+    // 计算今天的开始时间（东八区）
+    const timezoneOffsetHours = 8;
+    const timezoneOffsetMs = timezoneOffsetHours * 60 * 60 * 1000;
+    const nowUtc = new Date();
+    const gmt8Now = new Date(nowUtc.getTime() + timezoneOffsetMs);
+    const gmt8StartOfDay = new Date(gmt8Now);
+    gmt8StartOfDay.setHours(0, 0, 0, 0);
+    const utcStart = new Date(gmt8StartOfDay.getTime() - timezoneOffsetMs);
+    
     const idsToDelete = deductions
       .filter(d => {
         const originalRecord = availablePoints.find(p => p.id === d.id);
-        return originalRecord && originalRecord.points === d.points;
+        if (!originalRecord || originalRecord.points !== d.points) {
+          return false;
+        }
+        // 如果是今天的记录，不删除（保留用于签到判断）
+        const earnedAt = originalRecord.earnedAt;
+        if (earnedAt && earnedAt >= utcStart) {
+          // 今天的记录，即使积分用完了也保留，但将points设为0
+          db.update(userPoints)
+            .set({ points: 0 })
+            .where(eq(userPoints.id, d.id))
+            .catch(err => {
+              console.error('Error updating points to 0:', err);
+            });
+          return false;
+        }
+        return true;
       })
       .map(d => d.id);
 

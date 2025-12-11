@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { getAvailableModels, filterModelsByImageCount, type ModelConfig } from '@/utils/modelConfig'
+import { getAvailableModels, filterModelsByImageCount, type ModelConfig, getModelThresholds, supportsStepsModification, supportsResolutionModification } from '@/utils/modelConfig'
 
 type ModelWithAvailability = ModelConfig & { isAvailable: boolean };
 
@@ -228,6 +228,33 @@ export default function GenerateForm({
       }
     };
   }, [isGenerating, steps, width, height, model, status, unauthDelay, setIsQueuingProp]);
+
+  // 当模型切换时，自动调整步数和分辨率到新模型的默认值
+  useEffect(() => {
+    const thresholds = getModelThresholds(model);
+    
+    // 如果模型支持步数修改，且当前步数不在允许范围内，则调整为普通步数
+    if (thresholds.normalSteps !== null && thresholds.highSteps !== null) {
+      if (steps !== thresholds.normalSteps && steps !== thresholds.highSteps) {
+        setSteps(thresholds.normalSteps);
+      }
+    }
+    
+    // 如果模型支持分辨率修改，且当前分辨率不在允许范围内，则调整为普通分辨率
+    if (thresholds.normalResolutionPixels !== null && thresholds.highResolutionPixels !== null) {
+      const totalPixels = width * height;
+      const normalPixels = thresholds.normalResolutionPixels;
+      const highPixels = thresholds.highResolutionPixels;
+      const normalSize = Math.sqrt(normalPixels);
+      const highSize = Math.sqrt(highPixels);
+      
+      // 如果当前分辨率不在允许范围内，调整为普通分辨率
+      if (totalPixels !== normalPixels && totalPixels !== highPixels) {
+        setWidth(Math.round(normalSize));
+        setHeight(Math.round(normalSize));
+      }
+    }
+  }, [model, steps, width, height, setSteps, setWidth, setHeight]);
 
   // Add click outside handler for dropdown
   useEffect(() => {
@@ -788,51 +815,102 @@ export default function GenerateForm({
 
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="steps" className="flex items-center text-sm font-medium text-gray-900 mb-3">
-                      <img src="/form/steps.svg" alt="Steps" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-                      {t('form.steps.label')}
-                    </label>
-                    <div className="relative flex items-center bg-white/50 backdrop-blur-sm border border-amber-400/40 rounded-xl focus-within:ring-2 focus-within:ring-amber-400/50 focus-within:border-amber-400/50 shadow-inner transition-all duration-300">
-                      <input
-                        type="number"
-                        id="steps"
-                        value={steps}
-                        onChange={(e) => setSteps(Number(e.target.value))}
-                        className="w-full bg-transparent text-center text-gray-900 border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        min="10"
-                        max="32"
-                        disabled={status === 'loading'}
-                        ref={stepsRef}
-                      />
-                      <div className="flex items-center border-l border-orange-400/30">
-                        <button
-                          type="button"
-                          onClick={() => setSteps(Math.max(10, steps - 1))}
-                          className="px-3 text-gray-700 hover:text-gray-900 disabled:opacity-50 h-full flex items-center justify-center transition-colors"
-                          disabled={status === 'loading' || steps <= 10}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSteps(Math.min(32, steps + 1))}
-                          className="px-3 text-gray-700 hover:text-gray-900 disabled:opacity-50 h-full flex items-center justify-center transition-colors"
-                          disabled={status === 'loading' || steps >= 32}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
+                  {/* 步数开关 - 根据模型配置显示/隐藏 */}
+                  {supportsStepsModification(model) && (() => {
+                    const thresholds = getModelThresholds(model);
+                    const isHighSteps = steps >= (thresholds.highSteps || 20);
+                    const normalSteps = thresholds.normalSteps || 10;
+                    const highSteps = thresholds.highSteps || 20;
+                    
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="flex items-center text-sm font-medium text-gray-900">
+                            <img src="/form/steps.svg" alt="Steps" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
+                            {t('form.steps.label')}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSteps(isHighSteps ? normalSteps : highSteps);
+                            }}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 ${
+                              isHighSteps ? 'bg-amber-500' : 'bg-gray-300'
+                            }`}
+                            disabled={status === 'loading' || isGenerating}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                isHighSteps ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 mb-1">
+                          {isHighSteps ? '高步数' : '普通步数'}
+                        </p>
+                        <p className="text-sm text-gray-600/80">
+                          {isHighSteps ? '使用高步数生成，质量更高但消耗更多积分' : '使用普通步数生成，平衡速度与质量'}
+                        </p>
+                        {stepsError && (
+                          <p className="mt-1 text-sm text-red-400">{stepsError}</p>
+                        )}
                       </div>
-                    </div>
-                    <p className="mt-2 text-sm text-gray-600/80">{t('form.steps.hint')}</p>
-                    {stepsError && (
-                      <p className="mt-1 text-sm text-red-400">{stepsError}</p>
-                    )}
-                  </div>
+                    );
+                  })()}
+
+                  {/* 分辨率开关 - 根据模型配置显示/隐藏 */}
+                  {supportsResolutionModification(model) && (() => {
+                    const thresholds = getModelThresholds(model);
+                    const totalPixels = width * height;
+                    const isHighResolution = thresholds.highResolutionPixels !== null && 
+                                             totalPixels > (thresholds.normalResolutionPixels || 1024 * 1024);
+                    const normalPixels = thresholds.normalResolutionPixels || 1024 * 1024;
+                    const highPixels = thresholds.highResolutionPixels || 1416 * 1416;
+                    const normalSize = Math.sqrt(normalPixels);
+                    const highSize = Math.sqrt(highPixels);
+                    
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="flex items-center text-sm font-medium text-gray-900">
+                            <img src="/form/steps.svg" alt="Resolution" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
+                            分辨率
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isHighResolution) {
+                                setWidth(Math.round(normalSize));
+                                setHeight(Math.round(normalSize));
+                              } else {
+                                setWidth(Math.round(highSize));
+                                setHeight(Math.round(highSize));
+                              }
+                            }}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 ${
+                              isHighResolution ? 'bg-amber-500' : 'bg-gray-300'
+                            }`}
+                            disabled={status === 'loading' || isGenerating}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                isHighResolution ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 mb-1">
+                          {isHighResolution ? '高分辨率' : '普通分辨率'}
+                        </p>
+                        <p className="text-sm text-gray-600/80">
+                          {isHighResolution 
+                            ? `高分辨率 ${Math.round(highSize)}×${Math.round(highSize)} 像素，画质更精细但消耗更多积分`
+                            : `普通分辨率 ${Math.round(normalSize)}×${Math.round(normalSize)} 像素，平衡速度与画质`}
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   {/* 生成数量调节 - 仅登录用户可见 */}
                   {status === 'authenticated' && (

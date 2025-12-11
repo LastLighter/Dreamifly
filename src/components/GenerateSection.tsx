@@ -8,6 +8,7 @@ import PromptInput from './PromptInput'
 import { optimizePrompt } from '../utils/promptOptimizer'
 import { useSession } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
+import { getModelThresholds } from '@/utils/modelConfig'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
@@ -22,7 +23,9 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   const [negativePrompt, setNegativePrompt] = useState('');
   const [width, setWidth] = useState(1024);
   const [height, setHeight] = useState(1024);
-  const [steps, setSteps] = useState(20);
+  // 初始步数根据默认模型配置设置
+  const defaultModelThresholds = getModelThresholds('Z-Image-Turbo');
+  const [steps, setSteps] = useState(defaultModelThresholds.normalSteps || 10);
   const [batch_size, setBatchSize] = useState(1);
   const [model, setModel] = useState('Z-Image-Turbo');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
@@ -144,10 +147,14 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
       hasError = true;
     }
     
-    if (steps < 5 || steps > 32) {
-      setStepsError(t('error.validation.stepsRange'));
-      stepsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      hasError = true;
+    // 验证步数：根据模型配置验证
+    const thresholds = getModelThresholds(model);
+    if (thresholds.normalSteps !== null && thresholds.highSteps !== null) {
+      if (steps !== thresholds.normalSteps && steps !== thresholds.highSteps) {
+        setStepsError(`步数只能选择${thresholds.normalSteps}或${thresholds.highSteps}`);
+        stepsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        hasError = true;
+      }
     }
     if (batch_size < 1 || batch_size > 2) {
       setBatchSizeError(t('error.validation.batchSizeRange'));
@@ -233,6 +240,24 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
               });
               return;
             }
+          }
+
+          // 处理402错误（积分不足）
+          if (res.status === 402) {
+            const errorData = await res.json();
+            const errorMessage = errorData.error || '积分不足';
+            setConcurrencyError(errorMessage);
+            setShowErrorModal(true);
+            setIsGenerating(false);
+            setImageStatuses(prev => {
+              const newStatuses = [...prev];
+              newStatuses[index] = ({
+                status: 'error',
+                message: '积分不足'
+              });
+              return newStatuses;
+            });
+            throw new Error('INSUFFICIENT_POINTS');
           }
 
           // 处理429错误（可能是并发限制或每日限额）

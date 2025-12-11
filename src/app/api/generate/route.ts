@@ -9,6 +9,8 @@ import { concurrencyManager } from '@/utils/concurrencyManager'
 import { ipConcurrencyManager } from '@/utils/ipConcurrencyManager'
 import { randomUUID, createHash } from 'crypto'
 import { addWatermark } from '@/utils/watermark'
+import { getModelBaseCost, calculateGenerationCost, checkPointsSufficient, deductPoints } from '@/utils/points'
+import { getModelThresholds } from '@/utils/modelConfig'
 
 /**
  * 验证动态API token
@@ -639,25 +641,12 @@ export async function POST(request: Request) {
             .returning({ dailyRequestCount: user.dailyRequestCount });
           
           // 如果更新失败（返回空数组），说明已经达到或超过限制
-          // 这不会导致并发问题，因为：
-          // - 更新失败意味着 WHERE 条件不满足（计数已经 >= 限制）
-          // - 这是数据库层面的原子操作，不会出现竞态条件
+          // 注意：此时不立即返回错误，而是在解析请求体后检查积分
+          // 如果模型支持积分消费且用户积分足够，则允许继续生成
+          // 这部分逻辑在解析请求体后统一处理
           if (updateResult.length === 0) {
-            // 重新查询当前计数以获取准确值
-            const currentUserData = await db
-              .select({ dailyRequestCount: user.dailyRequestCount })
-              .from(user)
-              .where(eq(user.id, userId))
-              .limit(1);
-            
-            const finalCount = currentUserData[0]?.dailyRequestCount || 0;
-            
-            return NextResponse.json({ 
-              error: `您今日的生图次数已达上限（${maxDailyRequests}次）。${isPremium ? '优质用户' : '普通用户'}每日可使用${maxDailyRequests}次生图功能。`,
-              code: 'DAILY_LIMIT_EXCEEDED',
-              dailyCount: finalCount,
-              maxDailyRequests
-            }, { status: 429 });
+            // 标记为超出额度，但不立即返回错误
+            // 后续在解析请求体后会检查积分
           }
         } else {
           // 管理员不限次，直接更新计数
@@ -676,9 +665,156 @@ export async function POST(request: Request) {
       generationId = concurrencyManager.start(userId);
     }
     
-    // 解析请求体（需要在延迟之前解析，以便检查图改图模型的登录限制）
+    // 解析请求体（提前解析，以便检查积分和额度）
     const body = await request.json()
     const { prompt, width, height, steps, seed, batch_size, model, images, negative_prompt } = body
+    
+    // 对于已登录用户，在解析请求体后检查积分和额度
+    if (session?.user && !isAdmin) {
+      const userId = session.user.id;
+      
+      // 重新查询用户当前计数和限额（因为可能已经更新）
+      const currentUserData = await db
+        .select({
+          dailyRequestCount: user.dailyRequestCount,
+          isPremium: user.isPremium,
+          isOldUser: user.isOldUser,
+        })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+      
+      if (currentUserData.length > 0) {
+        const userData = currentUserData[0];
+        const currentCount = userData.dailyRequestCount || 0;
+        const isPremium = userData.isPremium || false;
+        const isOldUser = userData.isOldUser || false;
+        
+        // 获取用户限额
+        let maxDailyRequests: number;
+        try {
+          const config = await db.select()
+            .from(userLimitConfig)
+            .where(eq(userLimitConfig.id, 1))
+            .limit(1);
+          
+          if (config.length > 0) {
+            const configData = config[0];
+            if (isPremium) {
+              const dbPremiumLimit = configData.premiumUserDailyLimit;
+              const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
+              maxDailyRequests = dbPremiumLimit ?? envPremiumLimit;
+            } else {
+              if (isOldUser) {
+                const dbRegularLimit = configData.regularUserDailyLimit;
+                const envRegularLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
+                maxDailyRequests = dbRegularLimit ?? envRegularLimit;
+              } else {
+                const dbNewLimit = configData.newUserDailyLimit;
+                const envNewLimit = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
+                maxDailyRequests = dbNewLimit ?? envNewLimit;
+              }
+            }
+          } else {
+            if (isPremium) {
+              maxDailyRequests = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
+            } else {
+              if (isOldUser) {
+                maxDailyRequests = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
+              } else {
+                maxDailyRequests = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
+              }
+            }
+          }
+        } catch (error) {
+          if (isPremium) {
+            maxDailyRequests = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
+          } else {
+            if (isOldUser) {
+              maxDailyRequests = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
+            } else {
+              maxDailyRequests = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
+            }
+          }
+        }
+        
+        const hasQuota = currentCount < maxDailyRequests;
+        
+        // 获取模型基础积分消耗
+        const baseCost = await getModelBaseCost(model);
+        
+        if (baseCost !== null) {
+          // 计算积分消耗
+          const pointsCost = calculateGenerationCost(baseCost, model, steps, width, height, hasQuota);
+          
+          // 如果需要扣除积分（pointsCost > 0）
+          if (pointsCost > 0) {
+            // 检查积分是否足够
+            const hasEnoughPoints = await checkPointsSufficient(userId, pointsCost);
+            
+            if (!hasEnoughPoints) {
+              // 清理并发跟踪
+              if (generationId) {
+                concurrencyManager.end(generationId);
+              }
+              if (clientIP) {
+                await ipConcurrencyManager.end(clientIP).catch(err => {
+                  console.error('Error decrementing IP concurrency:', err)
+                })
+              }
+              
+              return NextResponse.json({
+                error: `积分不足。本次生成需要消耗 ${pointsCost} 积分，但您的积分余额不足。`,
+                code: 'INSUFFICIENT_POINTS',
+                requiredPoints: pointsCost
+              }, { status: 402 }); // 402 Payment Required
+            }
+            
+            // 扣除积分
+            const deductSuccess = await deductPoints(
+              userId,
+              pointsCost,
+              `图像生成 - ${model} (步数: ${steps}, 分辨率: ${width}x${height})`
+            );
+            
+            if (!deductSuccess) {
+              // 清理并发跟踪
+              if (generationId) {
+                concurrencyManager.end(generationId);
+              }
+              if (clientIP) {
+                await ipConcurrencyManager.end(clientIP).catch(err => {
+                  console.error('Error decrementing IP concurrency:', err)
+                })
+              }
+              
+              return NextResponse.json({
+                error: '积分扣除失败，请稍后重试',
+                code: 'POINTS_DEDUCTION_FAILED'
+              }, { status: 500 });
+            }
+          }
+        } else if (!hasQuota) {
+          // 模型未配置积分消耗，且用户已超出额度
+          // 清理并发跟踪
+          if (generationId) {
+            concurrencyManager.end(generationId);
+          }
+          if (clientIP) {
+            await ipConcurrencyManager.end(clientIP).catch(err => {
+              console.error('Error decrementing IP concurrency:', err)
+            })
+          }
+          
+          return NextResponse.json({
+            error: `您今日的生图次数已达上限（${maxDailyRequests}次）。${isPremium ? '优质用户' : '普通用户'}每日可使用${maxDailyRequests}次生图功能。`,
+            code: 'DAILY_LIMIT_EXCEEDED',
+            dailyCount: currentCount,
+            maxDailyRequests
+          }, { status: 429 });
+        }
+      }
+    }
     
     // 检查图改图模型的登录限制
     // 如果用户未登录且使用图改图模型（有上传图片且模型支持I2I），返回401
@@ -720,18 +856,25 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ error: 'Invalid image dimensions' }, { status: 400 })
     }
-    if (steps < 5 || steps > 32) {
-      // 如果输入验证失败，需要清理已增加的并发计数
-      if (!session?.user && clientIP) {
-        // 未登录用户：清理IP并发计数
-        await ipConcurrencyManager.end(clientIP).catch(err => {
-          console.error('Error decrementing IP concurrency after validation error:', err)
-        })
-      } else if (session?.user && generationId) {
-        // 已登录用户：清理用户并发跟踪（IP并发计数此时还未增加）
-        concurrencyManager.end(generationId)
+    // 验证步数：根据模型配置验证
+    const thresholds = getModelThresholds(model);
+    if (thresholds.normalSteps !== null && thresholds.highSteps !== null) {
+      // 如果模型支持步数修改，验证步数是否在允许范围内
+      if (steps !== thresholds.normalSteps && steps !== thresholds.highSteps) {
+        // 如果输入验证失败，需要清理已增加的并发计数
+        if (!session?.user && clientIP) {
+          // 未登录用户：清理IP并发计数
+          await ipConcurrencyManager.end(clientIP).catch(err => {
+            console.error('Error decrementing IP concurrency after validation error:', err)
+          })
+        } else if (session?.user && generationId) {
+          // 已登录用户：清理用户并发跟踪（IP并发计数此时还未增加）
+          concurrencyManager.end(generationId)
+        }
+        return NextResponse.json({ 
+          error: `Invalid steps value. Only ${thresholds.normalSteps} or ${thresholds.highSteps} steps are allowed for this model.` 
+        }, { status: 400 })
       }
-      return NextResponse.json({ error: 'Invalid steps value' }, { status: 400 })
     }
 
     // 对于已登录用户，在所有检查都通过后，原子性地增加IP并发计数
