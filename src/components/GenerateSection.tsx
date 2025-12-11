@@ -10,6 +10,7 @@ import { useSession } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { getModelThresholds } from '@/utils/modelConfig'
 import { usePoints } from '@/contexts/PointsContext'
+import { calculateEstimatedCost } from '@/utils/pointsClient'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
@@ -567,6 +568,42 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   };
 
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+  
+  // 计算预计积分消耗
+  const [modelBaseCost, setModelBaseCost] = useState<number | null>(null);
+  const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
+  
+  // 获取模型基础积分消耗
+  useEffect(() => {
+    const fetchModelBaseCost = async () => {
+      try {
+        const response = await fetch(`/api/points/model-base-cost?modelId=${encodeURIComponent(model)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setModelBaseCost(data.baseCost);
+        } else {
+          setModelBaseCost(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch model base cost:', error);
+        setModelBaseCost(null);
+      }
+    };
+
+    fetchModelBaseCost();
+  }, [model]);
+  
+  // 计算预计消耗
+  useEffect(() => {
+    if (modelBaseCost !== null) {
+      const cost = calculateEstimatedCost(modelBaseCost, model, steps, width, height);
+      // 乘以批次大小
+      const totalCost = cost !== null ? cost * batch_size : null;
+      setEstimatedCost(totalCost);
+    } else {
+      setEstimatedCost(null);
+    }
+  }, [modelBaseCost, model, steps, width, height, batch_size]);
 
   return (
     <section id="generate-section" className="py-10 sm:py-12 lg:py-6 relative">
@@ -602,6 +639,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
                   selectedStyle={selectedStyle}
                   onStyleChange={setSelectedStyle}
                   isQueuing={isQueuing}
+                  estimatedCost={estimatedCost}
                 />
               </div>
             </div>
