@@ -106,6 +106,13 @@ Kontext_fp8_URL='https://your-kontext-api.com'
 Wai_SDXL_V150_URL='https://your-wai-sdxl-api.com'
 
 # LLM API 配置（用于提示词优化）
+# 新的提示词优化专用环境变量（推荐）
+PROMPT_OPTIMIZATION_BASE_URL='https://your-llm-api.com/v1'
+PROMPT_OPTIMIZATION_API_KEY='your-api-key'
+PROMPT_OPTIMIZATION_MODEL='Qwen/Qwen3-VL-8B-Instruct-FP8'
+PROMPT_OPTIMIZATION_MAX_TOKENS=2000
+
+# 旧的环境变量（向后兼容，如果未设置新变量则使用）
 OPEN_AI_API='https://your-llm-api.com/v1'
 MAX_TOKENS=2000
 
@@ -126,13 +133,20 @@ OSS_BUCKET=xxx
 
 # OSS 访问的 Endpoint（访问域名或节点地址）
 OSS_ENDPOINT=https://xxx.xxx.com
+
+# 头像审核 API 配置（可选）
+AVATAR_MODERATION_BASE_URL='https://your-moderation-api.com/v1'
+AVATAR_MODERATION_API_KEY='your-api-key'
+AVATAR_MODERATION_MODEL='Qwen/Qwen3-VL-8B-Instruct-FP8'
+AVATAR_MODERATION_PROMPT='请判断图片的内容与文字是否可以在公共场所展示，评判标准包括但不限于不应该包含"黄色"、"血腥"、"过于夸张的暴力场景"，你只需输出是或者否即可'
 ```
 
 > 🔐 **重要提示**：
 > - 每个模型需要独立的 ComfyUI API 端点（当然如果算力能支持， 也可以用一个服务）
 > - API 地址需支持 CORS 且开放 `/prompt` 接口
 > - 至少配置一个模型 URL 即可开始使用
-> - LLM API 用于中文提示词优化功能
+> - **提示词优化**：优先使用 `PROMPT_OPTIMIZATION_*` 环境变量，如果未设置则回退到 `OPEN_AI_API`（向后兼容）
+> - **头像审核**：如果未配置 `AVATAR_MODERATION_BASE_URL`，则跳过头像审核直接上传
 
 ### 4. 初始化数据库
 

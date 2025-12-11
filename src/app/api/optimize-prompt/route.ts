@@ -31,10 +31,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 检查环境变量
-    const apiUrl = process.env.OPEN_AI_API;
+    // 检查环境变量 - 使用新的提示词优化专用环境变量
+    const apiUrl = process.env.PROMPT_OPTIMIZATION_BASE_URL || process.env.OPEN_AI_API;
     if (!apiUrl) {
-      console.error('OPEN_AI_API environment variable is not set');
+      console.error('PROMPT_OPTIMIZATION_BASE_URL or OPEN_AI_API environment variable is not set');
       return NextResponse.json(
         { error: 'LLM service is not configured' },
         { status: 500 }
@@ -73,7 +73,7 @@ You are now ready to optimize the user's text-to-image prompt.`;
 
     // 构建请求体
     const requestBody: ChatCompletionRequest = {
-      model: "gpt-oss:20b",
+      model: process.env.PROMPT_OPTIMIZATION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct-FP8',
       messages: [
         {
           role: "system",
@@ -85,7 +85,9 @@ You are now ready to optimize the user's text-to-image prompt.`;
         }
       ],
       temperature: 0.7,
-      max_tokens: process.env.MAX_TOKENS ? parseInt(process.env.MAX_TOKENS) : 1000
+      max_tokens: process.env.PROMPT_OPTIMIZATION_MAX_TOKENS 
+        ? parseInt(process.env.PROMPT_OPTIMIZATION_MAX_TOKENS) 
+        : (process.env.MAX_TOKENS ? parseInt(process.env.MAX_TOKENS) : 1000)
     };
 
 
@@ -93,11 +95,14 @@ You are now ready to optimize the user's text-to-image prompt.`;
     // 对于Ollama，需要添加 /chat/completions 路径
     const fullApiUrl = apiUrl.endsWith('/chat/completions') ? apiUrl : `${apiUrl}/chat/completions`;
     
+    // 使用新的 API Key 环境变量，如果没有则使用默认值
+    const apiKey = process.env.PROMPT_OPTIMIZATION_API_KEY || 'ollama';
+    
     const response = await fetch(fullApiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ollama' // 本地模型使用占位符密钥
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify(requestBody)
     });
