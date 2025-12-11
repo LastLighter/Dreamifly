@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { generateImage } from '@/utils/comfyApi'
 import { db } from '@/db'
 import { siteStats, modelUsageStats, user, userLimitConfig, ipBlacklist } from '@/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { eq, sql, and, lt } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { concurrencyManager } from '@/utils/concurrencyManager'
@@ -354,31 +354,67 @@ export async function POST(request: Request) {
             }
           }
           
-          // 检查是否超过限制
-          if (currentCount >= maxDailyRequests) {
+          // 使用条件更新确保并发安全：只有在 dailyRequestCount < maxDailyRequests 时才更新
+          // 这样可以防止两个并发请求同时通过检查并都增加计数
+          // 
+          // 并发安全性说明：
+          // 1. PostgreSQL 的 UPDATE 语句是原子的，WHERE 条件在数据库层面执行
+          // 2. 当两个请求同时到达时：
+          //    - 请求A：读取计数39，执行 UPDATE WHERE dailyRequestCount < 40，条件为真，更新成功（变成40）
+          //    - 请求B：读取计数39，执行 UPDATE WHERE dailyRequestCount < 40，但此时数据库中的值已经是40
+          //      数据库在执行 WHERE 条件时会检查当前值（40），40 < 40 为假，更新失败（返回空数组）
+          // 3. 这样确保即使在高并发情况下，计数也不会超出限制
+          const updateData: any = {
+            dailyRequestCount: sql`${user.dailyRequestCount} + 1`,
+            updatedAt: sql`now()`,
+          };
+          
+          // 使用条件更新，在 WHERE 子句中检查计数是否小于限制
+          // 注意：WHERE 条件是在数据库执行更新时检查的，不是在我们代码中检查的
+          // 这确保了即使两个请求同时到达，也只有一个能成功更新
+          const updateResult = await db
+            .update(user)
+            .set(updateData)
+            .where(
+              and(
+                eq(user.id, userId),
+                lt(user.dailyRequestCount, maxDailyRequests)
+              )
+            )
+            .returning({ dailyRequestCount: user.dailyRequestCount });
+          
+          // 如果更新失败（返回空数组），说明已经达到或超过限制
+          // 这不会导致并发问题，因为：
+          // - 更新失败意味着 WHERE 条件不满足（计数已经 >= 限制）
+          // - 这是数据库层面的原子操作，不会出现竞态条件
+          if (updateResult.length === 0) {
+            // 重新查询当前计数以获取准确值
+            const currentUserData = await db
+              .select({ dailyRequestCount: user.dailyRequestCount })
+              .from(user)
+              .where(eq(user.id, userId))
+              .limit(1);
+            
+            const finalCount = currentUserData[0]?.dailyRequestCount || 0;
+            
             return NextResponse.json({ 
               error: `您今日的生图次数已达上限（${maxDailyRequests}次）。${isPremium ? '优质用户' : '普通用户'}每日可使用${maxDailyRequests}次生图功能。`,
               code: 'DAILY_LIMIT_EXCEEDED',
-              dailyCount: currentCount,
+              dailyCount: finalCount,
               maxDailyRequests
             }, { status: 429 });
           }
+        } else {
+          // 管理员不限次，直接更新计数
+          const updateData: any = {
+            dailyRequestCount: sql`${user.dailyRequestCount} + 1`,
+            updatedAt: sql`now()`,
+          };
+          await db
+            .update(user)
+            .set(updateData)
+            .where(eq(user.id, userId));
         }
-
-        // 使用原子操作增加计数（每次请求+1，不管batch_size）
-        // 这样可以确保并发请求时也能正确计数（包括管理员）
-        // 构建更新对象
-        const updateData: any = {
-          dailyRequestCount: sql`${user.dailyRequestCount} + 1`,
-          updatedAt: sql`now()`,
-        };
-        // 注意：如果上面已经重置过（needsReset = true），lastRequestResetDate 已经在重置时更新了
-        // 这里不需要再更新，避免重复更新
-        // 如果日期相同（needsReset = false），也不需要更新 lastRequestResetDate，保持原值
-        await db
-          .update(user)
-          .set(updateData)
-          .where(eq(user.id, userId));
       }
       
       // 开始跟踪这个生成请求（用户并发）
