@@ -243,7 +243,12 @@ export default function HomeClient() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 animate-fadeInUp animation-delay-600">
                   <button
-                    onClick={() => navigateToCreate()}
+                    onClick={() => {
+                      const aiPlazaSection = document.getElementById('ai-plaza')
+                      if (aiPlazaSection) {
+                        aiPlazaSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }
+                    }}
                     className="group px-6 py-2.5 sm:px-9 sm:py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl hover:from-orange-400 hover:to-amber-400 transition-all duration-300 shadow-xl shadow-orange-500/20 hover:shadow-2xl hover:shadow-orange-500/30 hover:-translate-y-0.5 text-sm sm:text-base font-medium relative overflow-hidden"
                   >
                     <span className="relative z-10">{t('hero.startButton')}</span>
