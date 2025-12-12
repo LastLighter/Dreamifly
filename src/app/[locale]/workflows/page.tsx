@@ -1,7 +1,8 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { usePoints } from '@/contexts/PointsContext'
 
@@ -9,7 +10,26 @@ type TabKey = 'repair' | 'upscale'
 
 export default function WorkflowsPage() {
   const { refreshPoints } = usePoints()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<TabKey>('repair')
+  
+  // 组件挂载时和URL参数变化时，从URL读取tab参数并设置
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'repair' || tabParam === 'upscale') {
+      setActiveTab(tabParam as TabKey)
+      return
+    }
+    
+    // 如果 searchParams 没有，尝试从 window.location 读取（客户端备用方案）
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      const urlTab = urlParams.get('tab')
+      if (urlTab === 'repair' || urlTab === 'upscale') {
+        setActiveTab(urlTab as TabKey)
+      }
+    }
+  }, [searchParams])
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [resultImage, setResultImage] = useState<string | null>(null)

@@ -35,7 +35,9 @@ export default function HomepageWorkflowCard({ workflow }: HomepageWorkflowCardP
   }, [showNameModal])
   
   const coverImage = workflow.homepageCover || '/workflows/homepageWorkflowCover/demo.jpg'
-  const route = workflow.route || '/workflows'
+  // 根据工作流ID添加tab参数
+  const baseRoute = workflow.route || '/workflows'
+  const route = `${baseRoute}?tab=${workflow.id}`
 
   return (
     <div className="relative group">

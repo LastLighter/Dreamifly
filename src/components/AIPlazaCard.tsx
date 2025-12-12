@@ -70,7 +70,9 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
   } else {
     const workflow = item as WorkflowConfig
     coverImage = workflow.homepageCover || '/workflows/homepageWorkflowCover/demo.jpg'
-    route = workflow.route || '/workflows'
+    // 根据工作流ID添加tab参数
+    const baseRoute = workflow.route || '/workflows'
+    route = `${baseRoute}?tab=${workflow.id}`
     
     if (workflow.tags) {
       featureTags = [...workflow.tags]
