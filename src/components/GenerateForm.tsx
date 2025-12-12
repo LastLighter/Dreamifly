@@ -328,7 +328,7 @@ export default function GenerateForm({
   // 上传图片区域，始终显示
   const renderImageUploadSection = () => {
     return (
-      <div>
+      <div data-image-upload-section>
         <label className="flex items-center text-sm font-medium text-gray-900 mb-4">
           <img src="/form/upload.svg" alt="Upload" className="w-5 h-5 mr-2 text-gray-800 [&>path]:fill-current" />
           {t('form.upload.label')}
@@ -572,15 +572,69 @@ export default function GenerateForm({
   // 根据上传图片数量过滤可用模型
   const filteredModels: ModelWithAvailability[] = filterModelsByImageCount(uploadedImages.length, availableModels);
 
+  // 跟踪初始模型（用于判断是否是从URL传入的）
+  const initialModelRef = useRef<string | null>(null)
+  const previousModelForTrackingRef = useRef<string>(model)
+  const hasRecordedInitialModel = useRef(false)
+  
+  // 记录初始模型，用于识别从URL传入的模型
+  useEffect(() => {
+    // 首次渲染时记录初始模型
+    if (!hasRecordedInitialModel.current) {
+      initialModelRef.current = model
+      hasRecordedInitialModel.current = true
+      previousModelForTrackingRef.current = model
+      return
+    }
+    
+    // 如果模型从默认值变为其他值，可能是从URL传入的，更新初始模型引用
+    if (model !== previousModelForTrackingRef.current) {
+      // 如果之前是默认值，现在变成了其他值，可能是从URL传入的
+      if (previousModelForTrackingRef.current === 'Z-Image-Turbo' && model !== 'Z-Image-Turbo') {
+        initialModelRef.current = model
+      }
+      previousModelForTrackingRef.current = model
+    }
+  }, [model])
+
   // 如果当前选中的模型不可用，自动切换到第一个可用模型
+  // 注意：Qwen-Image-Edit 即使没有上传图片也可以选择（但生成时需要图片）
+  // 注意：如果模型是从URL传入的（初始模型），不要自动切换（除非因为图片数量限制导致不兼容）
   useEffect(() => {
     if (modelsLoading || availableModels.length === 0) return;
     
     const currentModel = filteredModels.find(m => m.id === model)
-    if (currentModel && !currentModel.isAvailable) {
+    const modelExistsInAll = availableModels.some(m => m.id === model)
+    const isInitialModel = initialModelRef.current === model
+    
+    // Qwen-Image-Edit 总是可用，不需要自动切换
+    if (model === 'Qwen-Image-Edit') return;
+    
+    // 如果模型是初始模型（可能是从URL传入的）且存在于所有模型中，即使暂时不可用也保留
+    // 只有在因为图片数量限制导致模型不兼容时才切换
+    if (isInitialModel && modelExistsInAll) {
+      // 检查是否因为图片数量限制导致不兼容
+      const modelConfig = availableModels.find(m => m.id === model)
+      if (modelConfig) {
+        const maxImages = modelConfig.maxImages || 0
+        // 如果上传的图片数量超过了模型限制，才需要切换
+        if (uploadedImages.length <= maxImages) {
+          return // 保留初始模型（可能是从URL传入的）
+        }
+      } else {
+        return // 模型存在但配置未加载，保留
+      }
+    }
+    
+    // 只有当模型不在filteredModels中（因为图片数量限制）或不可用时，才自动切换
+    if (!currentModel || (currentModel && !currentModel.isAvailable)) {
       const firstAvailable = filteredModels.find(m => m.isAvailable)
-      if (firstAvailable) {
+      if (firstAvailable && firstAvailable.id !== model) {
         setModel(firstAvailable.id)
+        // 如果切换了模型，更新初始模型引用（避免后续再次自动切换）
+        if (isInitialModel) {
+          initialModelRef.current = firstAvailable.id
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -742,12 +796,13 @@ export default function GenerateForm({
                         key={modelOption.id}
                         type="button"
                         onClick={() => {
-                          if (modelOption.isAvailable) {
+                          // Qwen-Image-Edit 即使没有上传图片也可以选择
+                          if (modelOption.isAvailable || modelOption.id === 'Qwen-Image-Edit') {
                             setModel(modelOption.id)
                             setIsModelDropdownOpen(false)
                           }
                         }}
-                        disabled={!modelOption.isAvailable}
+                        disabled={!modelOption.isAvailable && modelOption.id !== 'Qwen-Image-Edit'}
                         className={`w-full px-4 py-4 text-left transition-colors duration-200 flex flex-col space-y-3 ${
                           model === modelOption.id ? 'bg-white/50' : ''
                         } ${

@@ -8,16 +8,17 @@ import PromptInput from './PromptInput'
 import { optimizePrompt } from '../utils/promptOptimizer'
 import { useSession } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
-import { getModelThresholds } from '@/utils/modelConfig'
+import { getModelThresholds, getAllModels } from '@/utils/modelConfig'
 import { usePoints } from '@/contexts/PointsContext'
 import { calculateEstimatedCost } from '@/utils/pointsClient'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
   initialPrompt?: string;
+  initialModel?: string;
 }
 
-const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps) => {
+const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: GenerateSectionProps) => {
   const t = useTranslations('home.generate')
   const tHome = useTranslations('home')
   const { data: session, isPending } = useSession()
@@ -26,11 +27,12 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   const [negativePrompt, setNegativePrompt] = useState('');
   const [width, setWidth] = useState(1024);
   const [height, setHeight] = useState(1024);
-  // 初始步数根据默认模型配置设置
-  const defaultModelThresholds = getModelThresholds('Z-Image-Turbo');
-  const [steps, setSteps] = useState(defaultModelThresholds.normalSteps || 10);
+  // 初始步数根据初始模型配置设置（如果提供了initialModel，使用它的配置；否则使用默认模型）
+  const initialModelForSteps = initialModel || 'Z-Image-Turbo';
+  const initialModelThresholds = getModelThresholds(initialModelForSteps);
+  const [steps, setSteps] = useState(initialModelThresholds.normalSteps || 10);
   const [batch_size, setBatchSize] = useState(1);
-  const [model, setModel] = useState('Z-Image-Turbo');
+  const [model, setModel] = useState(initialModel || 'Z-Image-Turbo');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [imageStatuses, setImageStatuses] = useState<Array<{
@@ -73,6 +75,17 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   useEffect(() => {
     setPrompt(initialPrompt || '');
   }, [initialPrompt]);
+
+  useEffect(() => {
+    if (initialModel) {
+      setModel(initialModel);
+      // 同时更新步数到新模型的默认步数
+      const modelThresholds = getModelThresholds(initialModel);
+      if (modelThresholds.normalSteps !== null) {
+        setSteps(modelThresholds.normalSteps);
+      }
+    }
+  }, [initialModel]);
 
   // 处理设置生成的图片为参考图片
   const handleSetGeneratedImageAsReference = async (imageUrl: string) => {
@@ -144,6 +157,25 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
     const currentModel = models.find(m => m.id === model);
     const maxImages = currentModel?.maxImages || 1;
     const supportsChinese = currentModel?.tags?.includes("chineseSupport") || false;
+    
+    // 检查模型是否需要图片但没有上传
+    // 使用模型配置来判断哪些模型只支持图生图（use_i2i: true, use_t2i: false）
+    const allModels = getAllModels();
+    const modelConfig = allModels.find(m => m.id === model);
+    if (modelConfig) {
+      // 如果模型只支持图生图（不支持文生图），必须上传图片
+      if (modelConfig.use_i2i && !modelConfig.use_t2i && uploadedImages.length === 0) {
+        setImageCountError(`${modelConfig.name} 需要上传图片才能生成`);
+        hasError = true;
+        // 滚动到错误位置
+        setTimeout(() => {
+          const uploadSection = document.querySelector('[data-image-upload-section]');
+          if (uploadSection) {
+            uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+      }
+    }
     
     if (uploadedImages.length > maxImages) {
       setImageCountError(t('error.validation.imageCountLimit', { model, maxImages }));
@@ -756,6 +788,8 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
                   isQueuing={isQueuing}
                   estimatedCost={estimatedCost}
                   extraCost={extraCost}
+                  model={model}
+                  uploadedImages={uploadedImages}
                 />
               </div>
             </div>

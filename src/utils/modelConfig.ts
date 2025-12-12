@@ -204,12 +204,23 @@ export function filterModelsByImageCount(
   uploadedImagesCount: number, 
   models: ModelConfig[]
 ): (ModelConfig & { isAvailable: boolean })[] {
-  return models.map(model => ({
-    ...model,
-    isAvailable: uploadedImagesCount > 0 ? 
-      (model.use_i2i && uploadedImagesCount <= model.maxImages) : 
-      model.use_t2i
-  })).sort((a, b) => {
+  return models.map(model => {
+    // Qwen-Image-Edit 即使没有上传图片也可以选择（但生成时需要图片）
+    if (model.id === 'Qwen-Image-Edit') {
+      return {
+        ...model,
+        isAvailable: true
+      };
+    }
+    
+    // 其他模型的逻辑保持不变
+    return {
+      ...model,
+      isAvailable: uploadedImagesCount > 0 ? 
+        (model.use_i2i && uploadedImagesCount <= model.maxImages) : 
+        model.use_t2i
+    };
+  }).sort((a, b) => {
     // 可用的模型排在前面
     if (a.isAvailable && !b.isAvailable) return -1;
     if (!a.isAvailable && b.isAvailable) return 1;

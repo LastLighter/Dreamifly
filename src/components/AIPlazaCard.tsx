@@ -55,7 +55,7 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
   if (type === 'model') {
     const model = item as ModelConfig
     coverImage = model.homepageCover || '/models/homepageModelCover/demo.jpg'
-    route = '/create'
+    route = `/create?model=${encodeURIComponent(model.id)}`
     
     if (model.use_t2i) featureTags.push('文生图')
     if (model.use_i2i) featureTags.push('图生图')
