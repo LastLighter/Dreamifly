@@ -158,22 +158,28 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
     const maxImages = currentModel?.maxImages || 1;
     const supportsChinese = currentModel?.tags?.includes("chineseSupport") || false;
     
-    // 检查模型是否需要图片但没有上传
-    // 使用模型配置来判断哪些模型只支持图生图（use_i2i: true, use_t2i: false）
+    // 首先检查图生图模型是否上传了图片（优先级最高，避免被后续逻辑覆盖）
     const allModels = getAllModels();
     const modelConfig = allModels.find(m => m.id === model);
+    
     if (modelConfig) {
       // 如果模型只支持图生图（不支持文生图），必须上传图片
       if (modelConfig.use_i2i && !modelConfig.use_t2i && uploadedImages.length === 0) {
         setImageCountError(`${modelConfig.name} 需要上传图片才能生成`);
         hasError = true;
+        
         // 滚动到错误位置
-        setTimeout(() => {
+        window.setTimeout(() => {
           const uploadSection = document.querySelector('[data-image-upload-section]');
           if (uploadSection) {
             uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
         }, 100);
+        
+        // 直接返回，不继续后续验证，确保错误提示不被覆盖
+        if (hasError) {
+          return;
+        }
       }
     }
     

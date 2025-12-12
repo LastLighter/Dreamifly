@@ -46,7 +46,7 @@ export default function HomeClient() {
       try {
         // 设置超时，避免长时间等待
         const timeoutPromise = new Promise<{models: ModelConfig[], workflows: WorkflowConfig[]}>((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout')), 3000) // 3秒超时
+          window.setTimeout(() => reject(new Error('Timeout')), 3000) // 3秒超时
         })
         
         const fetchPromise = Promise.all([

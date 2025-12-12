@@ -219,20 +219,8 @@ const PromptInput = ({
             <button
               type="button"
               onClick={onGenerate}
-              disabled={(() => {
-                if (isGenerating || isOptimizing) return true;
-                // 检查模型是否需要图片但没有上传
-                if (model === 'Qwen-Image-Edit' && uploadedImages.length === 0) {
-                  return true;
-                }
-                // 其他只支持图生图的模型也需要检查
-                const imageOnlyModels = ['Flux-Kontext'];
-                if (imageOnlyModels.includes(model) && uploadedImages.length === 0) {
-                  return true;
-                }
-                return false;
-              })()}
-              className="w-full px-4 py-2 text-sm md:px-6 md:py-3 md:text-base font-semibold rounded-2xl bg-white/95 text-gray-900 hover:bg-amber-50/95 transition-all duration-500 shadow-xl shadow-amber-400/20 hover:shadow-2xl hover:shadow-amber-400/30 hover:-translate-y-0.5 transform border border-amber-400/40 relative overflow-hidden group"
+              disabled={isGenerating || isOptimizing}
+              className="w-full px-4 py-2 text-sm md:px-6 md:py-3 md:text-base font-semibold rounded-2xl bg-white/95 text-gray-900 hover:bg-amber-50/95 transition-all duration-500 shadow-xl shadow-amber-400/20 hover:shadow-2xl hover:shadow-amber-400/30 hover:-translate-y-0.5 transform border border-amber-400/40 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {/* 高级光效背景 */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-out"></div>
