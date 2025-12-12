@@ -147,17 +147,24 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
             </div>
           </div>
 
-          {/* 右下角特征标签 - 单行显示 */}
+          {/* 右下角特征标签 - 自适应：宽度足够单行，不足则换行 */}
           {featureTags.length > 0 && (
-            <div className="absolute bottom-3 right-3 z-10 flex gap-1 justify-end max-w-[calc(100%-1.5rem)]">
-              {featureTags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-1.5 py-0.5 bg-gray-500/40 backdrop-blur-sm text-white text-[10px] font-medium rounded whitespace-nowrap flex-shrink-0"
-                >
-                  {tag}
-                </span>
-              ))}
+            <div 
+              className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 z-10" 
+              style={{ 
+                maxWidth: 'calc(100% - 1rem)'
+              }}
+            >
+              <div className="flex gap-1 justify-end flex-wrap-reverse items-end">
+                {featureTags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="px-1.5 py-0.5 bg-gray-500/40 backdrop-blur-sm text-white text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </div>
