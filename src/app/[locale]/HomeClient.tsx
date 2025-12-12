@@ -8,6 +8,11 @@ import { useParams, useRouter } from 'next/navigation'
 import community from './communityWorks'
 import SiteStats from '@/components/SiteStats'
 import { transferUrl } from '@/utils/locale'
+import { getAvailableModels } from '@/utils/modelConfig'
+import { getAvailableWorkflows } from '@/utils/workflowConfig'
+import AIPlazaCard from '@/components/AIPlazaCard'
+import { ModelConfig } from '@/utils/modelConfig'
+import { WorkflowConfig } from '@/utils/workflowConfig'
 
 interface FAQItem {
   q: string;
@@ -23,6 +28,30 @@ export default function HomeClient() {
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
   const router = useRouter()
+  const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
+  const [availableWorkflows, setAvailableWorkflows] = useState<WorkflowConfig[]>([])
+  const [isLoadingAIItems, setIsLoadingAIItems] = useState(true)
+
+  // 获取可用的模型和工作流
+  useEffect(() => {
+    const fetchAIItems = async () => {
+      setIsLoadingAIItems(true)
+      try {
+        const [models, workflows] = await Promise.all([
+          getAvailableModels(),
+          getAvailableWorkflows()
+        ])
+        setAvailableModels(models)
+        setAvailableWorkflows(workflows)
+      } catch (error) {
+        console.error('Error fetching AI items:', error)
+      } finally {
+        setIsLoadingAIItems(false)
+      }
+    }
+
+    fetchAIItems()
+  }, [])
 
 
   // 示例图片数组
@@ -290,6 +319,47 @@ export default function HomeClient() {
           </div>
         </section>
 
+        {/* AI Plaza Section - 统一的AI广场 */}
+        <section id="ai-plaza" className="py-14 sm:py-20 px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 bg-gray-50/90 backdrop-blur-md relative">
+          <div className="w-full max-w-[1260px] mx-auto relative px-4 sm:px-6">
+            <div className="text-center mb-12">
+              <div className="flex items-center justify-center gap-5 mb-7">
+                <svg className="w-10 h-10" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" fill="#FB943B">
+                  <path d="M383.87078 596.712739A85.244128 85.244128 0 0 1 299.138628 682.682168 85.07347 85.07347 0 0 1 213.339858 598.035346a85.286793 85.286793 0 1 1 170.530922-1.279942zM342.144675 426.693794a85.329458 85.329458 0 0 1-1.322607-170.573586A84.98814 84.98814 0 0 1 426.663503 340.639036 85.201464 85.201464 0 0 1 342.144675 426.693794zM682.651877 255.394907A85.500117 85.500117 0 0 1 597.96239 341.364336 85.201464 85.201464 0 0 1 511.992961 256.760179a85.158799 85.158799 0 0 1 84.689487-85.969429c46.973867-0.255988 85.542782 37.544961 85.969429 84.604157zM170.675129 931.502868c195.703112 16.212597 125.604962-191.649963 306.674072-193.569876l78.417772 65.40503c19.540446 236.234604-269.427763 288.968209-385.091844 128.164846z m600.079413-303.559547c60.882568-95.526328 249.46067-415.895778 249.460671-415.895778 15.017985-26.537461-18.345833-54.3122-41.598111-34.686425 0 0-280.435264 243.786261-363.119508 321.052086-65.40503 61.095892-65.661018 88.998625-86.822724 189.730049l71.676745 59.730621c94.971687-39.038227 122.319778-44.371318 170.402927-119.930553zM232.240333 832.990008c-88.913295-77.649807-145.913373-191.137986-146.894662-317.724236-1.877248-235.082657 188.023461-427.927232 423.234112-429.80448 163.789895-0.895959 276.467444 81.233644 277.192744 147.022656l70.951444-62.077181C813.632595 75.563075 678.300075-2.172061 507.897147 0.046505 225.285982 2.393065-2.202353 233.251913 0.016213 515.948407a509.800847 509.800847 0 0 0 120.44253 325.702541c40.87281 21.033711 90.57722 14.079361 111.78159-8.66094z m545.980537-81.318973c45.181948 84.049516-57.640049 143.780137-151.246464 170.317598-12.970078 38.910233-34.217113 73.383334-58.621338 98.555524 224.203151-25.17219 386.627774-183.586329 267.337192-336.539382-19.625775 29.225339-38.270262 51.069681-57.46939 67.66626z" />
+                </svg>
+                <h2 className="text-2xl font-bold text-gray-900 animate-fadeInUp">AI 广场</h2>
+              </div>
+              <p className="text-lg text-gray-700 animate-fadeInUp animation-delay-200">探索可用的 AI 模型和工作流工具</p>
+            </div>
+
+            {isLoadingAIItems ? (
+              <div className="flex justify-center items-center py-20">
+                <div className="text-gray-500">加载中...</div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+                {/* 显示所有可用的模型 */}
+                {availableModels.map((model, index) => (
+                  <div key={`model-${model.id}`} className="animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
+                    <AIPlazaCard item={model} type="model" />
+                  </div>
+                ))}
+                {/* 显示所有可用的工作流 */}
+                {availableWorkflows.map((workflow, index) => (
+                  <div key={`workflow-${workflow.id}`} className="animate-fadeInUp" style={{ animationDelay: `${(availableModels.length + index) * 100}ms` }}>
+                    <AIPlazaCard item={workflow} type="workflow" />
+                  </div>
+                ))}
+                {/* 如果没有可用的项目 */}
+                {availableModels.length === 0 && availableWorkflows.length === 0 && (
+                  <div className="col-span-full text-center py-20 text-gray-500">
+                    暂无可用的 AI 模型和工作流
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* Community Showcase Section - 改进响应式设计 */}
         <section id="community-showcase" className="py-14 sm:py-20 px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 bg-gray-50/90 backdrop-blur-md relative">
