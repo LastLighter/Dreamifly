@@ -8,6 +8,7 @@ import AdminSidebar from '@/components/AdminSidebar'
 import Image from 'next/image'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import {
   BarChart,
   Bar,
@@ -154,7 +155,25 @@ export default function CrawlerAnalysisPage() {
       }
 
       try {
-        const response = await fetch('/api/admin/check')
+        // 获取动态token
+        const token = await generateDynamicTokenWithServerTime()
+        
+        const response = await fetch('/api/admin/check', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        // 检查响应状态
+        if (!response.ok) {
+          // 如果是401或403，说明权限不足，重定向
+          if (response.status === 401 || response.status === 403) {
+            router.push(transferUrl('/', locale))
+            return
+          }
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const adminData = await response.json()
         if (!adminData.isAdmin) {
           router.push(transferUrl('/', locale))

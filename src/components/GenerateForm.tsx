@@ -823,11 +823,6 @@ export default function GenerateForm({
                 )}
               </div>
               <p className="mt-2 text-sm text-gray-600/80">{t('form.model.hint')}</p>
-              {modelBaseCost !== null && (
-                <p className="mt-1 text-sm text-amber-600/90">
-                  若当前无额度将额外消耗{calculateExtraCost(modelBaseCost)}积分
-                </p>
-              )}
             </div>
           </div>
 

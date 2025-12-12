@@ -308,11 +308,30 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
                 return newStatuses;
               });
               
-              // 刷新积分显示（如果用户已登录）
+              // 刷新积分显示和额度信息（如果用户已登录）
               if (session?.user) {
                 refreshPoints().catch(err => {
                   console.error('Failed to refresh points:', err);
                 });
+                // 刷新额度信息
+                const refreshQuota = async () => {
+                  try {
+                    const token = await generateDynamicTokenWithServerTime();
+                    const response = await fetch(`/api/user/quota?t=${Date.now()}`, {
+                      headers: {
+                        'Authorization': `Bearer ${token}`
+                      }
+                    });
+                    if (response.ok) {
+                      const data = await response.json();
+                      const quota = data.isAdmin ? true : (data.todayCount < (data.maxDailyRequests || 0));
+                      setHasQuota(quota);
+                    }
+                  } catch (error) {
+                    console.error('Failed to refresh quota:', error);
+                  }
+                };
+                refreshQuota();
               }
               
               resolve();
@@ -480,11 +499,30 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             endTime
           }]);
           
-          // 刷新积分显示（如果用户已登录）
+          // 刷新积分显示和额度信息（如果用户已登录）
           if (session?.user) {
             refreshPoints().catch(err => {
               console.error('Failed to refresh points:', err);
             });
+            // 刷新额度信息
+            const refreshQuota = async () => {
+              try {
+                const token = await generateDynamicTokenWithServerTime();
+                const response = await fetch(`/api/user/quota?t=${Date.now()}`, {
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
+                if (response.ok) {
+                  const data = await response.json();
+                  const quota = data.isAdmin ? true : (data.todayCount < (data.maxDailyRequests || 0));
+                  setHasQuota(quota);
+                }
+              } catch (error) {
+                console.error('Failed to refresh quota:', error);
+              }
+            };
+            refreshQuota();
           }
           
           resolve();
@@ -569,12 +607,23 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
 
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
   
-  // 计算预计积分消耗
+  // 计算预计积分消耗（仅对已登录用户）
   const [modelBaseCost, setModelBaseCost] = useState<number | null>(null);
   const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
+  const [hasQuota, setHasQuota] = useState<boolean | null>(null);
+  const [extraCost, setExtraCost] = useState<number | null>(null);
   
-  // 获取模型基础积分消耗
+  // 获取模型基础积分消耗（仅对已登录用户）
   useEffect(() => {
+    // 如果用户未登录，不获取积分消耗
+    if (authStatus !== 'authenticated') {
+      setModelBaseCost(null);
+      setEstimatedCost(null);
+      setHasQuota(null);
+      setExtraCost(null);
+      return;
+    }
+
     const fetchModelBaseCost = async () => {
       try {
         const response = await fetch(`/api/points/model-base-cost?modelId=${encodeURIComponent(model)}`);
@@ -591,19 +640,85 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
     };
 
     fetchModelBaseCost();
-  }, [model]);
+  }, [model, authStatus]);
   
-  // 计算预计消耗
+  // 获取用户额度信息（仅对已登录用户）
   useEffect(() => {
+    if (authStatus !== 'authenticated') {
+      setHasQuota(null);
+      return;
+    }
+
+    const fetchQuota = async () => {
+      try {
+        const token = await generateDynamicTokenWithServerTime();
+        const response = await fetch(`/api/user/quota?t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // 管理员不限次，视为有额度
+          const quota = data.isAdmin ? true : (data.todayCount < (data.maxDailyRequests || 0));
+          setHasQuota(quota);
+        } else {
+          setHasQuota(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch quota:', error);
+        setHasQuota(null);
+      }
+    };
+
+    fetchQuota();
+    
+    // 定期刷新额度信息（每30秒）
+    const interval = setInterval(() => {
+      if (authStatus === 'authenticated') {
+        fetchQuota();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [authStatus]);
+  
+  // 计算预计消耗和额外消耗（仅对已登录用户）
+  useEffect(() => {
+    // 如果用户未登录，不计算预计消耗
+    if (authStatus !== 'authenticated') {
+      setEstimatedCost(null);
+      setExtraCost(null);
+      return;
+    }
+
     if (modelBaseCost !== null) {
-      const cost = calculateEstimatedCost(modelBaseCost, model, steps, width, height);
+      // 计算总消耗（不考虑额度）
+      const totalCost = calculateEstimatedCost(modelBaseCost, model, steps, width, height);
       // 乘以批次大小
-      const totalCost = cost !== null ? cost * batch_size : null;
-      setEstimatedCost(totalCost);
+      const totalCostWithBatch = totalCost !== null ? totalCost * batch_size : null;
+      
+      // 计算有额度时需要扣除的积分（总消耗 - 基础消耗）
+      if (totalCostWithBatch !== null && hasQuota !== null) {
+        const baseCostWithBatch = modelBaseCost * batch_size;
+        if (hasQuota) {
+          // 有额度：显示额外消耗（总消耗 - 基础消耗）
+          setEstimatedCost(Math.max(0, totalCostWithBatch - baseCostWithBatch));
+        } else {
+          // 无额度：显示全部消耗
+          setEstimatedCost(totalCostWithBatch);
+        }
+      } else {
+        setEstimatedCost(null);
+      }
+      
+      // 计算额外消耗（无额度时的基础积分消耗）- 无论是否有额度都显示
+      setExtraCost(modelBaseCost);
     } else {
       setEstimatedCost(null);
+      setExtraCost(null);
     }
-  }, [modelBaseCost, model, steps, width, height, batch_size]);
+  }, [modelBaseCost, model, steps, width, height, batch_size, authStatus, hasQuota]);
 
   return (
     <section id="generate-section" className="py-10 sm:py-12 lg:py-6 relative">
@@ -640,6 +755,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
                   onStyleChange={setSelectedStyle}
                   isQueuing={isQueuing}
                   estimatedCost={estimatedCost}
+                  extraCost={extraCost}
                 />
               </div>
             </div>

@@ -9,6 +9,7 @@ import AdminSidebar from '@/components/AdminSidebar'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 interface User {
   id: string
@@ -197,7 +198,25 @@ export default function AdminPage() {
       }
 
       try {
-        const response = await fetch('/api/admin/check')
+        // 获取动态token
+        const token = await generateDynamicTokenWithServerTime()
+        
+        const response = await fetch('/api/admin/check', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        // 检查响应状态
+        if (!response.ok) {
+          // 如果是401或403，说明权限不足，重定向
+          if (response.status === 401 || response.status === 403) {
+            router.push(transferUrl('/', locale))
+            return
+          }
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const data = await response.json()
         if (!data.isAdmin) {
           router.push(transferUrl('/', locale))

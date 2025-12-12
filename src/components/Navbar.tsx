@@ -321,8 +321,6 @@ export default function Navbar() {
             {session?.user && isAdmin && (
               <Link
                 href={transferUrl('/admin', locale)}
-                target="_blank"
-                rel="noopener noreferrer"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-orange-400/20 to-amber-400/20 hover:from-orange-400/30 hover:to-amber-400/30 border border-orange-400/40 transition-all duration-300"
               >

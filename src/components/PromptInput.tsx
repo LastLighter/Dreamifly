@@ -21,6 +21,7 @@ interface PromptInputProps {
   onStyleChange: (style: string) => void;
   isQueuing?: boolean;
   estimatedCost?: number | null;
+  extraCost?: number | null;
 }
 
 const PromptInput = ({
@@ -39,7 +40,8 @@ const PromptInput = ({
   selectedStyle,
   onStyleChange,
   isQueuing = false,
-  estimatedCost = null
+  estimatedCost = null,
+  extraCost = null
 }: PromptInputProps) => {
   const t = useTranslations('home.generate')
   const [isRatioOpen, setIsRatioOpen] = useState(false);
@@ -274,6 +276,26 @@ const PromptInput = ({
               )}
             </button>
             <LoginHint className="text-xs md:text-sm" />
+            {/* 额外消耗提示 - 仅对已登录用户显示，无论是否有额度都显示 */}
+            {extraCost !== null && extraCost > 0 && (
+              <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600 whitespace-nowrap">
+                <svg
+                  className="w-4 h-4 text-amber-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>若当前无额度将额外消耗{extraCost}积分</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
