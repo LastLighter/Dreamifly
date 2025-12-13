@@ -94,6 +94,8 @@ export const userLimitConfig = pgTable("user_limit_config", {
   premiumUserDailyLimit: integer("premium_user_daily_limit"), // 优质用户每日限额，null表示使用环境变量
   newUserDailyLimit: integer("new_user_daily_limit"), // 新用户每日限额，null表示使用环境变量
   unauthenticatedIpDailyLimit: integer("unauthenticated_ip_daily_limit"), // 未登录用户IP每日限额，null表示使用环境变量
+  regularUserMaxImages: integer("regular_user_max_images"), // 普通用户最大图片数，null表示使用环境变量
+  subscribedUserMaxImages: integer("subscribed_user_max_images"), // 订阅用户最大图片数，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -245,6 +247,21 @@ export const paymentOrder = pgTable("payment_order", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   paidAt: timestamp("paid_at"),
+});
+
+// 用户生成图片表
+export const userGeneratedImages = pgTable("user_generated_images", {
+  id: text("id").primaryKey(), // UUID
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  imageUrl: text("image_url").notNull(), // OSS中的图片URL
+  prompt: text("prompt"), // 生成时的提示词
+  model: text("model"), // 使用的模型
+  width: integer("width"), // 图片宽度
+  height: integer("height"), // 图片高度
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // 用户与头像框的关系

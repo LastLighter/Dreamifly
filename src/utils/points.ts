@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { userPoints, pointsConfig, user } from '@/db/schema';
+import { userPoints, pointsConfig, user, userLimitConfig } from '@/db/schema';
 import { eq, and, gte, lt, sql, inArray, isNotNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { getModelThresholds } from '@/utils/modelConfig';
@@ -39,6 +39,33 @@ export async function getPointsConfig() {
     zImageTurboCost: configData?.zImageTurboCost ?? envZImageTurboCost,
     qwenImageEditCost: configData?.qwenImageEditCost ?? envQwenImageEditCost,
     waiSdxlV150Cost: configData?.waiSdxlV150Cost ?? envWaiSdxlV150Cost,
+  };
+}
+
+/**
+ * 获取图片存储配额配置
+ * 优先级：数据库配置 > 环境变量 > 默认值
+ */
+export async function getImageStorageConfig() {
+  // 获取数据库配置（从 userLimitConfig 表）
+  const config = await db.select()
+    .from(userLimitConfig)
+    .where(eq(userLimitConfig.id, 1))
+    .limit(1);
+
+  const configData = config.length > 0 ? config[0] : null;
+
+  // 获取环境变量默认值
+  const envRegularMaxImages = parseInt(process.env.REGULAR_USER_MAX_IMAGES || '3', 10);
+  const envSubscribedMaxImages = parseInt(process.env.SUBSCRIBED_USER_MAX_IMAGES || '30', 10);
+
+  // 默认值
+  const DEFAULT_REGULAR_MAX_IMAGES = 3;
+  const DEFAULT_SUBSCRIBED_MAX_IMAGES = 30;
+
+  return {
+    regularUserMaxImages: configData?.regularUserMaxImages ?? envRegularMaxImages ?? DEFAULT_REGULAR_MAX_IMAGES,
+    subscribedUserMaxImages: configData?.subscribedUserMaxImages ?? envSubscribedMaxImages ?? DEFAULT_SUBSCRIBED_MAX_IMAGES,
   };
 }
 

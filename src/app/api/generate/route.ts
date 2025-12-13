@@ -1012,6 +1012,27 @@ export async function POST(request: Request) {
       await ipConcurrencyManager.end(clientIP)
     }
 
+    // 如果用户已登录，保存生成的图片
+    if (session?.user) {
+      try {
+        const { saveUserGeneratedImage } = await import('@/utils/userImageStorage')
+        await saveUserGeneratedImage(
+          session.user.id,
+          imageUrl, // base64格式的图片
+          {
+            prompt,
+            model,
+            width,
+            height,
+          }
+        )
+        console.log('用户生成图片已保存')
+      } catch (error) {
+        console.error('保存用户生成图片失败:', error)
+        // 不阻止主流程，继续返回图片给用户
+      }
+    }
+
     return NextResponse.json({ imageUrl })
   } catch (error) {
     console.error('Error generating image:', error)

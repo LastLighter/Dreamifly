@@ -313,7 +313,8 @@
     "switchLanguage": "Switch Language",
     "friends": "Friends",
     "workflows": "Workflows",
-    "pricing": "Subscription"
+    "pricing": "Subscription",
+    "myWorks": "My Works"
   },
   "friends": {
     "title": "Friends",
@@ -563,6 +564,21 @@
         "name": "Privacy & Safety",
         "description": "Your generated content will stay private"
       }
+    }
+  },
+  "myWorks": {
+    "title": "My Works",
+    "saved": "Saved",
+    "member": "Member",
+    "regular": "Regular User",
+    "subscribe": "Subscribe",
+    "expiresAt": "Membership Expires At",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "empty": {
+      "title": "No works saved yet",
+      "description": "Generated images will be automatically saved here",
+      "button": "Start Generating"
     }
   }
 } 

@@ -751,7 +751,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
       }
       
       // 计算额外消耗（无额度时的基础积分消耗）- 无论是否有额度都显示
-      setExtraCost(modelBaseCost);
+      setExtraCost(modelBaseCost * batch_size);
     } else {
       setEstimatedCost(null);
       setExtraCost(null);

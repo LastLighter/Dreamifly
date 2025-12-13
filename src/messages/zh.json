@@ -318,7 +318,8 @@
     "switchLanguage": "切换语言",
     "friends": "友链",
     "workflows": "工作流",
-    "pricing": "会员订阅"
+    "pricing": "会员订阅",
+    "myWorks": "我的作品"
   },
   "footer": {
     "copyright": "Dreamifly 版权所有"
@@ -568,6 +569,21 @@
         "name": "隐私安全",
         "description": "生成内容将不被公开"
       }
+    }
+  },
+  "myWorks": {
+    "title": "我的作品",
+    "saved": "已保存",
+    "member": "会员",
+    "regular": "普通用户",
+    "subscribe": "订阅会员",
+    "expiresAt": "会员到期时间",
+    "delete": "删除",
+    "deleting": "删除中...",
+    "empty": {
+      "title": "还没有保存任何作品",
+      "description": "生成图片后会自动保存到这里",
+      "button": "开始生成图片"
     }
   }
 }

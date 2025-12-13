@@ -61,6 +61,8 @@ export async function GET() {
     const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
     const envNewLimit = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
     const envUnauthIpLimit = parseInt(process.env.UNAUTHENTICATED_IP_DAILY_LIMIT || '100', 10);
+    const envRegularMaxImages = parseInt(process.env.REGULAR_USER_MAX_IMAGES || '3', 10);
+    const envSubscribedMaxImages = parseInt(process.env.SUBSCRIBED_USER_MAX_IMAGES || '30', 10);
 
     return NextResponse.json(
       {
@@ -68,14 +70,20 @@ export async function GET() {
         premiumUserDailyLimit: configData.premiumUserDailyLimit ?? envPremiumLimit,
         newUserDailyLimit: configData.newUserDailyLimit ?? envNewLimit,
         unauthenticatedIpDailyLimit: configData.unauthenticatedIpDailyLimit ?? envUnauthIpLimit,
+        regularUserMaxImages: configData.regularUserMaxImages ?? envRegularMaxImages,
+        subscribedUserMaxImages: configData.subscribedUserMaxImages ?? envSubscribedMaxImages,
         usingEnvRegular: configData.regularUserDailyLimit === null,
         usingEnvPremium: configData.premiumUserDailyLimit === null,
         usingEnvNew: configData.newUserDailyLimit === null,
         usingEnvUnauthIp: configData.unauthenticatedIpDailyLimit === null,
+        usingEnvRegularMaxImages: configData.regularUserMaxImages === null,
+        usingEnvSubscribedMaxImages: configData.subscribedUserMaxImages === null,
         envRegularLimit,
         envPremiumLimit,
         envNewLimit,
         envUnauthIpLimit,
+        envRegularMaxImages,
+        envSubscribedMaxImages,
       },
       {
         headers: {
@@ -128,10 +136,14 @@ export async function PATCH(request: NextRequest) {
       premiumUserDailyLimit,
       newUserDailyLimit,
       unauthenticatedIpDailyLimit,
+      regularUserMaxImages,
+      subscribedUserMaxImages,
       useEnvForRegular,
       useEnvForPremium,
       useEnvForNew,
       useEnvForUnauthIp,
+      useEnvForRegularMaxImages,
+      useEnvForSubscribedMaxImages,
     } = body;
 
     // 验证参数
@@ -171,6 +183,24 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    if (useEnvForRegularMaxImages !== true && useEnvForRegularMaxImages !== false && regularUserMaxImages !== undefined) {
+      if (typeof regularUserMaxImages !== 'number' || regularUserMaxImages < 1) {
+        return NextResponse.json(
+          { error: '普通用户最大图片数必须是大于等于1的数字' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (useEnvForSubscribedMaxImages !== true && useEnvForSubscribedMaxImages !== false && subscribedUserMaxImages !== undefined) {
+      if (typeof subscribedUserMaxImages !== 'number' || subscribedUserMaxImages < 1) {
+        return NextResponse.json(
+          { error: '订阅用户最大图片数必须是大于等于1的数字' },
+          { status: 400 }
+        );
+      }
+    }
+
     // 检查配置是否存在
     const config = await db.select()
       .from(userLimitConfig)
@@ -185,6 +215,8 @@ export async function PATCH(request: NextRequest) {
         premiumUserDailyLimit: null,
         newUserDailyLimit: null,
         unauthenticatedIpDailyLimit: null,
+        regularUserMaxImages: null,
+        subscribedUserMaxImages: null,
       });
     }
 
@@ -194,6 +226,8 @@ export async function PATCH(request: NextRequest) {
       premiumUserDailyLimit?: number | null;
       newUserDailyLimit?: number | null;
       unauthenticatedIpDailyLimit?: number | null;
+      regularUserMaxImages?: number | null;
+      subscribedUserMaxImages?: number | null;
       updatedAt: Date;
     } = {
       updatedAt: new Date(),
@@ -221,6 +255,18 @@ export async function PATCH(request: NextRequest) {
       updateData.unauthenticatedIpDailyLimit = null;
     } else if (unauthenticatedIpDailyLimit !== undefined) {
       updateData.unauthenticatedIpDailyLimit = unauthenticatedIpDailyLimit;
+    }
+
+    if (useEnvForRegularMaxImages === true) {
+      updateData.regularUserMaxImages = null;
+    } else if (regularUserMaxImages !== undefined) {
+      updateData.regularUserMaxImages = regularUserMaxImages;
+    }
+
+    if (useEnvForSubscribedMaxImages === true) {
+      updateData.subscribedUserMaxImages = null;
+    } else if (subscribedUserMaxImages !== undefined) {
+      updateData.subscribedUserMaxImages = subscribedUserMaxImages;
     }
 
     // 更新配置
