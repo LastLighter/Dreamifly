@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
         isAdmin: user.isAdmin,
         isPremium: user.isPremium,
         isOldUser: user.isOldUser,
+        isActive: user.isActive,
         dailyRequestCount: user.dailyRequestCount,
         lastRequestResetDate: sql<string | null>`${user.lastRequestResetDate} AT TIME ZONE 'UTC'`,
       })
@@ -227,6 +228,7 @@ export async function GET(request: NextRequest) {
       isAdmin,
       isPremium,
       isOldUser,
+      isActive: userInfo.isActive !== undefined ? userInfo.isActive : true,
     });
   } catch (error) {
     console.error('Error fetching user quota:', error);

@@ -45,6 +45,7 @@ export default function ProfilePage() {
     isAdmin: boolean
     isPremium: boolean
     isOldUser: boolean
+    isActive: boolean
   } | null>(null)
   const [quotaLoading, setQuotaLoading] = useState(false)
 
@@ -562,9 +563,16 @@ export default function ProfilePage() {
                   <h3 className="text-lg font-semibold text-gray-900">调用统计</h3>
                   <p className="text-sm text-gray-500">关注上限，合理分配创作节奏。</p>
                 </div>
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                  {quotaLoading ? '加载中' : quota ? '已同步' : '未获取'}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                  {quota && !quota.isActive && (
+                    <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
+                      账号已封禁
+                    </span>
+                  )}
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                    {quotaLoading ? '加载中' : quota ? '已同步' : '未获取'}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-4 rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3">
@@ -578,6 +586,19 @@ export default function ProfilePage() {
                   </div>
                 ) : quota ? (
                   <div className="space-y-2 text-gray-800">
+                    {!quota.isActive && (
+                      <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <div>
+                            <p className="text-sm font-semibold text-red-800">账号已被封禁</p>
+                            <p className="text-xs text-red-600">您的账号已被封禁，无法使用生图服务和签到功能。如有疑问，请联系管理员。</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <p className="text-base font-semibold">
                         {quota.todayCount} / {quota.maxDailyRequests === null ? '∞' : quota.maxDailyRequests}
