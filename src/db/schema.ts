@@ -260,6 +260,10 @@ export const userGeneratedImages = pgTable("user_generated_images", {
   model: text("model"), // 使用的模型
   width: integer("width"), // 图片宽度
   height: integer("height"), // 图片高度
+  userRole: text("user_role"), // 用户角色：admin, subscribed, premium, oldUser, regular
+  userAvatar: text("user_avatar"), // 用户头像URL
+  userNickname: text("user_nickname"), // 用户昵称
+  avatarFrameId: integer("avatar_frame_id"), // 头像框ID
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

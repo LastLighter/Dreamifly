@@ -119,7 +119,42 @@ export async function saveUserGeneratedImage(
   const fileName = `${uuidv4()}.png`
   const imageUrl = await uploadToOSS(buffer, fileName, 'user-generated-images')
   
-  // 5. 保存到数据库
+  // 5. 获取用户信息（角色、头像、昵称、头像框）
+  const userData = await db
+    .select({
+      isAdmin: user.isAdmin,
+      isSubscribed: user.isSubscribed,
+      subscriptionExpiresAt: user.subscriptionExpiresAt,
+      isPremium: user.isPremium,
+      isOldUser: user.isOldUser,
+      avatar: user.avatar,
+      nickname: user.nickname,
+      avatarFrameId: user.avatarFrameId,
+    })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+
+  // 判断用户角色
+  let userRole: 'admin' | 'subscribed' | 'premium' | 'oldUser' | 'regular' = 'regular'
+  if (userData.length > 0) {
+    const userInfo = userData[0]
+    if (userInfo.isAdmin) {
+      userRole = 'admin'
+    } else if (userInfo.isSubscribed && userInfo.subscriptionExpiresAt && new Date(userInfo.subscriptionExpiresAt) > new Date()) {
+      userRole = 'subscribed'
+    } else if (userInfo.isPremium) {
+      userRole = 'premium'
+    } else if (userInfo.isOldUser) {
+      userRole = 'oldUser'
+    }
+  }
+
+  const userAvatar = userData.length > 0 ? (userData[0].avatar || '/images/default-avatar.svg') : '/images/default-avatar.svg'
+  const userNickname = userData.length > 0 ? (userData[0].nickname || null) : null
+  const avatarFrameId = userData.length > 0 ? userData[0].avatarFrameId : null
+
+  // 6. 保存到数据库
   const imageId = uuidv4()
   await db.insert(userGeneratedImages).values({
     id: imageId,
@@ -129,11 +164,15 @@ export async function saveUserGeneratedImage(
     model: metadata?.model,
     width: metadata?.width,
     height: metadata?.height,
+    userRole,
+    userAvatar,
+    userNickname,
+    avatarFrameId,
     createdAt: new Date(),
     updatedAt: new Date(),
   })
   
-  // 6. 自动清理超出数量的旧图片（从前往后删除，保留最新的）
+  // 7. 自动清理超出数量的旧图片（从前往后删除，保留最新的）
   // 无论会员是否过期，都会自动维护对应的上限
   await cleanupOldImages(userId, maxImages)
   

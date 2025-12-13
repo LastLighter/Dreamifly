@@ -13,6 +13,7 @@ import { getAvailableWorkflows, getAllWorkflows } from '@/utils/workflowConfig'
 import AIPlazaCard from '@/components/AIPlazaCard'
 import { ModelConfig } from '@/utils/modelConfig'
 import { WorkflowConfig } from '@/utils/workflowConfig'
+import AvatarWithFrame from '@/components/AvatarWithFrame'
 
 interface FAQItem {
   q: string;
@@ -106,16 +107,113 @@ export default function HomeClient() {
     timerRef.current = timer
   }
 
-  // 模拟社区作品数据
-  const communityWorks = community
+  // 社区作品数据状态
+  const [communityWorks, setCommunityWorks] = useState(community)
+  const [isLoadingCommunityWorks, setIsLoadingCommunityWorks] = useState(true)
 
-  const navigateToCreate = (promptText?: string) => {
-    const query = promptText ? `?prompt=${encodeURIComponent(promptText)}` : ''
-    router.push(transferUrl(`/create${query}`, locale))
+  // 加载社区作品图片
+  useEffect(() => {
+    const fetchCommunityImages = async () => {
+      try {
+        setIsLoadingCommunityWorks(true)
+        const response = await fetch('/api/community/images')
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.images && data.images.length > 0) {
+            // 使用从数据库获取的图片，确保包含 userAvatar、userNickname、model 和 avatarFrameId
+            const dbImages = data.images.map((img: any) => ({
+              id: img.id,
+              image: img.image,
+              prompt: img.prompt,
+              model: img.model || '',
+              userAvatar: img.userAvatar || '/images/default-avatar.svg',
+              userNickname: img.userNickname || '',
+              avatarFrameId: img.avatarFrameId || null,
+            }))
+            
+            // 如果数据库中的图片少于12张，用默认图片填充到12张
+            if (dbImages.length < 12) {
+              const defaultImages = community.map((work: any) => ({
+                ...work,
+                model: '默认',
+                userAvatar: '/images/default-avatar.svg',
+                userNickname: '默认',
+                avatarFrameId: null,
+              }))
+              
+              // 合并数据库图片和默认图片，优先显示数据库图片
+              // 使用 'default-' 前缀确保默认图片的ID不会与数据库图片ID冲突
+              const fillImages = defaultImages
+                .slice(0, 12 - dbImages.length)
+                .map((work: any, index: number) => ({
+                  ...work,
+                  id: `default-${work.id}-${index}`, // 确保ID唯一
+                  model: '默认',
+                  userNickname: '默认',
+                }))
+              
+              const combinedImages = [
+                ...dbImages,
+                ...fillImages
+              ]
+              
+              setCommunityWorks(combinedImages)
+            } else {
+              // 如果已经有12张或更多，直接使用数据库图片（最多显示12张）
+              setCommunityWorks(dbImages.slice(0, 12))
+            }
+          } else {
+            // 如果返回的数据无效或为空，使用默认图片（添加默认头像信息）
+            setCommunityWorks(community.map((work: any) => ({
+              ...work,
+              model: '默认',
+              userAvatar: '/images/default-avatar.svg',
+              userNickname: '默认',
+              avatarFrameId: null,
+            })))
+          }
+        } else {
+          // 请求失败，使用默认图片（添加默认头像信息）
+          setCommunityWorks(community.map((work: any) => ({
+            ...work,
+            model: '默认',
+            userAvatar: '/images/default-avatar.svg',
+            userNickname: '默认',
+            avatarFrameId: null,
+          })))
+        }
+      } catch (error) {
+        console.error('Error fetching community images:', error)
+        // 请求失败，使用默认图片（添加默认头像信息）
+        setCommunityWorks(community.map((work: any) => ({
+          ...work,
+          userAvatar: '/images/default-avatar.svg',
+          avatarFrameId: null,
+        })))
+      } finally {
+        setIsLoadingCommunityWorks(false)
+      }
+    }
+
+    fetchCommunityImages()
+  }, [])
+
+  const navigateToCreate = (promptText?: string, modelId?: string) => {
+    const params = new URLSearchParams()
+    if (promptText) {
+      params.set('prompt', promptText)
+    }
+    // 只有当模型ID存在且不是"默认"时才传递模型参数
+    if (modelId && modelId.trim() !== '' && modelId !== '默认') {
+      params.set('model', modelId)
+    }
+    const query = params.toString()
+    router.push(transferUrl(`/create${query ? `?${query}` : ''}`, locale))
   }
 
-  const handleGenerateSame = (promptText: string) => {
-    navigateToCreate(promptText)
+  const handleGenerateSame = (promptText: string, modelId?: string) => {
+    navigateToCreate(promptText, modelId)
   };
 
   return (
@@ -402,15 +500,37 @@ export default function HomeClient() {
                     />
                   </div>
                   <div className="absolute inset-0 bg-gray-100/90 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl">
-                    <div className="absolute inset-0 flex flex-col justify-end p-6">
-                      <p className="text-gray-900 text-sm mb-6 line-clamp-3">{work.prompt}</p>
-                      <button
-                        onClick={() => handleGenerateSame(work.prompt)}
-                        className="group w-full py-2.5 px-5 bg-gradient-to-r from-orange-500 to-amber-500 text-gray-900 rounded-lg font-medium hover:from-orange-400 hover:to-amber-400 transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden"
-                      >
-                        <span className="relative z-10">{t('community.generateSame')}</span>
-                        <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      </button>
+                    <div className="absolute inset-0 flex flex-col justify-between p-6">
+                      {/* 顶部：用户头像、昵称和模型 */}
+                      <div className="flex flex-col items-start gap-2">
+                        <div className="flex items-center gap-3">
+                          <AvatarWithFrame
+                            avatar={(work as any).userAvatar || '/images/default-avatar.svg'}
+                            avatarFrameId={(work as any).avatarFrameId || null}
+                            size={48}
+                            className="border-2 border-orange-400/40 shadow-sm"
+                          />
+                          <div className="flex flex-col">
+                            <span className="text-gray-900 font-medium text-sm">
+                              {(work as any).userNickname || '默认'}
+                            </span>
+                            <span className="text-gray-600 text-xs">
+                              {(work as any).model || '默认'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {/* 底部：提示词和按钮 */}
+                      <div className="flex flex-col">
+                        <p className="text-gray-900 text-sm mb-6 line-clamp-3">{work.prompt}</p>
+                        <button
+                          onClick={() => handleGenerateSame(work.prompt, (work as any).model)}
+                          className="group w-full py-2.5 px-5 bg-gradient-to-r from-orange-500 to-amber-500 text-gray-900 rounded-lg font-medium hover:from-orange-400 hover:to-amber-400 transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden"
+                        >
+                          <span className="relative z-10">{t('community.generateSame')}</span>
+                          <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
