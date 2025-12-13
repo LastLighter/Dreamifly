@@ -25,8 +25,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 获取用户信息
-    const currentUser = await db.select()
+    // 获取用户信息（包含订阅相关字段）
+    const currentUser = await db.select({
+      id: user.id,
+      isAdmin: user.isAdmin,
+      isPremium: user.isPremium,
+      isActive: user.isActive,
+      isSubscribed: user.isSubscribed,
+      subscriptionExpiresAt: user.subscriptionExpiresAt,
+    })
       .from(user)
       .where(eq(user.id, session.user.id))
       .limit(1);
@@ -37,7 +44,10 @@ export async function POST(request: NextRequest) {
 
     const userData = currentUser[0];
     const isAdmin = userData.isAdmin || false;
-    const isSubscribed = isSubscriptionActive(userData);
+    const isSubscribed = isSubscriptionActive({
+      isSubscribed: userData.isSubscribed,
+      subscriptionExpiresAt: userData.subscriptionExpiresAt,
+    });
     
     // 检查用户是否被封禁
     if (!userData.isActive) {
