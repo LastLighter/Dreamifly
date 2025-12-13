@@ -559,7 +559,7 @@ export default function ProfilePage() {
             <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xl shadow-orange-500/5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">今日额度</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">今日免费额度</p>
                   <h3 className="text-lg font-semibold text-gray-900">调用统计</h3>
                   <p className="text-sm text-gray-500">关注上限，合理分配创作节奏。</p>
                 </div>
@@ -603,10 +603,18 @@ export default function ProfilePage() {
                       <p className={`text-base font-semibold ${!quota.isActive ? 'text-gray-400 line-through' : ''}`}>
                         {quota.todayCount} / {quota.maxDailyRequests === null ? '∞' : quota.maxDailyRequests}
                       </p>
-                      {userTypeBadge && (
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${!quota.isActive ? 'text-gray-400 line-through border-gray-300 bg-gray-100' : userTypeBadge.className}`}>
-                          {userTypeBadge.label}
+                      {/* 如果用户是会员，显示会员标识；否则显示用户类型标识 */}
+                      {subscription?.isSubscribed ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                          <img src="/common/crown.svg" alt="" className="h-3 w-3" />
+                          会员
                         </span>
+                      ) : (
+                        userTypeBadge && (
+                          <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${!quota.isActive ? 'text-gray-400 line-through border-gray-300 bg-gray-100' : userTypeBadge.className}`}>
+                            {userTypeBadge.label}
+                          </span>
+                        )
                       )}
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-white">
@@ -621,7 +629,7 @@ export default function ProfilePage() {
                     <p className="text-xs text-gray-500">
                       {quota.maxDailyRequests === null
                         ? '当前为无限制模式，请合理使用算力资源。'
-                        : '达到上限后需等次日刷新，订阅会员可提升额度。'}
+                        : '免费额度达到上限后需等次日刷新，积分可替代额度。'}
                     </p>
                   </div>
                 ) : (
