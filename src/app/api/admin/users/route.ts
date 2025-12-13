@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { db } from '@/db';
 import { user, avatarFrame, allowedEmailDomain } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { headers } from 'next/headers';
 
 // 获取用户列表
@@ -47,8 +47,15 @@ export async function GET(request: NextRequest) {
     // 筛选参数
     const emailVerifiedFilter = searchParams.get('emailVerified'); // true, false, 或空（全部）
     const emailTypeFilter = searchParams.get('emailType') || 'all'; // gmail, outlook, qq, 163, other, all
-    const roleFilter = searchParams.get('role') || 'all'; // admin, premium, regular, all
+    const roleFilter = searchParams.get('role') || 'all'; // admin, subscribed, premium, oldUser, regular, all
     const statusFilter = searchParams.get('status') || 'active'; // active, banned, all
+
+    // 检查用户订阅是否有效的辅助函数
+    const isSubscriptionActive = (isSubscribed: boolean | null, subscriptionExpiresAt: Date | null): boolean => {
+      if (!isSubscribed) return false;
+      if (!subscriptionExpiresAt) return false;
+      return new Date(subscriptionExpiresAt) > new Date();
+    }
 
     // 构建筛选条件
     const filterConditions = [];
@@ -63,10 +70,22 @@ export async function GET(request: NextRequest) {
     // 角色筛选
     if (roleFilter === 'admin') {
       filterConditions.push(eq(user.isAdmin, true));
+    } else if (roleFilter === 'subscribed') {
+      // 付费用户（会员）：非管理员且订阅有效
+      filterConditions.push(eq(user.isAdmin, false));
     } else if (roleFilter === 'premium') {
+      // 优质用户：非管理员且 isPremium=true 且不是会员
       filterConditions.push(and(eq(user.isAdmin, false), eq(user.isPremium, true)));
+    } else if (roleFilter === 'oldUser') {
+      // 首批用户：非管理员且 isOldUser=true 且不是会员且不是优质用户
+      filterConditions.push(and(eq(user.isAdmin, false), eq(user.isOldUser, true)));
     } else if (roleFilter === 'regular') {
-      filterConditions.push(and(eq(user.isAdmin, false), eq(user.isPremium, false)));
+      // 普通用户：非管理员且不是会员且不是优质用户且不是首批用户
+      filterConditions.push(and(
+        eq(user.isAdmin, false),
+        eq(user.isPremium, false),
+        eq(user.isOldUser, false)
+      ));
     }
     
     // 状态筛选
@@ -77,8 +96,28 @@ export async function GET(request: NextRequest) {
     }
     // statusFilter === 'all' 时不添加筛选条件
     
-    // 构建查询
-    let query = db.select().from(user);
+    // 构建查询（包含订阅字段）
+    let query = db.select({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      nickname: user.nickname,
+      image: user.image,
+      avatar: user.avatar,
+      uid: user.uid,
+      emailVerified: user.emailVerified,
+      isActive: user.isActive,
+      isAdmin: user.isAdmin,
+      isPremium: user.isPremium,
+      isOldUser: user.isOldUser,
+      isSubscribed: user.isSubscribed,
+      subscriptionExpiresAt: user.subscriptionExpiresAt,
+      dailyRequestCount: user.dailyRequestCount,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      lastLoginAt: user.lastLoginAt,
+      avatarFrameId: user.avatarFrameId,
+    }).from(user);
     
     // 应用筛选条件
     if (filterConditions.length > 0) {
@@ -163,6 +202,40 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // 根据角色筛选条件进行内存筛选（对于需要检查会员状态的筛选）
+    if (roleFilter === 'subscribed') {
+      // 只返回非管理员且订阅有效的用户
+      allUsers = allUsers.filter(u => {
+        if (u.isAdmin) return false;
+        return isSubscriptionActive(u.isSubscribed, u.subscriptionExpiresAt);
+      });
+    } else if (roleFilter === 'premium') {
+      // 只返回非管理员、优质用户且不是会员的用户
+      allUsers = allUsers.filter(u => {
+        if (u.isAdmin) return false;
+        if (!u.isPremium) return false;
+        return !isSubscriptionActive(u.isSubscribed, u.subscriptionExpiresAt);
+      });
+    } else if (roleFilter === 'oldUser') {
+      // 只返回非管理员、首批用户且不是会员且不是优质用户的用户
+      allUsers = allUsers.filter(u => {
+        if (u.isAdmin) return false;
+        if (!u.isOldUser) return false;
+        if (isSubscriptionActive(u.isSubscribed, u.subscriptionExpiresAt)) return false;
+        if (u.isPremium) return false;
+        return true;
+      });
+    } else if (roleFilter === 'regular') {
+      // 只返回非管理员、普通用户且不是会员的用户
+      allUsers = allUsers.filter(u => {
+        if (u.isAdmin) return false;
+        if (isSubscriptionActive(u.isSubscribed, u.subscriptionExpiresAt)) return false;
+        if (u.isPremium) return false;
+        if (u.isOldUser) return false;
+        return true;
+      });
+    }
+
     // 计算总数
     const total = allUsers.length;
 
@@ -182,6 +255,8 @@ export async function GET(request: NextRequest) {
       isAdmin: u.isAdmin || false,
       isPremium: u.isPremium || false,
       isOldUser: u.isOldUser || false,
+      isSubscribed: u.isSubscribed || false,
+      subscriptionExpiresAt: u.subscriptionExpiresAt,
       dailyRequestCount: u.dailyRequestCount || 0,
       createdAt: u.createdAt,
       updatedAt: u.updatedAt,

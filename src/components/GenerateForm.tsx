@@ -258,6 +258,13 @@ export default function GenerateForm({
     };
   }, [isGenerating, steps, width, height, model, status, unauthDelay, setIsQueuingProp]);
 
+  // 生成时自动关闭模型下拉框
+  useEffect(() => {
+    if (isGenerating) {
+      setIsModelDropdownOpen(false)
+    }
+  }, [isGenerating])
+
   // 当模型切换时，自动调整步数和分辨率到新模型的默认值
   useEffect(() => {
     // 只在模型真正改变时执行调整逻辑
@@ -737,11 +744,15 @@ export default function GenerateForm({
               <div className="relative" ref={modelDropdownRef}>
                 <button
                   type="button"
-                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                  onClick={() => {
+                    if (!isGenerating && status !== 'loading') {
+                      setIsModelDropdownOpen(!isModelDropdownOpen)
+                    }
+                  }}
                   className={`w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-left text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300 flex items-center justify-between ${
-                    !filteredModels.find(m => m.id === model)?.isAvailable ? 'opacity-50' : ''
+                    !filteredModels.find(m => m.id === model)?.isAvailable || isGenerating ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
-                  disabled={status === 'loading'}
+                  disabled={status === 'loading' || isGenerating}
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-6 rounded overflow-hidden flex-shrink-0">
@@ -803,13 +814,17 @@ export default function GenerateForm({
                         key={modelOption.id}
                         type="button"
                         onClick={() => {
+                          // 生成时不允许切换模型
+                          if (isGenerating) {
+                            return
+                          }
                           // Qwen-Image-Edit 即使没有上传图片也可以选择
                           if (modelOption.isAvailable || modelOption.id === 'Qwen-Image-Edit') {
                             setModel(modelOption.id)
                             setIsModelDropdownOpen(false)
                           }
                         }}
-                        disabled={!modelOption.isAvailable && modelOption.id !== 'Qwen-Image-Edit'}
+                        disabled={(!modelOption.isAvailable && modelOption.id !== 'Qwen-Image-Edit') || isGenerating}
                         className={`w-full px-4 py-4 text-left transition-colors duration-200 flex flex-col space-y-3 ${
                           model === modelOption.id ? 'bg-white/50' : ''
                         } ${

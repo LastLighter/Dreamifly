@@ -92,7 +92,7 @@ export default function AdminPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [emailVerifiedFilter, setEmailVerifiedFilter] = useState<string>('') // '', 'true', 'false'
   const [emailTypeFilter, setEmailTypeFilter] = useState<string>('all') // all, gmail, outlook, qq, 163, other
-  const [roleFilter, setRoleFilter] = useState<string>('all') // all, admin, premium, regular
+  const [roleFilter, setRoleFilter] = useState<string>('all') // all, admin, subscribed, premium, oldUser, regular
   const [statusFilter, setStatusFilter] = useState<string>('active') // active, banned, all
   const [isAdvancedSearchExpanded, setIsAdvancedSearchExpanded] = useState(false) // 高级搜索折叠状态，默认折叠
 
@@ -882,7 +882,9 @@ export default function AdminPage() {
                       >
                         <option value="all">全部</option>
                         <option value="admin">管理员</option>
+                        <option value="subscribed">付费用户</option>
                         <option value="premium">优质用户</option>
+                        <option value="oldUser">首批用户</option>
                         <option value="regular">普通用户</option>
                       </select>
                     </div>

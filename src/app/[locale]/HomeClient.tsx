@@ -33,33 +33,24 @@ export default function HomeClient() {
   const [availableWorkflows, setAvailableWorkflows] = useState<WorkflowConfig[]>([])
   const [isLoadingAIItems, setIsLoadingAIItems] = useState(false)
 
-  // 初始化时先显示所有模型和工作流
+  // 加载可用的模型和工作流（基于环境变量）
   useEffect(() => {
-    // 先显示所有模型和工作流，让用户立即看到内容
-    const allModels = getAllModels()
-    const allWorkflows = getAllWorkflows()
-    setAvailableModels(allModels)
-    setAvailableWorkflows(allWorkflows)
-    
-    // 然后异步更新为实际可用的（基于环境变量）
     const fetchAIItems = async () => {
+      setIsLoadingAIItems(true)
       try {
-        // 设置超时，避免长时间等待
-        const timeoutPromise = new Promise<{models: ModelConfig[], workflows: WorkflowConfig[]}>((_, reject) => {
-          window.setTimeout(() => reject(new Error('Timeout')), 3000) // 3秒超时
-        })
-        
-        const fetchPromise = Promise.all([
+        const [models, workflows] = await Promise.all([
           getAvailableModels(),
           getAvailableWorkflows()
-        ]).then(([models, workflows]) => ({ models, workflows }))
-        
-        const { models, workflows } = await Promise.race([fetchPromise, timeoutPromise])
+        ])
         setAvailableModels(models)
         setAvailableWorkflows(workflows)
       } catch (error) {
         console.error('Error fetching AI items:', error)
-        // 如果API调用失败或超时，继续使用所有模型和工作流
+        // 如果API调用失败，显示空列表
+        setAvailableModels([])
+        setAvailableWorkflows([])
+      } finally {
+        setIsLoadingAIItems(false)
       }
     }
 
@@ -350,7 +341,7 @@ export default function HomeClient() {
               <p className="text-lg text-gray-700 animate-fadeInUp animation-delay-200">探索可用的 AI 模型和工作流工具</p>
             </div>
 
-            {isLoadingAIItems ? (
+            {isLoadingAIItems || (availableModels.length === 0 && availableWorkflows.length === 0) ? (
               <div className="flex justify-center items-center py-20">
                 <div className="text-gray-500">加载中...</div>
               </div>
@@ -368,12 +359,6 @@ export default function HomeClient() {
                     <AIPlazaCard item={workflow} type="workflow" />
                   </div>
                 ))}
-                {/* 如果没有可用的项目 */}
-                {availableModels.length === 0 && availableWorkflows.length === 0 && (
-                  <div className="col-span-full text-center py-20 text-gray-500">
-                    暂无可用的 AI 模型和工作流
-                  </div>
-                )}
               </div>
             )}
           </div>

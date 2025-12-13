@@ -131,11 +131,24 @@ export async function POST(request: Request) {
     // 获取用户信息（用于IP并发控制）
     let isAdmin = false
     let isPremium = false
+    let isSubscribed = false
     let currentUserId: string | null = null
+    
+    // 检查用户订阅是否有效的辅助函数
+    const isSubscriptionActive = (isSubscribed: boolean | null, subscriptionExpiresAt: Date | null): boolean => {
+      if (!isSubscribed) return false;
+      if (!subscriptionExpiresAt) return false;
+      return new Date(subscriptionExpiresAt) > new Date();
+    }
     
     if (session?.user) {
       currentUserId = session.user.id
-      const currentUser = await db.select()
+      const currentUser = await db.select({
+        isAdmin: user.isAdmin,
+        isPremium: user.isPremium,
+        isSubscribed: user.isSubscribed,
+        subscriptionExpiresAt: user.subscriptionExpiresAt,
+      })
         .from(user)
         .where(eq(user.id, currentUserId))
         .limit(1)
@@ -143,6 +156,7 @@ export async function POST(request: Request) {
       if (currentUser.length > 0) {
         isAdmin = currentUser[0].isAdmin || false
         isPremium = currentUser[0].isPremium || false
+        isSubscribed = isSubscriptionActive(currentUser[0].isSubscribed, currentUser[0].subscriptionExpiresAt)
       }
     }
     
@@ -153,7 +167,8 @@ export async function POST(request: Request) {
         clientIP,
         currentUserId,
         isAdmin,
-        isPremium
+        isPremium,
+        isSubscribed
       )
       
       if (!ipConcurrencyCheck.canStart) {
@@ -456,6 +471,8 @@ export async function POST(request: Request) {
         isOldUser: user.isOldUser,
         isActive: user.isActive,
         dailyRequestCount: user.dailyRequestCount,
+        isSubscribed: user.isSubscribed,
+        subscriptionExpiresAt: user.subscriptionExpiresAt,
         // 将 timestamptz 转换为 UTC 时间字符串，确保读取正确
         lastRequestResetDate: sql<string | null>`${user.lastRequestResetDate} AT TIME ZONE 'UTC'`,
         updatedAt: user.updatedAt,
@@ -475,13 +492,17 @@ export async function POST(request: Request) {
           }, { status: 403 })
         }
         
-        // 更新isAdmin和isPremium（如果之前没有获取到）
+        // 更新isAdmin、isPremium和isSubscribed（如果之前没有获取到）
         if (!isAdmin) isAdmin = userData.isAdmin || false;
         if (!isPremium) isPremium = userData.isPremium || false;
+        // 检查会员状态（如果用户既是管理员又是会员，按管理员处理，所以这里只在非管理员时更新）
+        if (!isAdmin) {
+          isSubscribed = isSubscriptionActive(userData.isSubscribed, userData.subscriptionExpiresAt)
+        }
         const isOldUser = userData.isOldUser || false;
         
-        // 管理员不受用户并发限制
-        if (!isAdmin) {
+        // 管理员和会员不受用户并发限制
+        if (!isAdmin && !isSubscribed) {
           const maxConcurrent = parseInt(process.env.MAX_CONCURRENT_GENERATIONS || '2', 10);
           
           // 检查是否超过用户并发限制
@@ -662,7 +683,10 @@ export async function POST(request: Request) {
       }
       
       // 开始跟踪这个生成请求（用户并发）
-      generationId = concurrencyManager.start(userId);
+      // 管理员和会员不受用户并发限制，不需要跟踪
+      if (!isAdmin && !isSubscribed) {
+        generationId = concurrencyManager.start(userId);
+      }
     }
     
     // 解析请求体（提前解析，以便检查积分和额度）
@@ -757,7 +781,8 @@ export async function POST(request: Request) {
               if (generationId) {
                 concurrencyManager.end(generationId);
               }
-              if (clientIP) {
+              // 管理员和会员不受IP并发限制，不需要清理计数
+              if (clientIP && !isAdmin && !isSubscribed) {
                 await ipConcurrencyManager.end(clientIP).catch(err => {
                   console.error('Error decrementing IP concurrency:', err)
                 })
@@ -782,7 +807,8 @@ export async function POST(request: Request) {
               if (generationId) {
                 concurrencyManager.end(generationId);
               }
-              if (clientIP) {
+              // 管理员和会员不受IP并发限制，不需要清理计数
+              if (clientIP && !isAdmin && !isSubscribed) {
                 await ipConcurrencyManager.end(clientIP).catch(err => {
                   console.error('Error decrementing IP concurrency:', err)
                 })
@@ -813,7 +839,8 @@ export async function POST(request: Request) {
           if (generationId) {
             concurrencyManager.end(generationId);
           }
-          if (clientIP) {
+          // 管理员和会员不受IP并发限制，不需要清理计数
+          if (clientIP && !isAdmin && !isSubscribed) {
             await ipConcurrencyManager.end(clientIP).catch(err => {
               console.error('Error decrementing IP concurrency:', err)
             })
@@ -892,7 +919,8 @@ export async function POST(request: Request) {
 
     // 对于已登录用户，在所有检查都通过后，原子性地增加IP并发计数
     // 未登录用户的IP并发计数已在前面增加
-    if (clientIP && session?.user) {
+    // 管理员和会员不受IP并发限制，不需要增加计数
+    if (clientIP && session?.user && !isAdmin && !isSubscribed) {
       const ipStartSuccess = await ipConcurrencyManager.start(clientIP, ipMaxConcurrency)
       if (!ipStartSuccess) {
         // 如果增加计数失败，需要清理用户并发跟踪
@@ -979,7 +1007,8 @@ export async function POST(request: Request) {
     }
     
     // 清理IP并发跟踪
-    if (clientIP) {
+    // 管理员和会员不受IP并发限制，不需要清理计数
+    if (clientIP && !isAdmin && !isSubscribed) {
       await ipConcurrencyManager.end(clientIP)
     }
 
@@ -993,7 +1022,8 @@ export async function POST(request: Request) {
     }
     
     // 清理IP并发跟踪
-    if (clientIP) {
+    // 管理员和会员不受IP并发限制，不需要清理计数
+    if (clientIP && !isAdmin && !isSubscribed) {
       await ipConcurrencyManager.end(clientIP).catch(err => {
         console.error('Error decrementing IP concurrency:', err)
       })
