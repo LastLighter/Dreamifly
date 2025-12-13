@@ -114,10 +114,20 @@ export async function saveUserGeneratedImage(
     }
   }
   
-  // 4. 上传到OSS（使用新目录 user-generated-images）
+  // 4. 上传到OSS（使用新目录 user-generated-images，按日期分文件夹存储）
   const { v4: uuidv4 } = await import('uuid')
   const fileName = `${uuidv4()}.png`
-  const imageUrl = await uploadToOSS(buffer, fileName, 'user-generated-images')
+  
+  // 按日期生成文件夹路径：YYYY/MM/DD
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const dateFolder = `${year}/${month}/${day}`
+  
+  // 构建完整路径：user-generated-images/YYYY/MM/DD
+  const folderPath = `user-generated-images/${dateFolder}`
+  const imageUrl = await uploadToOSS(buffer, fileName, folderPath)
   
   // 5. 获取用户信息（角色、头像、昵称、头像框）
   const userData = await db
