@@ -416,7 +416,7 @@ export default function ProfilePage() {
                     </span>
                   )}
                   {showUserTypeBadge && userTypeBadge && (
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${userTypeBadge.className}`}>
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${quota && !quota.isActive ? 'text-gray-400 line-through border-gray-300 bg-gray-100' : userTypeBadge.className}`}>
                       {userTypeBadge.label}
                     </span>
                   )}
@@ -594,24 +594,24 @@ export default function ProfilePage() {
                           </svg>
                           <div>
                             <p className="text-sm font-semibold text-red-800">账号已被封禁</p>
-                            <p className="text-xs text-red-600">您的账号已被封禁，无法使用生图服务和签到功能。如有疑问，请联系管理员。</p>
+                            <p className="text-xs text-red-600">您的账号已被封禁，无法使用生图服务和签到功能。如有疑问，请加群联系管理员。</p>
                           </div>
                         </div>
                       </div>
                     )}
                     <div className="flex items-center justify-between">
-                      <p className="text-base font-semibold">
+                      <p className={`text-base font-semibold ${!quota.isActive ? 'text-gray-400 line-through' : ''}`}>
                         {quota.todayCount} / {quota.maxDailyRequests === null ? '∞' : quota.maxDailyRequests}
                       </p>
                       {userTypeBadge && (
-                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${userTypeBadge.className}`}>
+                        <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${!quota.isActive ? 'text-gray-400 line-through border-gray-300 bg-gray-100' : userTypeBadge.className}`}>
                           {userTypeBadge.label}
                         </span>
                       )}
                     </div>
                     <div className="h-2 w-full overflow-hidden rounded-full bg-white">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-orange-400 to-amber-400 transition-all"
+                        className={`h-full rounded-full transition-all ${!quota.isActive ? 'bg-gray-300' : 'bg-gradient-to-r from-orange-400 to-amber-400'}`}
                         style={{
                           width: `${quotaProgress ?? 8}%`,
                           opacity: quotaProgress === null ? 0.3 : 1,
