@@ -31,7 +31,7 @@
     "pg": "^8.16.0",
     "postcss": "^8.4.35",
     "postgres": "^3.4.6",
-    "react": "19.1.2",
+    "react": "19.2.3",
     "react-dom": "19.1.2",
     "react-easy-crop": "^5.5.3",
     "react-hook-form": "^7.51.0",
