@@ -92,25 +92,44 @@ export async function saveUserGeneratedImage(
   const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '')
   const buffer = Buffer.from(base64Data, 'base64')
   
-  // 3. 图片审核
+  // 3. 审核（图片和提示词都需要通过）
   const moderationBaseUrl = process.env.AVATAR_MODERATION_BASE_URL
   const moderationApiKey = process.env.AVATAR_MODERATION_API_KEY || ''
   const moderationModel = process.env.AVATAR_MODERATION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct-FP8'
-  const moderationPrompt = process.env.GENERATED_IMAGE_MODERATION_PROMPT || 
+  const imageModerationPrompt = process.env.GENERATED_IMAGE_MODERATION_PROMPT || 
     '请判断图片的内容与文字是否可以在公共场所展示，评判标准包括但不限于不应该包含"黄色"、"血腥"、"过于夸张的暴力场景"，你只需输出是或者否即可'
+  const promptModerationPrompt = process.env.PROMPT_MODERATION_PROMPT || 
+    '请仔细判断以下提示词是否包含不当内容。评判标准：只有当提示词明确包含"黄色"、"色情"、"血腥"、"暴力"、"政治敏感"、"仇恨言论"等不当内容时，才输出"否"。对于正常的描述性词汇（如动物、物品、风景、人物等），应输出"是"。请只输出"是"或"否"，不要输出其他内容。提示词：{prompt}'
   
   if (moderationBaseUrl) {
-    const isApproved = await moderateGeneratedImage(
+    // 3.1 图片审核
+    const imageApproved = await moderateGeneratedImage(
       buffer,
       'generated-image.png',
       moderationBaseUrl,
       moderationApiKey,
       moderationModel,
-      moderationPrompt
+      imageModerationPrompt
     )
     
-    if (!isApproved) {
+    if (!imageApproved) {
       throw new Error('图片审核未通过，无法保存')
+    }
+    
+    // 3.2 提示词审核（如果提供了提示词）
+    if (metadata?.prompt && metadata.prompt.trim()) {
+      const { moderatePrompt } = await import('./imageModeration')
+      const promptApproved = await moderatePrompt(
+        metadata.prompt,
+        moderationBaseUrl,
+        moderationApiKey,
+        moderationModel,
+        promptModerationPrompt
+      )
+      
+      if (!promptApproved) {
+        throw new Error('提示词审核未通过，无法保存')
+      }
     }
   }
   
