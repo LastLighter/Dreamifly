@@ -1,9 +1,8 @@
 import { db } from '@/db';
 import { userPoints, pointsConfig, user, userLimitConfig } from '@/db/schema';
-import { eq, and, gte, lt, sql, inArray, isNotNull } from 'drizzle-orm';
+import { eq, and, gte, sql, inArray, isNotNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { getModelThresholds } from '@/utils/modelConfig';
-import postgres from 'postgres';
 
 /**
  * 获取积分配置
@@ -233,22 +232,11 @@ export async function deductPoints(
     let remaining = amount;
     const deductions: Array<{ id: string; points: number; originalPoints: number; earnedAt: Date }> = [];
 
-    // 计算今天的开始时间（东八区），用于判断是否是今天的签到记录
-    const timezoneOffsetHours = 8;
-    const timezoneOffsetMs = timezoneOffsetHours * 60 * 60 * 1000;
-    const nowUtcForToday = new Date();
-    const gmt8NowForToday = new Date(nowUtcForToday.getTime() + timezoneOffsetMs);
-    const gmt8StartOfDayForToday = new Date(gmt8NowForToday);
-    gmt8StartOfDayForToday.setHours(0, 0, 0, 0);
-    const utcStartForToday = new Date(gmt8StartOfDayForToday.getTime() - timezoneOffsetMs);
-
     // 按FIFO原则扣除积分
     for (const pointRecord of availablePoints) {
       if (remaining <= 0) break;
 
       const recordPoints = pointRecord.points;
-      const earnedAt = pointRecord.earnedAt;
-      const isTodayRecord = earnedAt >= utcStartForToday;
       
       if (recordPoints <= remaining) {
         // 整条记录全部扣除
@@ -256,7 +244,7 @@ export async function deductPoints(
           id: pointRecord.id, 
           points: recordPoints,
           originalPoints: recordPoints,
-          earnedAt
+          earnedAt: pointRecord.earnedAt
         });
         remaining -= recordPoints;
         
@@ -268,7 +256,7 @@ export async function deductPoints(
           id: pointRecord.id, 
           points: remaining,
           originalPoints: recordPoints,
-          earnedAt
+          earnedAt: pointRecord.earnedAt
         });
         // 更新原记录，减少积分
         // 如果是今天的签到记录，即使剩余积分为0也要保留

@@ -28,7 +28,6 @@ interface GenerateFormProps {
   stepsError?: string | null;
   batchSizeError?: string | null;
   imageCountError?: string | null;
-  stepsRef?: React.RefObject<HTMLInputElement | null>;
   batchSizeRef?: React.RefObject<HTMLInputElement | null>;
   generatedImageToSetAsReference?: string | null;
   setIsQueuing?: (value: boolean) => void;
@@ -55,7 +54,6 @@ export default function GenerateForm({
   stepsError,
   batchSizeError,
   imageCountError,
-  stepsRef,
   batchSizeRef,
   generatedImageToSetAsReference,
   setIsQueuing: setIsQueuingProp
@@ -71,18 +69,10 @@ export default function GenerateForm({
   const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
   const [modelsLoading, setModelsLoading] = useState(true)
   const [isQueuing, setIsQueuing] = useState(false)
-  const [modelBaseCost, setModelBaseCost] = useState<number | null>(null)
   const previousModelRef = useRef<string>(model)
   
   // 获取未登录用户延迟时间（秒）
   const unauthDelay = parseInt(process.env.NEXT_PUBLIC_UNAUTHENTICATED_USER_DELAY || '20', 10)
-
-  // 计算额外消耗（无额度时，只显示基础积分）
-  const calculateExtraCost = (baseCost: number | null): number => {
-    if (baseCost === null) return 0;
-    // 只返回基础积分，不考虑高步数和高质量的影响
-    return baseCost;
-  }
 
   // 获取标签样式的函数
   const getTagStyle = (tag: string) => {
@@ -133,25 +123,6 @@ export default function GenerateForm({
   }, []);
 
   // 获取模型基础积分消耗
-  useEffect(() => {
-    const fetchModelBaseCost = async () => {
-      try {
-        const response = await fetch(`/api/points/model-base-cost?modelId=${encodeURIComponent(model)}`);
-        if (response.ok) {
-          const data = await response.json();
-          setModelBaseCost(data.baseCost);
-        } else {
-          setModelBaseCost(null);
-        }
-      } catch (error) {
-        console.error('Failed to fetch model base cost:', error);
-        setModelBaseCost(null);
-      }
-    };
-
-    fetchModelBaseCost();
-  }, [model]);
-
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isGenerating) {

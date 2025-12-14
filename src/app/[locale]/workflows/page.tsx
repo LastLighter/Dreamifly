@@ -1,16 +1,20 @@
 'use client'
 
-import { useRef, useState, useEffect, useMemo } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useParams } from 'next/navigation'
+import Link from 'next/link'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { usePoints } from '@/contexts/PointsContext'
+import { transferUrl } from '@/utils/locale'
 
 type TabKey = 'repair' | 'upscale'
 
 export default function WorkflowsPage() {
   const { refreshPoints } = usePoints()
   const searchParams = useSearchParams()
+  const params = useParams()
+  const locale = (params?.locale as string) || 'zh'
   const [activeTab, setActiveTab] = useState<TabKey>('repair')
   
   // 组件挂载时和URL参数变化时，从URL读取tab参数并设置
@@ -1110,12 +1114,21 @@ export default function WorkflowsPage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => setShowPointsInsufficientTip(false)}
-                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors"
-              >
-                知道啦
-              </button>
+              <div className="flex flex-col gap-3 w-full">
+                <Link
+                  href={transferUrl('/pricing', locale)}
+                  onClick={() => setShowPointsInsufficientTip(false)}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium hover:from-orange-600 hover:to-amber-600 transition-colors text-center"
+                >
+                  前往订阅会员
+                </Link>
+                <button
+                  onClick={() => setShowPointsInsufficientTip(false)}
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-medium hover:bg-gray-300 transition-colors"
+                >
+                  知道啦
+                </button>
+              </div>
             </div>
           </div>
         </div>

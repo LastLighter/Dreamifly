@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { userGeneratedImages } from '@/db/schema'
-import { desc, and, ne, or, isNull, eq, inArray } from 'drizzle-orm'
+import { desc, or, isNull, inArray } from 'drizzle-orm'
 
 /**
  * 获取社区展示图片

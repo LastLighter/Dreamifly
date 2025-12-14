@@ -22,8 +22,6 @@ interface PromptInputProps {
   isQueuing?: boolean;
   estimatedCost?: number | null;
   extraCost?: number | null;
-  model?: string;
-  uploadedImages?: string[];
 }
 
 const PromptInput = ({
@@ -43,9 +41,7 @@ const PromptInput = ({
   onStyleChange,
   isQueuing = false,
   estimatedCost = null,
-  extraCost = null,
-  model = '',
-  uploadedImages = []
+  extraCost = null
 }: PromptInputProps) => {
   const t = useTranslations('home.generate')
   const [isRatioOpen, setIsRatioOpen] = useState(false);

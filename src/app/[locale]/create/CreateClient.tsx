@@ -10,13 +10,11 @@ export default function CreateClient() {
   
   // 社区作品数据状态
   const [communityWorks, setCommunityWorks] = useState(community)
-  const [isLoadingCommunityWorks, setIsLoadingCommunityWorks] = useState(true)
 
   // 加载社区作品图片
   useEffect(() => {
     const fetchCommunityImages = async () => {
       try {
-        setIsLoadingCommunityWorks(true)
         const response = await fetch('/api/community/images')
         
         if (response.ok) {
@@ -94,8 +92,6 @@ export default function CreateClient() {
           userNickname: '默认',
           avatarFrameId: null,
         })))
-      } finally {
-        setIsLoadingCommunityWorks(false)
       }
     }
 

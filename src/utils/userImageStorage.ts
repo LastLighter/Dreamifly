@@ -23,9 +23,9 @@ async function isSubscribedUser(userId: string): Promise<boolean> {
   const { isSubscribed, subscriptionExpiresAt } = userData[0]
   
   // 检查订阅是否有效（未过期）
-  return isSubscribed && 
+  return Boolean(isSubscribed && 
     subscriptionExpiresAt && 
-    new Date(subscriptionExpiresAt) > new Date()
+    new Date(subscriptionExpiresAt) > new Date())
 }
 
 /**

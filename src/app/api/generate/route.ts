@@ -90,6 +90,10 @@ export async function POST(request: Request) {
   let generationId: string | null = null;
   const clientIP = getClientIP(request)
   
+  // 在 try 块外声明，以便在 catch 块中也能访问
+  let isAdmin = false
+  let isSubscribed = false
+  
   try {
     // 记录总开始时间（包含排队延迟）
     const totalStartTime = Date.now()
@@ -129,9 +133,7 @@ export async function POST(request: Request) {
     })
     
     // 获取用户信息（用于IP并发控制）
-    let isAdmin = false
     let isPremium = false
-    let isSubscribed = false
     let currentUserId: string | null = null
     
     // 检查用户订阅是否有效的辅助函数
@@ -557,12 +559,10 @@ export async function POST(request: Request) {
         )) : null;
 
         // 先检查并重置（如果需要）- 所有用户都需要统计
-        let currentCount = userData.dailyRequestCount || 0;
         const needsReset = !lastResetDayShanghaiDate || lastResetDayShanghaiDate.getTime() !== todayShanghaiDate.getTime();
         
         // 如果上次重置日期不是今天（东八区），重置计数
         if (needsReset) {
-          currentCount = 0;
           // 先重置计数
           // 注意：字段类型是 timestamptz，PostgreSQL 会自动处理时区转换
           // 直接使用 now() 即可，PostgreSQL 会以 UTC 存储
@@ -750,7 +750,7 @@ export async function POST(request: Request) {
               }
             }
           }
-        } catch (error) {
+        } catch {
           if (isPremium) {
             maxDailyRequests = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
           } else {

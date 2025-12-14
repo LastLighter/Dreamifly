@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import GenerateForm from './GenerateForm'
 import GeneratePreview from './GeneratePreview'
 import StyleTransferForm from './StyleTransferForm'
@@ -11,6 +13,7 @@ import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { getModelThresholds, getAllModels } from '@/utils/modelConfig'
 import { usePoints } from '@/contexts/PointsContext'
 import { calculateEstimatedCost } from '@/utils/pointsClient'
+import { transferUrl } from '@/utils/locale'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
@@ -23,6 +26,8 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
   const tHome = useTranslations('home')
   const { data: session, isPending } = useSession()
   const { refreshPoints } = usePoints()
+  const params = useParams()
+  const locale = (params?.locale as string) || 'zh'
   const [prompt, setPrompt] = useState(initialPrompt || '');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [width, setWidth] = useState(1024);
@@ -56,7 +61,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
   const [isQueuing, setIsQueuing] = useState(false);
   const [concurrencyError, setConcurrencyError] = useState<string | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorType, setErrorType] = useState<'concurrency' | 'daily_limit'>('concurrency');
+  const [errorType, setErrorType] = useState<'concurrency' | 'daily_limit' | 'insufficient_points'>('concurrency');
   const [showLoginTip, setShowLoginTip] = useState(false);
   
   // 要设置为参考图片的生成图片 URL
@@ -288,6 +293,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
             const errorData = await res.json();
             const errorMessage = errorData.error || '积分不足';
             setConcurrencyError(errorMessage);
+            setErrorType('insufficient_points');
             setShowErrorModal(true);
             setIsGenerating(false);
             setImageStatuses(prev => {
@@ -794,8 +800,6 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                   isQueuing={isQueuing}
                   estimatedCost={estimatedCost}
                   extraCost={extraCost}
-                  model={model}
-                  uploadedImages={uploadedImages}
                 />
               </div>
             </div>
@@ -832,7 +836,6 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                     stepsError={stepsError}
                     batchSizeError={batchSizeError}
                     imageCountError={imageCountError}
-                    stepsRef={stepsRef}
                     batchSizeRef={batchSizeRef}
                     generatedImageToSetAsReference={generatedImageToSetAsReference}
                     setIsQueuing={setIsQueuing}
@@ -886,7 +889,11 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
             
             {/* 标题 */}
             <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-              {errorType === 'daily_limit' ? '每日限额已满' : '并发限制'}
+              {errorType === 'daily_limit' 
+                ? '每日限额已满' 
+                : errorType === 'insufficient_points'
+                ? '积分不足'
+                : '并发限制'}
             </h3>
             
             {/* 错误消息 */}
@@ -901,6 +908,12 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                   💡 提示：每日限额将在次日重置，请明天再试
                 </p>
               </div>
+            ) : errorType === 'insufficient_points' ? (
+              <div className="bg-orange-50 border-l-4 border-orange-500 p-3 mb-6 rounded">
+                <p className="text-sm text-orange-800">
+                  💡 提示：订阅会员可享受更多积分和权益
+                </p>
+              </div>
             ) : (
               <div className="bg-amber-50 border-l-4 border-amber-500 p-3 mb-6 rounded">
                 <p className="text-sm text-amber-800">
@@ -909,13 +922,31 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
               </div>
             )}
             
-            {/* 关闭按钮 */}
-            <button
-              onClick={() => setShowErrorModal(false)}
-              className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl"
-            >
-              我知道了
-            </button>
+            {/* 按钮区域 */}
+            {errorType === 'insufficient_points' ? (
+              <div className="flex flex-col gap-3">
+                <Link
+                  href={transferUrl('/pricing', locale)}
+                  onClick={() => setShowErrorModal(false)}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                >
+                  前往订阅会员
+                </Link>
+                <button
+                  onClick={() => setShowErrorModal(false)}
+                  className="w-full px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-all duration-300"
+                >
+                  我知道了
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowErrorModal(false)}
+                className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                我知道了
+              </button>
+            )}
           </div>
         </div>
       )}

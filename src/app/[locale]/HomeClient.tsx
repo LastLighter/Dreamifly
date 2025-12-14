@@ -8,8 +8,8 @@ import { useParams, useRouter } from 'next/navigation'
 import community from './communityWorks'
 import SiteStats from '@/components/SiteStats'
 import { transferUrl } from '@/utils/locale'
-import { getAvailableModels, getAllModels } from '@/utils/modelConfig'
-import { getAvailableWorkflows, getAllWorkflows } from '@/utils/workflowConfig'
+import { getAvailableModels } from '@/utils/modelConfig'
+import { getAvailableWorkflows } from '@/utils/workflowConfig'
 import AIPlazaCard from '@/components/AIPlazaCard'
 import { ModelConfig } from '@/utils/modelConfig'
 import { WorkflowConfig } from '@/utils/workflowConfig'
@@ -109,13 +109,11 @@ export default function HomeClient() {
 
   // 社区作品数据状态
   const [communityWorks, setCommunityWorks] = useState(community)
-  const [isLoadingCommunityWorks, setIsLoadingCommunityWorks] = useState(true)
 
   // 加载社区作品图片
   useEffect(() => {
     const fetchCommunityImages = async () => {
       try {
-        setIsLoadingCommunityWorks(true)
         const response = await fetch('/api/community/images')
         
         if (response.ok) {
@@ -188,11 +186,11 @@ export default function HomeClient() {
         // 请求失败，使用默认图片（添加默认头像信息）
         setCommunityWorks(community.map((work: any) => ({
           ...work,
+          model: '默认',
           userAvatar: '/images/default-avatar.svg',
+          userNickname: '默认',
           avatarFrameId: null,
         })))
-      } finally {
-        setIsLoadingCommunityWorks(false)
       }
     }
 
