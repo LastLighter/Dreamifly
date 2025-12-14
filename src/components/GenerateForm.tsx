@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import { getAvailableModels, filterModelsByImageCount, type ModelConfig, getModelThresholds, supportsStepsModification, supportsResolutionModification } from '@/utils/modelConfig'
+import Toast from './Toast'
 
 type ModelWithAvailability = ModelConfig & { isAvailable: boolean };
 
@@ -76,6 +77,7 @@ export default function GenerateForm({
   const [modelsLoading, setModelsLoading] = useState(true)
   const [isQueuing, setIsQueuing] = useState(false)
   const previousModelRef = useRef<string>(model)
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'warning' | 'success' | 'info' } | null>(null)
   
   // 获取未登录用户延迟时间（秒）
   const unauthDelay = parseInt(process.env.NEXT_PUBLIC_UNAUTHENTICATED_USER_DELAY || '20', 10)
@@ -459,19 +461,19 @@ export default function GenerateForm({
     if (!file) return
 
     if (uploadedImages.length >= maxImages) {
-      alert(t('error.validation.imageCountLimit', { model: currentModel?.name || model, maxImages }))
+      setToast({ message: t('error.validation.imageCountLimit', { model: currentModel?.name || model, maxImages }), type: 'error' })
       return
     }
 
     // 验证文件类型
     if (!file.type.startsWith('image/')) {
-      alert(t('error.validation.fileType'))
+      setToast({ message: t('error.validation.fileType'), type: 'error' })
       return
     }
 
     // 验证文件大小（最大 10MB）
     if (file.size > 10 * 1024 * 1024) {
-      alert(t('error.validation.fileSize'))
+      setToast({ message: t('error.validation.fileSize'), type: 'error' })
       return
     }
 
@@ -487,6 +489,21 @@ export default function GenerateForm({
           const img = new window.Image()
           img.onload = () => {
             console.log('GenerateForm: Successfully set previewImage')
+            
+            // 检查当前模型是否是图片编辑模型（i2i模型）
+            const isImageEditModel = currentModel?.use_i2i || false;
+            if (isImageEditModel) {
+              // 图片编辑模型：验证总像素数不能超过 1416×1416 = 2,005,056
+              const maxPixels = 1416 * 1416; // 2,005,056
+              const totalPixels = img.width * img.height;
+              if (totalPixels > maxPixels) {
+                setToast({ 
+                  message: `图片编辑模型上传的图片总像素数不能超过 ${maxPixels.toLocaleString()} 像素（1416×1416）。当前图片为 ${img.width}×${img.height} = ${totalPixels.toLocaleString()} 像素。`, 
+                  type: 'error' 
+                })
+                return;
+              }
+            }
             
             // 计算合适的尺寸（保持8的倍数）
             let newWidth = Math.round(img.width / 8) * 8
@@ -509,7 +526,7 @@ export default function GenerateForm({
       reader.readAsDataURL(file)
     } catch (error) {
       console.error('Error processing image:', error)
-      alert(t('error.validation.imageProcessing'))
+      setToast({ message: t('error.validation.imageProcessing'), type: 'error' })
     }
   }
 
@@ -540,7 +557,7 @@ export default function GenerateForm({
     setDraggingWithDebounce(false)
     
     if (!canUploadMore) {
-      alert(t('error.validation.imageCountLimit', { model: currentModel?.name || model, maxImages }))
+      setToast({ message: t('error.validation.imageCountLimit', { model: currentModel?.name || model, maxImages }), type: 'error' })
       return
     }
     
@@ -549,13 +566,13 @@ export default function GenerateForm({
 
     // 验证文件类型
     if (!file.type.startsWith('image/')) {
-      alert(t('error.validation.fileType'))
+      setToast({ message: t('error.validation.fileType'), type: 'error' })
       return
     }
 
     // 验证文件大小（最大 10MB）
     if (file.size > 10 * 1024 * 1024) {
-      alert(t('error.validation.fileSize'))
+      setToast({ message: t('error.validation.fileSize'), type: 'error' })
       return
     }
 
@@ -566,6 +583,21 @@ export default function GenerateForm({
         const base64String = event.target.result.toString().split(',')[1]
         const img = new window.Image()
         img.onload = () => {
+          // 检查当前模型是否是图片编辑模型（i2i模型）
+          const isImageEditModel = currentModel?.use_i2i || false;
+          if (isImageEditModel) {
+            // 图片编辑模型：验证总像素数不能超过 1416×1416 = 2,005,056
+            const maxPixels = 1416 * 1416; // 2,005,056
+            const totalPixels = img.width * img.height;
+            if (totalPixels > maxPixels) {
+              setToast({ 
+                message: `图片编辑模型上传的图片总像素数不能超过 ${maxPixels.toLocaleString()} 像素（1416×1416）。当前图片为 ${img.width}×${img.height} = ${totalPixels.toLocaleString()} 像素。`, 
+                type: 'error' 
+              })
+              return;
+            }
+          }
+          
           // 计算合适的尺寸（保持8的倍数）
           let newWidth = Math.round(img.width / 8) * 8
           let newHeight = Math.round(img.height / 8) * 8
@@ -683,6 +715,22 @@ export default function GenerateForm({
                 // 创建图片对象以获取尺寸
                 const img = new window.Image();
                 img.onload = () => {
+                  // 检查当前模型是否是图片编辑模型（i2i模型）
+                  const isImageEditModel = currentModel?.use_i2i || false;
+                  if (isImageEditModel) {
+                    // 图片编辑模型：验证总像素数不能超过 1416×1416 = 2,005,056
+                    const maxPixels = 1416 * 1416; // 2,005,056
+                    const totalPixels = img.width * img.height;
+                    if (totalPixels > maxPixels) {
+                      setToast({ 
+                        message: `图片编辑模型上传的图片总像素数不能超过 ${maxPixels.toLocaleString()} 像素（1416×1416）。当前图片为 ${img.width}×${img.height} = ${totalPixels.toLocaleString()} 像素。`, 
+                        type: 'error' 
+                      })
+                      reject(new Error('Image pixel limit exceeded'));
+                      return;
+                    }
+                  }
+                  
                   // 计算合适的尺寸（保持8的倍数）
                   let newWidth = Math.round(img.width / 8) * 8;
                   let newHeight = Math.round(img.height / 8) * 8;
@@ -1133,6 +1181,13 @@ export default function GenerateForm({
           </div>
         )}
       </form>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   )
 } 

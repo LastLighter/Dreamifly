@@ -10,7 +10,7 @@ import { ipConcurrencyManager } from '@/utils/ipConcurrencyManager'
 import { randomUUID, createHash } from 'crypto'
 import { addWatermark } from '@/utils/watermark'
 import { getModelBaseCost, calculateGenerationCost, checkPointsSufficient, deductPoints, getPointsBalance } from '@/utils/points'
-import { getModelThresholds } from '@/utils/modelConfig'
+import { getModelThresholds, getAllModels } from '@/utils/modelConfig'
 
 /**
  * 验证动态API token
@@ -917,7 +917,80 @@ export async function POST(request: Request) {
         }, { status: 400 })
       }
     }
-
+    
+    // 验证图片编辑模型上传的图片总像素数限制
+    if (images && images.length > 0) {
+      const allModels = getAllModels();
+      const modelConfig = allModels.find(m => m.id === model);
+      
+      // 检查是否是图片编辑模型（i2i模型）
+      if (modelConfig?.use_i2i) {
+        const maxPixels = 1416 * 1416; // 2,005,056
+        
+        // 验证每张上传的图片
+        for (let i = 0; i < images.length; i++) {
+          const imageBase64 = images[i];
+          if (!imageBase64 || typeof imageBase64 !== 'string') {
+            continue;
+          }
+          
+          try {
+            // 将 base64 转换为 Buffer 并获取图片尺寸
+            const imageBuffer = Buffer.from(imageBase64, 'base64');
+            
+            let imgWidth = 0;
+            let imgHeight = 0;
+            
+            // PNG 格式：前8字节是签名，然后8字节是IHDR，接下来4字节是宽度，4字节是高度
+            if (imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x4E && imageBuffer[3] === 0x47) {
+              imgWidth = imageBuffer.readUInt32BE(16);
+              imgHeight = imageBuffer.readUInt32BE(20);
+            }
+            // JPEG 格式：查找 SOF 标记（0xFF 0xC0, 0xFF 0xC1, 0xFF 0xC2 等）
+            else if (imageBuffer[0] === 0xFF && imageBuffer[1] === 0xD8) {
+              let j = 2;
+              while (j < imageBuffer.length - 1 && j < 65535) {
+                if (imageBuffer[j] === 0xFF && (imageBuffer[j + 1] >= 0xC0 && imageBuffer[j + 1] <= 0xC3)) {
+                  imgHeight = imageBuffer.readUInt16BE(j + 5);
+                  imgWidth = imageBuffer.readUInt16BE(j + 7);
+                  break;
+                }
+                // 跳过当前段
+                if (imageBuffer[j] === 0xFF && imageBuffer[j + 1] !== 0xFF) {
+                  const segmentLength = imageBuffer.readUInt16BE(j + 2);
+                  j += segmentLength + 2;
+                } else {
+                  j++;
+                }
+              }
+            }
+            
+            // 如果成功解析了尺寸，验证总像素数
+            if (imgWidth > 0 && imgHeight > 0) {
+              const totalPixels = imgWidth * imgHeight;
+              if (totalPixels > maxPixels) {
+                // 如果输入验证失败，需要清理已增加的并发计数
+                if (!session?.user && clientIP) {
+                  await ipConcurrencyManager.end(clientIP).catch(err => {
+                    console.error('Error decrementing IP concurrency after validation error:', err)
+                  })
+                } else if (session?.user && generationId) {
+                  concurrencyManager.end(generationId)
+                }
+                return NextResponse.json({
+                  error: `图片编辑模型上传的图片总像素数不能超过 ${maxPixels.toLocaleString()} 像素（1416×1416）。第 ${i + 1} 张图片为 ${imgWidth}×${imgHeight} = ${totalPixels.toLocaleString()} 像素。`,
+                  code: 'IMAGE_PIXEL_LIMIT_EXCEEDED'
+                }, { status: 400 })
+              }
+            }
+          } catch (imageError) {
+            // 如果解析图片失败，记录错误但继续处理（可能不是有效的图片格式）
+            console.error(`Failed to parse image ${i + 1} dimensions:`, imageError);
+          }
+        }
+      }
+    }
+    
     // 对于已登录用户，在所有检查都通过后，原子性地增加IP并发计数
     // 未登录用户的IP并发计数已在前面增加
     // 管理员和会员不受IP并发限制，不需要增加计数
