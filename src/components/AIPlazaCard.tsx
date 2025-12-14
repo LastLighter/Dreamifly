@@ -91,7 +91,7 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
         className="block"
       >
         {/* 图片卡片 */}
-        <div className="relative aspect-[3/4] rounded-2xl overflow-hidden shadow-xl border border-orange-400/30 mb-3">
+        <div className="relative aspect-square rounded-2xl overflow-hidden shadow-xl border border-orange-400/30 mb-3">
           <div className="relative w-full h-full group-hover:scale-110 transition-transform duration-700 ease-out">
             <Image
               src={coverImage}
