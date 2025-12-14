@@ -506,8 +506,8 @@ export default function GenerateForm({
             }
             
             // 计算合适的尺寸（保持8的倍数）
-            let newWidth = Math.round(img.width / 8) * 8
-            let newHeight = Math.round(img.height / 8) * 8
+            const newWidth = Math.round(img.width / 8) * 8
+            const newHeight = Math.round(img.height / 8) * 8
             
             // 确保最小尺寸
             const finalWidth = Math.max(newWidth, 64)
@@ -599,8 +599,8 @@ export default function GenerateForm({
           }
           
           // 计算合适的尺寸（保持8的倍数）
-          let newWidth = Math.round(img.width / 8) * 8
-          let newHeight = Math.round(img.height / 8) * 8
+          const newWidth = Math.round(img.width / 8) * 8
+          const newHeight = Math.round(img.height / 8) * 8
           
           // 确保最小尺寸
           const finalWidth = Math.max(newWidth, 64)
@@ -732,8 +732,8 @@ export default function GenerateForm({
                   }
                   
                   // 计算合适的尺寸（保持8的倍数）
-                  let newWidth = Math.round(img.width / 8) * 8;
-                  let newHeight = Math.round(img.height / 8) * 8;
+                  const newWidth = Math.round(img.width / 8) * 8;
+                  const newHeight = Math.round(img.height / 8) * 8;
                   
                   // 确保最小尺寸
                   const finalWidth = Math.max(newWidth, 64);
