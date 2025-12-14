@@ -178,7 +178,7 @@ const PromptInput = ({
               </svg>
               {aspectRatio}
               {isRatioOpen && (
-                <div ref={ratioDropdownRef} className="absolute top-full left-0 mt-2 bg-white/95 border border-amber-400/40 rounded-xl shadow-xl p-2 min-w-[150px]">
+                <div ref={ratioDropdownRef} className="absolute top-full left-0 mt-2 bg-white/95 border border-amber-400/40 rounded-xl shadow-xl p-2 min-w-[150px] z-50">
                   {ratios.map(r => {
                     const [rw, rh] = r.split(':').map(Number);
                     const isHorizontal = rw >= rh;
