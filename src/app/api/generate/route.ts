@@ -883,7 +883,8 @@ export async function POST(request: Request) {
     }
 
     // 验证输入
-    if (width < 64 || width > 1440 || height < 64 || height > 1440) {
+    // 只检查最小尺寸，不限制最大尺寸
+    if (width < 64 || height < 64) {
       // 如果输入验证失败，需要清理已增加的并发计数
       if (!session?.user && clientIP) {
         // 未登录用户：清理IP并发计数

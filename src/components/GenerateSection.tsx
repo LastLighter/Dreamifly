@@ -207,7 +207,8 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
       batchSizeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       hasError = true;
     }
-    if (width < 64 || width > 1440 || height < 64 || height > 1440) {
+    // 验证尺寸范围：只检查最小尺寸，不限制最大尺寸
+    if (width < 64 || height < 64) {
       widthRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       hasError = true;
     }
@@ -587,32 +588,37 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
   };
 
   const [aspectRatio, setAspectRatio] = useState('1:1');
+  // 高分辨率开关状态（独立控制，不受图片比例影响）
+  const [isHighResolution, setIsHighResolution] = useState(false);
 
   const handleRatioChange = (ratio: string) => {
     setAspectRatio(ratio);
     const [wStr, hStr] = ratio.split(':');
     const w = parseInt(wStr);
     const h = parseInt(hStr);
-    const area = 1024 * 1024;
+    
+    // 根据高分辨率开关状态来确定总像素数
+    const thresholds = getModelThresholds(model);
+    const normalPixels = thresholds.normalResolutionPixels || 1024 * 1024;
+    const highPixels = thresholds.highResolutionPixels || 1416 * 1416;
+    
+    // 使用开关状态来决定目标总像素数
+    const area = isHighResolution ? highPixels : normalPixels;
+    
     const ratioNum = w / h;
+    const minDimension = 64;
+    
+    // 先计算理想尺寸（基于目标总像素数）
     let newWidth = Math.round(Math.sqrt(area * ratioNum) / 8) * 8;
     let newHeight = Math.round(newWidth / ratioNum / 8) * 8;
-    // Adjust if necessary to better match area
+    
+    // 如果计算出的尺寸不准确，重新计算
     if (newWidth * newHeight < area * 0.9 || newWidth * newHeight > area * 1.1) {
       newHeight = Math.round(Math.sqrt(area / ratioNum) / 8) * 8;
       newWidth = Math.round(newHeight * ratioNum / 8) * 8;
     }
     
-    // 确保尺寸在允许范围内（64-1440）
-    const maxDimension = 1440;
-    const minDimension = 64;
-    
-    // 如果宽度或高度超过限制，按比例缩放
-    if (newWidth > maxDimension || newHeight > maxDimension) {
-      const scale = Math.min(maxDimension / newWidth, maxDimension / newHeight);
-      newWidth = Math.round(newWidth * scale / 8) * 8;
-      newHeight = Math.round(newHeight * scale / 8) * 8;
-    }
+    // 不再限制最大尺寸，允许任何尺寸以保持目标总像素数
     
     // 确保最小尺寸，同时保持比例
     if (newWidth < minDimension || newHeight < minDimension) {
@@ -638,12 +644,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
       }
     }
     
-    // 最终确保不超过最大限制，同时保持比例
-    if (newWidth > maxDimension || newHeight > maxDimension) {
-      const scale = Math.min(maxDimension / newWidth, maxDimension / newHeight);
-      newWidth = Math.round(newWidth * scale / 8) * 8;
-      newHeight = Math.round(newHeight * scale / 8) * 8;
-    }
+    // 不再限制最大尺寸，允许任何尺寸以保持目标总像素数
     
     setWidth(newWidth);
     setHeight(newHeight);
@@ -839,6 +840,9 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                     batchSizeRef={batchSizeRef}
                     generatedImageToSetAsReference={generatedImageToSetAsReference}
                     setIsQueuing={setIsQueuing}
+                    isHighResolution={isHighResolution}
+                    setIsHighResolution={setIsHighResolution}
+                    aspectRatio={aspectRatio}
                   />
                 </div>
               ) : (

@@ -117,11 +117,14 @@ export function calculateGenerationCost(
   }
   
   // 判断是否为高分辨率
+  // 使用容差来判断，避免因四舍五入到8的倍数导致的误判
   let isHighResolution = false;
   const totalPixels = width * height;
   if (thresholds.normalResolutionPixels !== null && thresholds.highResolutionPixels !== null) {
-    // 如果总像素 > 普通分辨率阈值，则为高分辨率
-    isHighResolution = totalPixels > thresholds.normalResolutionPixels;
+    // 如果总像素数在 normalPixels 的5%容差范围内，认为是普通分辨率
+    // 否则如果大于 normalPixels + 5%，认为是高分辨率
+    const tolerance = thresholds.normalResolutionPixels * 0.05;
+    isHighResolution = totalPixels > thresholds.normalResolutionPixels + tolerance;
   }
   
   // 计算总积分消耗
