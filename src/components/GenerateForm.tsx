@@ -490,21 +490,6 @@ export default function GenerateForm({
           img.onload = () => {
             console.log('GenerateForm: Successfully set previewImage')
             
-            // 检查当前模型是否是图片编辑模型（i2i模型）
-            const isImageEditModel = currentModel?.use_i2i || false;
-            if (isImageEditModel) {
-              // 图片编辑模型：验证总像素数不能超过 1416×1416 = 2,005,056
-              const maxPixels = 1416 * 1416; // 2,005,056
-              const totalPixels = img.width * img.height;
-              if (totalPixels > maxPixels) {
-                setToast({ 
-                  message: `图片编辑模型上传的图片总像素数不能超过 ${maxPixels.toLocaleString()} 像素（1416×1416）。当前图片为 ${img.width}×${img.height} = ${totalPixels.toLocaleString()} 像素。`, 
-                  type: 'error' 
-                })
-                return;
-              }
-            }
-            
             // 计算合适的尺寸（保持8的倍数）
             const newWidth = Math.round(img.width / 8) * 8
             const newHeight = Math.round(img.height / 8) * 8
@@ -583,21 +568,6 @@ export default function GenerateForm({
         const base64String = event.target.result.toString().split(',')[1]
         const img = new window.Image()
         img.onload = () => {
-          // 检查当前模型是否是图片编辑模型（i2i模型）
-          const isImageEditModel = currentModel?.use_i2i || false;
-          if (isImageEditModel) {
-            // 图片编辑模型：验证总像素数不能超过 1416×1416 = 2,005,056
-            const maxPixels = 1416 * 1416; // 2,005,056
-            const totalPixels = img.width * img.height;
-            if (totalPixels > maxPixels) {
-              setToast({ 
-                message: `图片编辑模型上传的图片总像素数不能超过 ${maxPixels.toLocaleString()} 像素（1416×1416）。当前图片为 ${img.width}×${img.height} = ${totalPixels.toLocaleString()} 像素。`, 
-                type: 'error' 
-              })
-              return;
-            }
-          }
-          
           // 计算合适的尺寸（保持8的倍数）
           const newWidth = Math.round(img.width / 8) * 8
           const newHeight = Math.round(img.height / 8) * 8
@@ -715,22 +685,6 @@ export default function GenerateForm({
                 // 创建图片对象以获取尺寸
                 const img = new window.Image();
                 img.onload = () => {
-                  // 检查当前模型是否是图片编辑模型（i2i模型）
-                  const isImageEditModel = currentModel?.use_i2i || false;
-                  if (isImageEditModel) {
-                    // 图片编辑模型：验证总像素数不能超过 1416×1416 = 2,005,056
-                    const maxPixels = 1416 * 1416; // 2,005,056
-                    const totalPixels = img.width * img.height;
-                    if (totalPixels > maxPixels) {
-                      setToast({ 
-                        message: `图片编辑模型上传的图片总像素数不能超过 ${maxPixels.toLocaleString()} 像素（1416×1416）。当前图片为 ${img.width}×${img.height} = ${totalPixels.toLocaleString()} 像素。`, 
-                        type: 'error' 
-                      })
-                      reject(new Error('Image pixel limit exceeded'));
-                      return;
-                    }
-                  }
-                  
                   // 计算合适的尺寸（保持8的倍数）
                   const newWidth = Math.round(img.width / 8) * 8;
                   const newHeight = Math.round(img.height / 8) * 8;
