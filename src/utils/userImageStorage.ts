@@ -99,7 +99,7 @@ export async function saveUserGeneratedImage(
   const imageModerationPrompt = process.env.GENERATED_IMAGE_MODERATION_PROMPT || 
     '请判断图片的内容与文字是否可以在公共场所展示，评判标准包括但不限于不应该包含"黄色"、"血腥"、"过于夸张的暴力场景"，你只需输出是或者否即可'
   const promptModerationPrompt = process.env.PROMPT_MODERATION_PROMPT || 
-    '请仔细判断以下提示词是否包含不当内容。评判标准：只有当提示词明确包含"黄色"、"色情"、"血腥"、"暴力"、"政治敏感"、"仇恨言论"等不当内容时，才输出"否"。对于正常的描述性词汇（如动物、物品、风景、人物等），应输出"是"。请只输出"是"或"否"，不要输出其他内容。提示词：{prompt}'
+    '请判断以下图片生成提示词是否可以在公共场所使用，评判标准包括但不限于不应该包含"黄色"、"血腥"、"暴力"、"政治敏感"等内容，你只需输出是或者否即可。提示词：{prompt}'
   
   if (moderationBaseUrl) {
     // 3.1 图片审核
