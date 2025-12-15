@@ -122,6 +122,11 @@ NEXT_PUBLIC_BASE_URL='http://localhost:3000'
 # 网站版本号
 NEXT_PUBLIC_WEB_VERSION=1.0.0
 
+# 社区内容访问控制（默认为 false，只对管理员开放）
+# 设置为 true 时，社区内容对所有用户开放
+# 设置为 false 时，社区内容只对管理员开放
+COMMUNITY_IMAGES_PUBLIC=false
+
 # 阿里云 OSS（对象存储服务）的访问密钥 ID
 OSS_AK=xxx
 
