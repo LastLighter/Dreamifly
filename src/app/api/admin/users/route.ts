@@ -67,26 +67,24 @@ export async function GET(request: NextRequest) {
       filterConditions.push(eq(user.emailVerified, false));
     }
     
-    // 角色筛选
+    // 角色筛选（允许用户同时拥有多个身份）
     if (roleFilter === 'admin') {
       filterConditions.push(eq(user.isAdmin, true));
-    } else if (roleFilter === 'subscribed') {
-      // 付费用户（会员）：非管理员且订阅有效
-      filterConditions.push(eq(user.isAdmin, false));
     } else if (roleFilter === 'premium') {
-      // 优质用户：非管理员且 isPremium=true 且不是会员
-      filterConditions.push(and(eq(user.isAdmin, false), eq(user.isPremium, true)));
+      // 优质用户：isPremium=true（可以是管理员、付费用户、首批用户等）
+      filterConditions.push(eq(user.isPremium, true));
     } else if (roleFilter === 'oldUser') {
-      // 首批用户：非管理员且 isOldUser=true 且不是会员且不是优质用户
-      filterConditions.push(and(eq(user.isAdmin, false), eq(user.isOldUser, true)));
+      // 首批用户：isOldUser=true（可以是管理员、付费用户、优质用户等）
+      filterConditions.push(eq(user.isOldUser, true));
     } else if (roleFilter === 'regular') {
-      // 普通用户：非管理员且不是会员且不是优质用户且不是首批用户
+      // 普通用户：不是管理员、不是会员、不是优质用户、不是首批用户
       filterConditions.push(and(
         eq(user.isAdmin, false),
         eq(user.isPremium, false),
         eq(user.isOldUser, false)
       ));
     }
+    // subscribed 筛选在内存中处理，因为需要检查订阅是否有效
     
     // 状态筛选
     if (statusFilter === 'active') {
@@ -202,31 +200,22 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // 根据角色筛选条件进行内存筛选（对于需要检查会员状态的筛选）
+    // 根据角色筛选条件进行内存筛选（允许用户同时拥有多个身份）
     if (roleFilter === 'subscribed') {
-      // 只返回非管理员且订阅有效的用户
+      // 付费用户（会员）：订阅有效（可以是管理员、优质用户、首批用户等）
       allUsers = allUsers.filter(u => {
-        if (u.isAdmin) return false;
         return isSubscriptionActive(u.isSubscribed, u.subscriptionExpiresAt);
       });
     } else if (roleFilter === 'premium') {
-      // 只返回非管理员、优质用户且不是会员的用户
-      allUsers = allUsers.filter(u => {
-        if (u.isAdmin) return false;
-        if (!u.isPremium) return false;
-        return !isSubscriptionActive(u.isSubscribed, u.subscriptionExpiresAt);
-      });
+      // 优质用户：isPremium=true（已在数据库筛选，这里不需要额外处理）
+      // 但为了保持一致性，可以在这里再次确认
+      allUsers = allUsers.filter(u => u.isPremium === true);
     } else if (roleFilter === 'oldUser') {
-      // 只返回非管理员、首批用户且不是会员且不是优质用户的用户
-      allUsers = allUsers.filter(u => {
-        if (u.isAdmin) return false;
-        if (!u.isOldUser) return false;
-        if (isSubscriptionActive(u.isSubscribed, u.subscriptionExpiresAt)) return false;
-        if (u.isPremium) return false;
-        return true;
-      });
+      // 首批用户：isOldUser=true（已在数据库筛选，这里不需要额外处理）
+      // 但为了保持一致性，可以在这里再次确认
+      allUsers = allUsers.filter(u => u.isOldUser === true);
     } else if (roleFilter === 'regular') {
-      // 只返回非管理员、普通用户且不是会员的用户
+      // 普通用户：不是管理员、不是会员、不是优质用户、不是首批用户
       allUsers = allUsers.filter(u => {
         if (u.isAdmin) return false;
         if (isSubscriptionActive(u.isSubscribed, u.subscriptionExpiresAt)) return false;

@@ -23,6 +23,8 @@ interface User {
   isAdmin: boolean
   isPremium: boolean
   isOldUser: boolean
+  isSubscribed: boolean
+  subscriptionExpiresAt: Date | string | null
   dailyRequestCount: number
   createdAt: Date | string
   updatedAt: Date | string
@@ -129,8 +131,8 @@ export default function AdminPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [avatarFrames, setAvatarFrames] = useState<Array<{ id: number; category: string; imageUrl: string | null }>>([])
   const [avatarFrameCategories, setAvatarFrameCategories] = useState<string[]>([])
-  const [selectedRole, setSelectedRole] = useState<'regular' | 'premium'>('regular')
-  const [selectedUserType, setSelectedUserType] = useState<'old' | 'new'>('new') // 老用户/新用户选择
+  const [selectedIsPremium, setSelectedIsPremium] = useState<boolean>(false) // 是否优质用户
+  const [selectedIsOldUser, setSelectedIsOldUser] = useState<boolean>(false) // 是否首批用户
   const [selectedIsActive, setSelectedIsActive] = useState<boolean>(true) // 用户是否封禁
   const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState<number | null>(null)
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
@@ -374,6 +376,13 @@ export default function AdminPage() {
   }
 
   // 格式化日期（固定按东八区展示，但不额外显示时区后缀）
+  // 检查用户订阅是否有效
+  const isSubscriptionActive = (user: User): boolean => {
+    if (!user.isSubscribed) return false
+    if (!user.subscriptionExpiresAt) return false
+    return new Date(user.subscriptionExpiresAt) > new Date()
+  }
+
   const formatDate = (date: Date | string | null) => {
     if (!date) return '-'
     const formatInShanghai = (d: Date) => {
@@ -496,8 +505,8 @@ export default function AdminPage() {
   // 打开用户操作模态框
   const handleOpenUserActionModal = (user: User) => {
     setSelectedUser(user)
-    setSelectedRole(user.isPremium ? 'premium' : 'regular')
-    setSelectedUserType(user.isOldUser ? 'old' : 'new') // 初始化老用户/新用户选择
+    setSelectedIsPremium(user.isPremium || false) // 初始化优质用户状态
+    setSelectedIsOldUser(user.isOldUser || false) // 初始化首批用户状态
     setSelectedIsActive(user.isActive !== undefined ? user.isActive : true) // 初始化封禁状态
     setSelectedAvatarFrameId(user.avatarFrameId)
     setSelectedCategoryFilter('all')
@@ -510,8 +519,8 @@ export default function AdminPage() {
   const handleCloseUserActionModal = () => {
     setShowUserActionModal(false)
     setSelectedUser(null)
-    setSelectedRole('regular')
-    setSelectedUserType('new') // 重置为新用户
+    setSelectedIsPremium(false) // 重置为不是优质用户
+    setSelectedIsOldUser(false) // 重置为不是首批用户
     setSelectedIsActive(true) // 重置为活跃状态
     setSelectedAvatarFrameId(null)
     setSelectedCategoryFilter('all')
@@ -554,9 +563,6 @@ export default function AdminPage() {
 
     setUpdatingUser(true)
     try {
-      const isPremium = selectedRole === 'premium'
-      const isOldUser = selectedUserType === 'old'
-      
       const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
         method: 'PATCH',
         headers: {
@@ -565,8 +571,8 @@ export default function AdminPage() {
         },
         body: JSON.stringify({
           userId: selectedUser.id,
-          isPremium,
-          isOldUser,
+          isPremium: selectedIsPremium,
+          isOldUser: selectedIsOldUser,
           isActive: selectedIsActive,
           avatarFrameId: selectedAvatarFrameId,
         }),
@@ -1056,23 +1062,33 @@ export default function AdminPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex flex-col gap-1 items-center">
-                              {user.isAdmin ? (
-                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
-                                  管理员
-                                </span>
-                              ) : user.isPremium ? (
-                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                  优质用户
-                                </span>
-                              ) : user.isOldUser ? (
-                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                  首批用户
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
-                                  新用户
-                                </span>
-                              )}
+                              <div className="flex flex-wrap gap-1 justify-center">
+                                {user.isAdmin && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
+                                    管理员
+                                  </span>
+                                )}
+                                {isSubscriptionActive(user) && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    付费用户
+                                  </span>
+                                )}
+                                {user.isPremium && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    优质用户
+                                  </span>
+                                )}
+                                {user.isOldUser && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    首批用户
+                                  </span>
+                                )}
+                                {!user.isAdmin && !isSubscriptionActive(user) && !user.isPremium && !user.isOldUser && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                                    新用户
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-xs text-gray-600">
                                 今日: {user.dailyRequestCount || 0} / {user.isAdmin ? '∞' : user.isPremium ? limitConfig.premiumUserDailyLimit : user.isOldUser ? limitConfig.regularUserDailyLimit : limitConfig.newUserDailyLimit}
                               </span>
@@ -1219,76 +1235,39 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 设置用户角色 */}
+            {/* 设置用户身份（支持同时拥有多个身份） */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                用户角色
+                用户身份
               </label>
-              <div className="flex gap-4">
+              <div className="space-y-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="radio"
-                    name="userRole"
-                    value="regular"
-                    checked={selectedRole === 'regular'}
-                    onChange={(e) => setSelectedRole(e.target.value as 'regular' | 'premium')}
+                    type="checkbox"
+                    checked={selectedIsPremium}
+                    onChange={(e) => setSelectedIsPremium(e.target.checked)}
                     disabled={selectedUser.isAdmin || updatingUser}
-                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-700">普通用户</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="userRole"
-                    value="premium"
-                    checked={selectedRole === 'premium'}
-                    onChange={(e) => setSelectedRole(e.target.value as 'regular' | 'premium')}
-                    disabled={selectedUser.isAdmin || updatingUser}
-                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded"
                   />
                   <span className="text-sm text-gray-700">优质用户</span>
                 </label>
-              </div>
-              {selectedUser.isAdmin && (
-                <p className="mt-2 text-xs text-gray-500">管理员角色无法修改</p>
-              )}
-            </div>
-
-            {/* 设置用户类型（老用户/新用户） */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                用户类型
-              </label>
-              <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="radio"
-                    name="userType"
-                    value="old"
-                    checked={selectedUserType === 'old'}
-                    onChange={(e) => setSelectedUserType(e.target.value as 'old' | 'new')}
+                    type="checkbox"
+                    checked={selectedIsOldUser}
+                    onChange={(e) => setSelectedIsOldUser(e.target.checked)}
                     disabled={selectedUser.isAdmin || updatingUser}
-                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded"
                   />
-                  <span className="text-sm text-gray-700">老用户</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="userType"
-                    value="new"
-                    checked={selectedUserType === 'new'}
-                    onChange={(e) => setSelectedUserType(e.target.value as 'old' | 'new')}
-                    disabled={selectedUser.isAdmin || updatingUser}
-                    className="w-4 h-4 text-orange-600 focus:ring-orange-500"
-                  />
-                  <span className="text-sm text-gray-700">新用户</span>
+                  <span className="text-sm text-gray-700">首批用户</span>
                 </label>
               </div>
               {selectedUser.isAdmin && (
-                <p className="mt-2 text-xs text-gray-500">管理员类型无法修改</p>
+                <p className="mt-2 text-xs text-gray-500">管理员身份无法修改</p>
               )}
+              <p className="mt-2 text-xs text-gray-500">
+                注意：用户可以同时拥有多个身份（优质用户、首批用户、付费用户等）
+              </p>
             </div>
 
             {/* 设置用户封禁状态 */}

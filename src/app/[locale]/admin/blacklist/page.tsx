@@ -774,20 +774,23 @@ export default function BlacklistPage() {
                                   )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="flex items-center gap-2">
-                                    {record.isAdmin ? (
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    {record.isAdmin && (
                                       <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
                                         管理员
                                       </span>
-                                    ) : record.isPremium ? (
+                                    )}
+                                    {record.isPremium && (
                                       <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                         优质用户
                                       </span>
-                                    ) : record.isOldUser ? (
+                                    )}
+                                    {record.isOldUser && (
                                       <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                                         首批用户
                                       </span>
-                                    ) : (
+                                    )}
+                                    {!record.isAdmin && !record.isPremium && !record.isOldUser && (
                                       <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
                                         新用户
                                       </span>
