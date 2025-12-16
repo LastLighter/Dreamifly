@@ -268,6 +268,25 @@ export const userGeneratedImages = pgTable("user_generated_images", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// 未通过审核图片表
+export const rejectedImages = pgTable("rejected_images", {
+  id: text("id").primaryKey(), // UUID
+  userId: text("user_id"), // 可为NULL（未登录用户）
+  ipAddress: text("ip_address"), // 未登录用户的IP地址
+  imageUrl: text("image_url").notNull(), // OSS中的加密图片URL
+  prompt: text("prompt"), // 生成时的提示词
+  model: text("model"), // 使用的模型
+  width: integer("width"), // 图片宽度
+  height: integer("height"), // 图片高度
+  userRole: text("user_role"), // 用户角色（不包含admin）
+  userAvatar: text("user_avatar"), // 用户头像URL
+  userNickname: text("user_nickname"), // 用户昵称
+  avatarFrameId: integer("avatar_frame_id"), // 头像框ID
+  rejectionReason: text("rejection_reason"), // 拒绝原因：'image' | 'prompt' | 'both'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // 用户与头像框的关系
 export const userRelations = relations(user, ({ one }) => ({
   avatarFrame: one(avatarFrame, {

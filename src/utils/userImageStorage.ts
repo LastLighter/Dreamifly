@@ -70,29 +70,48 @@ async function cleanupOldImages(userId: string, maxImages: number): Promise<void
 
 /**
  * 保存用户生成的图片（自动维护数量限制）
+ * @param userId 用户ID，如果为null则视为未登录用户
  */
 export async function saveUserGeneratedImage(
-  userId: string,
+  userId: string | null,
   imageBase64: string,
   metadata?: {
     prompt?: string
     model?: string
     width?: number
     height?: number
+    ipAddress?: string // 客户端IP地址（用于未登录用户记录）
   }
 ): Promise<string> {
-  // 1. 获取图片存储配置（数据库 > 环境变量 > 默认值）
+  // 1. 检查是否为管理员（管理员不记录未通过审核的图片，但可以保存通过的图片）
+  if (userId) {
+    const userData = await db
+      .select({ isAdmin: user.isAdmin })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1)
+    
+    if (userData.length > 0 && userData[0].isAdmin) {
+      // 管理员不记录未通过审核的图片，但可以正常保存通过的图片
+    }
+  }
+
+  // 2. 获取图片存储配置（数据库 > 环境变量 > 默认值）
   const imageConfig = await getImageStorageConfig()
   
-  // 2. 实时检查用户订阅状态
-  const isSubscribed = await isSubscribedUser(userId)
-  const maxImages = isSubscribed ? imageConfig.subscribedUserMaxImages : imageConfig.regularUserMaxImages
+  // 3. 实时检查用户订阅状态（仅登录用户）
+  let isSubscribed = false
+  let maxImages = imageConfig.regularUserMaxImages
+  if (userId) {
+    isSubscribed = await isSubscribedUser(userId)
+    maxImages = isSubscribed ? imageConfig.subscribedUserMaxImages : imageConfig.regularUserMaxImages
+  }
   
-  // 2. 将base64转换为Buffer
+  // 4. 将base64转换为Buffer
   const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '')
   const buffer = Buffer.from(base64Data, 'base64')
   
-  // 3. 审核（图片和提示词都需要通过）
+  // 5. 审核（图片和提示词都需要通过）
   const moderationBaseUrl = process.env.AVATAR_MODERATION_BASE_URL
   const moderationApiKey = process.env.AVATAR_MODERATION_API_KEY || ''
   const moderationModel = process.env.AVATAR_MODERATION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct-FP8'
@@ -113,13 +132,29 @@ export async function saveUserGeneratedImage(
     )
     
     if (!imageApproved) {
+      // 保存未通过审核的图片
+      try {
+        const { saveRejectedImage } = await import('./rejectedImageStorage')
+        await saveRejectedImage(buffer, {
+          userId: userId || null,
+          ipAddress: metadata?.ipAddress,
+          prompt: metadata?.prompt,
+          model: metadata?.model,
+          width: metadata?.width,
+          height: metadata?.height,
+          rejectionReason: 'image',
+        })
+      } catch (error) {
+        console.error('保存未通过审核图片失败:', error)
+      }
       throw new Error('图片审核未通过，无法保存')
     }
     
     // 3.2 提示词审核（如果提供了提示词）
+    let promptApproved = true
     if (metadata?.prompt && metadata.prompt.trim()) {
       const { moderatePrompt } = await import('./imageModeration')
-      const promptApproved = await moderatePrompt(
+      promptApproved = await moderatePrompt(
         metadata.prompt,
         moderationBaseUrl,
         moderationApiKey,
@@ -128,12 +163,30 @@ export async function saveUserGeneratedImage(
       )
       
       if (!promptApproved) {
+        // 保存未通过审核的图片
+        try {
+          const { saveRejectedImage } = await import('./rejectedImageStorage')
+          await saveRejectedImage(buffer, {
+            userId: userId || null,
+            ipAddress: metadata?.ipAddress,
+            prompt: metadata?.prompt,
+            model: metadata?.model,
+            width: metadata?.width,
+            height: metadata?.height,
+            rejectionReason: 'prompt',
+          })
+        } catch (error) {
+          console.error('保存未通过审核图片失败:', error)
+        }
         throw new Error('提示词审核未通过，无法保存')
       }
     }
+    
+    // 如果图片和提示词都通过了，但之前图片审核失败过（理论上不会到这里，但为了完整性）
+    // 这里不需要额外处理，因为如果图片审核失败，已经在上面的 if 中 throw 了
   }
   
-  // 4. 上传到OSS（使用新目录 user-generated-images，按日期分文件夹存储）
+  // 6. 上传到OSS（使用新目录 user-generated-images，按日期分文件夹存储）
   const { v4: uuidv4 } = await import('uuid')
   const fileName = `${uuidv4()}.png`
   
@@ -148,21 +201,34 @@ export async function saveUserGeneratedImage(
   const folderPath = `user-generated-images/${dateFolder}`
   const imageUrl = await uploadToOSS(buffer, fileName, folderPath)
   
-  // 5. 获取用户信息（角色、头像、昵称、头像框）
-  const userData = await db
-    .select({
-      isAdmin: user.isAdmin,
-      isSubscribed: user.isSubscribed,
-      subscriptionExpiresAt: user.subscriptionExpiresAt,
-      isPremium: user.isPremium,
-      isOldUser: user.isOldUser,
-      avatar: user.avatar,
-      nickname: user.nickname,
-      avatarFrameId: user.avatarFrameId,
-    })
-    .from(user)
-    .where(eq(user.id, userId))
-    .limit(1)
+  // 7. 获取用户信息（角色、头像、昵称、头像框）- 仅登录用户
+  let userData: Array<{
+    isAdmin: boolean
+    isSubscribed: boolean
+    subscriptionExpiresAt: Date | null
+    isPremium: boolean
+    isOldUser: boolean
+    avatar: string | null
+    nickname: string | null
+    avatarFrameId: number | null
+  }> = []
+  
+  if (userId) {
+    userData = await db
+      .select({
+        isAdmin: user.isAdmin,
+        isSubscribed: user.isSubscribed,
+        subscriptionExpiresAt: user.subscriptionExpiresAt,
+        isPremium: user.isPremium,
+        isOldUser: user.isOldUser,
+        avatar: user.avatar,
+        nickname: user.nickname,
+        avatarFrameId: user.avatarFrameId,
+      })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1)
+  }
 
   // 判断用户角色
   let userRole: 'admin' | 'subscribed' | 'premium' | 'oldUser' | 'regular' = 'regular'
@@ -183,27 +249,29 @@ export async function saveUserGeneratedImage(
   const userNickname = userData.length > 0 ? (userData[0].nickname || null) : null
   const avatarFrameId = userData.length > 0 ? userData[0].avatarFrameId : null
 
-  // 6. 保存到数据库
-  const imageId = uuidv4()
-  await db.insert(userGeneratedImages).values({
-    id: imageId,
-    userId,
-    imageUrl,
-    prompt: metadata?.prompt,
-    model: metadata?.model,
-    width: metadata?.width,
-    height: metadata?.height,
-    userRole,
-    userAvatar,
-    userNickname,
-    avatarFrameId,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  })
-  
-  // 7. 自动清理超出数量的旧图片（从前往后删除，保留最新的）
-  // 无论会员是否过期，都会自动维护对应的上限
-  await cleanupOldImages(userId, maxImages)
+  // 8. 保存到数据库（仅登录用户）
+  if (userId) {
+    const imageId = uuidv4()
+    await db.insert(userGeneratedImages).values({
+      id: imageId,
+      userId,
+      imageUrl,
+      prompt: metadata?.prompt,
+      model: metadata?.model,
+      width: metadata?.width,
+      height: metadata?.height,
+      userRole,
+      userAvatar,
+      userNickname,
+      avatarFrameId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    
+    // 9. 自动清理超出数量的旧图片（从前往后删除，保留最新的）
+    // 无论会员是否过期，都会自动维护对应的上限
+    await cleanupOldImages(userId, maxImages)
+  }
   
   return imageUrl
 }

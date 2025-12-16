@@ -28,6 +28,8 @@ interface ImageItem {
   avatarFrameId: number | null
   createdAt: string
   userId: string
+  rejectionReason?: string
+  ipAddress?: string
 }
 
 export default function GodEyePage() {
@@ -57,6 +59,21 @@ export default function GodEyePage() {
   const [clickedPromptId, setClickedPromptId] = useState<string | null>(null)
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
   const promptPopoverRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+  
+  // 未通过审核图片相关状态
+  const [rejectedImages, setRejectedImages] = useState<ImageItem[]>([])
+  const [rejectedLoading, setRejectedLoading] = useState(false)
+  const [rejectedPage, setRejectedPage] = useState(1)
+  const [rejectedTotal, setRejectedTotal] = useState(0)
+  const [rejectedTotalPages, setRejectedTotalPages] = useState(0)
+  const [rejectedRoleFilter, setRejectedRoleFilter] = useState<RoleFilter>('all')
+  const [rejectedSearchInput, setRejectedSearchInput] = useState('')
+  const [rejectedSearchTerm, setRejectedSearchTerm] = useState('')
+  const [rejectedStartDate, setRejectedStartDate] = useState('')
+  const [rejectedEndDate, setRejectedEndDate] = useState('')
+  const [reasonFilter, setReasonFilter] = useState<'all' | 'image' | 'prompt' | 'both'>('all')
+  const [blurEnabled, setBlurEnabled] = useState(true) // 默认开启磨砂玻璃
+  const [decodedImages, setDecodedImages] = useState<{ [key: string]: string }>({})
 
   // 隐藏父级 layout 的 Navbar 和 Footer
   useEffect(() => {
@@ -147,7 +164,7 @@ export default function GodEyePage() {
     fetchCurrentUser()
   }, [session?.user])
 
-  // 获取图片列表
+  // 获取通过审核图片列表
   useEffect(() => {
     if (activeTab !== 'approved' || !isAdmin) return
 
@@ -188,10 +205,123 @@ export default function GodEyePage() {
     fetchImages()
   }, [activeTab, isAdmin, page, roleFilter, searchTerm, startDate, endDate])
 
+  // 获取未通过审核图片列表
+  useEffect(() => {
+    if (activeTab !== 'rejected' || !isAdmin) return
+
+    const fetchRejectedImages = async () => {
+      setRejectedLoading(true)
+      try {
+        const params = new URLSearchParams()
+        params.set('page', String(rejectedPage))
+        params.set('limit', '20')
+        if (rejectedRoleFilter !== 'all') {
+          params.set('role', rejectedRoleFilter)
+        }
+        if (rejectedSearchTerm.trim()) {
+          params.set('search', rejectedSearchTerm.trim())
+        }
+        if (rejectedStartDate) {
+          params.set('startDate', rejectedStartDate)
+        }
+        if (rejectedEndDate) {
+          params.set('endDate', rejectedEndDate)
+        }
+        if (reasonFilter !== 'all') {
+          params.set('reason', reasonFilter)
+        }
+
+        const response = await fetch(`/api/admin/god-eye/rejected-images?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch rejected images')
+        }
+        const data = await response.json()
+        setRejectedImages(data.images || [])
+        setRejectedTotal(data.pagination?.total || 0)
+        setRejectedTotalPages(data.pagination?.totalPages || 0)
+      } catch (error) {
+        console.error('Error fetching rejected images:', error)
+      } finally {
+        setRejectedLoading(false)
+      }
+    }
+
+    fetchRejectedImages()
+  }, [activeTab, isAdmin, rejectedPage, rejectedRoleFilter, rejectedSearchTerm, rejectedStartDate, rejectedEndDate, reasonFilter])
+
   // 切换tab时重置页码
   useEffect(() => {
     setPage(1)
+    setRejectedPage(1)
   }, [activeTab])
+
+  // 处理未通过审核图片搜索
+  const handleRejectedSearch = () => {
+    setRejectedSearchTerm(rejectedSearchInput)
+    setRejectedPage(1)
+  }
+
+  // 获取解码后的图片
+  const fetchDecodedImage = async (imageId: string, imageUrl: string) => {
+    if (decodedImages[imageId]) return decodedImages[imageId]
+    
+    try {
+      const response = await fetch('/api/admin/god-eye/rejected-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl }),
+      })
+      const data = await response.json()
+      if (data.success && data.imageData) {
+        setDecodedImages(prev => ({ ...prev, [imageId]: data.imageData }))
+        return data.imageData
+      }
+    } catch (error) {
+      console.error('解码图片失败:', error)
+    }
+    return null
+  }
+
+  // 预加载图片（当磨砂玻璃关闭时）
+  useEffect(() => {
+    if (activeTab === 'rejected' && !blurEnabled && rejectedImages.length > 0) {
+      rejectedImages.forEach((image) => {
+        if (!decodedImages[image.id]) {
+          fetchDecodedImage(image.id, image.imageUrl).catch(err => {
+            console.error('预加载图片失败:', err)
+          })
+        }
+      })
+    }
+  }, [activeTab, blurEnabled, rejectedImages, decodedImages])
+
+  // 获取拒绝原因标签
+  const getRejectionReasonLabel = (reason: string) => {
+    switch (reason) {
+      case 'image':
+        return '图片审核未通过'
+      case 'prompt':
+        return '提示词审核未通过'
+      case 'both':
+        return '图片和提示词均未通过'
+      default:
+        return '审核未通过'
+    }
+  }
+
+  // 获取拒绝原因样式
+  const getRejectionReasonStyle = (reason: string) => {
+    switch (reason) {
+      case 'image':
+        return 'bg-red-100 text-red-800'
+      case 'prompt':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'both':
+        return 'bg-orange-100 text-orange-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
 
   // 处理搜索
   const handleSearch = () => {
@@ -664,24 +794,335 @@ export default function GodEyePage() {
                 )}
               </div>
             ) : (
-              <div className="bg-white rounded-xl p-12 text-center border border-gray-200 shadow-sm">
-                <div className="flex flex-col items-center justify-center">
-                  <svg
-                    className="w-16 h-16 text-gray-400 mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                    />
-                  </svg>
-                  <p className="text-lg font-medium text-gray-700 mb-2">功能正在开发中</p>
-                  <p className="text-sm text-gray-500">未通过审核图片功能即将上线</p>
+              <div className="space-y-4">
+                {/* 控制栏 */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                  <div className="flex flex-wrap gap-4 items-center">
+                    {/* 磨砂玻璃开关 */}
+                    <div className="flex items-center gap-2 h-[38px]">
+                      <input
+                        type="checkbox"
+                        id="blur-toggle"
+                        checked={blurEnabled}
+                        onChange={(e) => setBlurEnabled(e.target.checked)}
+                        className="w-4 h-4 text-orange-500 rounded focus:ring-orange-400 flex-shrink-0"
+                      />
+                      <label htmlFor="blur-toggle" className="text-sm text-gray-700 cursor-pointer whitespace-nowrap">
+                        默认磨砂玻璃遮挡
+                      </label>
+                    </div>
+
+                    {/* 用户角色筛选 */}
+                    <div className="flex items-center gap-2 h-[38px]">
+                      <span className="text-sm text-gray-700 whitespace-nowrap">用户角色：</span>
+                      <select
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm min-w-[120px] focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        value={rejectedRoleFilter}
+                        onChange={(e) => {
+                          setRejectedRoleFilter(e.target.value as RoleFilter)
+                          setRejectedPage(1)
+                        }}
+                      >
+                        <option value="all">全部</option>
+                        <option value="subscribed">付费用户</option>
+                        <option value="premium">优质用户</option>
+                        <option value="oldUser">首批用户</option>
+                        <option value="regular">普通用户</option>
+                      </select>
+                    </div>
+
+                    {/* 拒绝原因筛选 */}
+                    <div className="flex items-center gap-2 h-[38px]">
+                      <span className="text-sm text-gray-700 whitespace-nowrap">拒绝原因：</span>
+                      <select
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm min-w-[180px] focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        value={reasonFilter}
+                        onChange={(e) => {
+                          setReasonFilter(e.target.value as 'all' | 'image' | 'prompt' | 'both')
+                          setRejectedPage(1)
+                        }}
+                      >
+                        <option value="all">全部</option>
+                        <option value="image">图片审核未通过</option>
+                        <option value="prompt">提示词审核未通过</option>
+                        <option value="both">两者都未通过</option>
+                      </select>
+                    </div>
+
+                    {/* 搜索 */}
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px] h-[38px]">
+                      <input
+                        type="text"
+                        placeholder="搜索用户昵称"
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        value={rejectedSearchInput}
+                        onChange={(e) => setRejectedSearchInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleRejectedSearch()
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={handleRejectedSearch}
+                        className="px-4 py-1.5 rounded-lg text-sm bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                      >
+                        搜索
+                      </button>
+                    </div>
+
+                    {/* 日期范围 */}
+                    <div className="flex items-center gap-2 h-[38px]">
+                      <input
+                        type="date"
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        value={rejectedStartDate}
+                        onChange={(e) => {
+                          setRejectedStartDate(e.target.value)
+                          setRejectedPage(1)
+                        }}
+                      />
+                      <span className="text-sm text-gray-500">至</span>
+                      <input
+                        type="date"
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        value={rejectedEndDate}
+                        onChange={(e) => {
+                          setRejectedEndDate(e.target.value)
+                          setRejectedPage(1)
+                        }}
+                      />
+                      {(rejectedStartDate || rejectedEndDate) && (
+                        <button
+                          onClick={() => {
+                            setRejectedStartDate('')
+                            setRejectedEndDate('')
+                            setRejectedPage(1)
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                        >
+                          清除
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
+
+                {/* 统计信息 */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">
+                      共找到 <span className="font-semibold text-orange-600">{rejectedTotal}</span> 张未通过审核的图片
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      第 {rejectedPage} 页 / 共 {rejectedTotalPages} 页
+                    </span>
+                  </div>
+                </div>
+
+                {/* 图片列表 */}
+                {rejectedLoading ? (
+                  <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">加载中...</p>
+                  </div>
+                ) : rejectedImages.length === 0 ? (
+                  <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
+                    <svg
+                      className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <p className="text-gray-600">暂无未通过审核的图片</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {rejectedImages.map((image) => (
+                        <div
+                          key={image.id}
+                          className="group relative rounded-xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-all"
+                        >
+                          <div className="aspect-square relative overflow-hidden bg-gray-100">
+                            {/* 磨砂玻璃层 */}
+                            {blurEnabled && (
+                              <div className="absolute inset-0 bg-white/30 backdrop-blur-md z-10 flex items-center justify-center">
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation()
+                                    if (!decodedImages[image.id]) {
+                                      await fetchDecodedImage(image.id, image.imageUrl)
+                                    }
+                                    setBlurEnabled(false)
+                                  }}
+                                  className="px-4 py-2 bg-black/60 backdrop-blur-sm text-white rounded-lg hover:bg-black/80 transition-colors"
+                                >
+                                  {decodedImages[image.id] ? '显示图片' : '点击查看'}
+                                </button>
+                              </div>
+                            )}
+                            
+                            {/* 图片 */}
+                            {decodedImages[image.id] ? (
+                              <Image
+                                src={decodedImages[image.id]}
+                                alt={image.prompt || '未通过审核的图片'}
+                                fill
+                                className={`object-cover cursor-zoom-in ${blurEnabled ? 'blur-sm' : ''}`}
+                                onClick={(e) => {
+                                  if (!blurEnabled) {
+                                    handleImageClick(decodedImages[image.id], e)
+                                  }
+                                }}
+                                unoptimized
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                                {!blurEnabled ? (
+                                  <div className="text-center">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                                    <p className="text-xs text-gray-500">解码中...</p>
+                                  </div>
+                                ) : null}
+                              </div>
+                            )}
+
+                            {/* 用户信息覆盖层 */}
+                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 via-black/50 to-transparent backdrop-blur-sm">
+                              <div className="flex items-center gap-2 mb-2">
+                                <AvatarWithFrame
+                                  avatar={image.userAvatar}
+                                  avatarFrameId={image.avatarFrameId}
+                                  size={24}
+                                  className="border border-white/30"
+                                />
+                                <span className="text-white text-xs font-medium truncate flex-1">
+                                  {image.userNickname}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeStyle(
+                                    image.userRole
+                                  )}`}
+                                >
+                                  {getRoleLabel(image.userRole)}
+                                </span>
+                              </div>
+                              
+                              {/* 拒绝原因标签 */}
+                              <div className="mb-2">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRejectionReasonStyle(
+                                    image.rejectionReason || 'image'
+                                  )}`}
+                                >
+                                  {getRejectionReasonLabel(image.rejectionReason || 'image')}
+                                </span>
+                              </div>
+
+                              {image.prompt && (
+                                <div 
+                                  className="relative group/prompt prompt-container"
+                                  onClick={(e) => handlePromptClick(image.id, e)}
+                                >
+                                  <p className="text-white text-xs line-clamp-2 cursor-pointer hover:text-orange-300 transition-colors">
+                                    {image.prompt}
+                                  </p>
+                                  
+                                  {/* 点击弹出的提示框 */}
+                                  {clickedPromptId === image.id && (
+                                    <div
+                                      ref={(el) => {
+                                        promptPopoverRefs.current[image.id] = el
+                                      }}
+                                      className="absolute bottom-full left-0 mb-2 p-3 bg-black/95 backdrop-blur-md text-white text-xs rounded-lg shadow-2xl z-30 max-w-sm max-h-48 overflow-y-auto animate-fadeIn"
+                                      style={{
+                                        minWidth: '200px',
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <div className="flex items-start justify-between gap-2 mb-2">
+                                        <span className="font-semibold text-sm">完整提示词</span>
+                                        <button
+                                          onClick={(e) => handleCopyPrompt(image.prompt!, image.id, e)}
+                                          className="p-1 hover:bg-white/20 rounded transition-colors"
+                                          title="复制提示词"
+                                        >
+                                          {copiedPromptId === image.id ? (
+                                            <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                          ) : (
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                            </svg>
+                                          )}
+                                        </button>
+                                      </div>
+                                      <p className="text-white/90 leading-relaxed whitespace-pre-wrap break-words">
+                                        {image.prompt}
+                                      </p>
+                                      {copiedPromptId === image.id && (
+                                        <div className="mt-2 text-green-400 text-xs flex items-center gap-1">
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                          已复制到剪贴板
+                                        </div>
+                                      )}
+                                      {/* 箭头 */}
+                                      <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black/95"></div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 分页 */}
+                    {rejectedTotalPages > 1 && (
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <div className="flex items-center justify-between">
+                          <button
+                            disabled={rejectedPage <= 1 || rejectedLoading}
+                            onClick={() => setRejectedPage((p) => Math.max(1, p - 1))}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+                              rejectedPage <= 1 || rejectedLoading
+                                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            上一页
+                          </button>
+                          <span className="text-sm text-gray-600">
+                            第 {rejectedPage} 页 / 共 {rejectedTotalPages} 页
+                          </span>
+                          <button
+                            disabled={rejectedPage >= rejectedTotalPages || rejectedLoading}
+                            onClick={() => setRejectedPage((p) => Math.min(rejectedTotalPages, p + 1))}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+                              rejectedPage >= rejectedTotalPages || rejectedLoading
+                                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            下一页
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 

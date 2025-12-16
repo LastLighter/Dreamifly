@@ -5,4 +5,4 @@
   "dbCredentials": {
     "url": "postgresql://dreamifly:Dreamifly123!QAZ.@10.0.1.16:5432/dreamifly"
   }
-} 
+}

@@ -1025,6 +1025,7 @@ export async function POST(request: Request) {
             model,
             width,
             height,
+            ipAddress: clientIP || undefined,
           }
         )
         console.log('用户生成图片已保存')
@@ -1032,6 +1033,9 @@ export async function POST(request: Request) {
         console.error('保存用户生成图片失败:', error)
         // 不阻止主流程，继续返回图片给用户
       }
+    } else {
+      // 未登录用户：也需要尝试保存（虽然 saveUserGeneratedImage 需要 userId，但我们可以处理）
+      // 实际上未登录用户不会调用 saveUserGeneratedImage，所以这里不需要处理
     }
 
     return NextResponse.json({ imageUrl })
