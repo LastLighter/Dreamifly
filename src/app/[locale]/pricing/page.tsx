@@ -41,6 +41,7 @@ export default function PricingPage() {
   const [payingPlanId, setPayingPlanId] = useState<number | null>(null)
   const [payingPackageId, setPayingPackageId] = useState<number | null>(null)
   const comparisonRef = useRef<HTMLDivElement | null>(null)
+  const tabsRef = useRef<HTMLDivElement | null>(null)
   const pollingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isCreatingOrder = payingPlanId !== null || payingPackageId !== null
@@ -72,23 +73,6 @@ export default function PricingPage() {
     { value: t('stats.value1.value'), label: t('stats.value1.label') },
     { value: t('stats.value2.value'), label: t('stats.value2.label') },
     { value: t('stats.value3.value'), label: t('stats.value3.label') },
-  ]
-
-  const baselineCards = [
-    {
-      key: 'guest',
-      title: t('comparison.guest'),
-      color: 'from-gray-100 to-gray-50',
-      badge: 'bg-gray-200 text-gray-700',
-      bullets: [t('comparison.features.watermark.guest'), t('comparison.features.speed.guest')],
-    },
-    {
-      key: 'registered',
-      title: t('comparison.registered'),
-      color: 'from-blue-50 to-white',
-      badge: 'bg-blue-100 text-blue-700',
-      bullets: [t('comparison.features.watermark.registered'), t('comparison.features.speed.registered')],
-    },
   ]
 
   const comparisonFeatures = [
@@ -284,11 +268,15 @@ export default function PricingPage() {
     }
   }
 
-  const scrollToComparison = () => {
-    setActiveTab('subscription')
+  const scrollToTabs = (tab: 'subscription' | 'points') => {
+    setActiveTab(tab)
     requestAnimationFrame(() => {
-      comparisonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
+  }
+
+  const scrollToComparison = () => {
+    scrollToTabs('subscription')
   }
 
   const getBillingLabel = (planType: string) => {
@@ -368,7 +356,7 @@ export default function PricingPage() {
                   {t('heroCtaSubscribe')}
                 </button>
                 <button
-                  onClick={() => setActiveTab('points')}
+                  onClick={() => scrollToTabs('points')}
                   className="inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-200 bg-white/80 px-6 py-3 text-orange-700 font-semibold shadow-sm backdrop-blur transition hover:border-orange-300 hover:-translate-y-0.5"
                 >
                   <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -446,7 +434,7 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <div className="flex justify-center">
+        <div ref={tabsRef} className="flex justify-center">
           <div className="inline-flex rounded-full border border-orange-100 bg-white/90 p-1 shadow-sm backdrop-blur">
             <button
               onClick={() => setActiveTab('subscription')}
@@ -474,26 +462,6 @@ export default function PricingPage() {
         {activeTab === 'subscription' && (
           <div className="space-y-10" id="subscription">
             <div className="grid gap-6 sm:grid-cols-2">
-              {baselineCards.map((card) => (
-                <div
-                  key={card.key}
-                  className={`relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br ${card.color} p-6 shadow-md`}
-                >
-                  <div className={`inline-flex items-center gap-2 rounded-full ${card.badge} px-3 py-1 text-xs font-semibold`}>
-                    <span className="h-2 w-2 rounded-full bg-current opacity-70" />
-                    {card.title}
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    {card.bullets.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm text-gray-700">
-                        <span className="h-2 w-2 rounded-full bg-gray-400" />
-                        <span>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
               {subscriptionPlans.length === 0 && (
                 <div className="sm:col-span-2 rounded-2xl border border-dashed border-gray-200 bg-white/80 p-10 text-center shadow-sm">
                   <p className="text-lg font-semibold text-gray-900">{t('subscriptionEmptyTitle')}</p>

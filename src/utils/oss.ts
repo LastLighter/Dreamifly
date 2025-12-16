@@ -80,3 +80,56 @@ export function checkOSSConfig(): boolean {
     process.env.OSS_ENDPOINT
   )
 }
+
+/**
+ * 生成OSS图片缩略图URL
+ * 使用阿里云OSS的图片处理功能生成缩略图
+ * @param originalUrl 原始图片URL
+ * @param width 缩略图宽度（默认300）
+ * @param height 缩略图高度（默认300，如果为0则按比例缩放）
+ * @param quality 图片质量（1-100，默认80）
+ * @returns 缩略图URL
+ */
+export function getThumbnailUrl(
+  originalUrl: string,
+  width: number = 300,
+  height: number = 300,
+  quality: number = 80
+): string {
+  // 如果不是OSS URL，直接返回原URL
+  if (!originalUrl || (!originalUrl.includes('oss') && !originalUrl.includes('aliyuncs'))) {
+    return originalUrl
+  }
+
+  try {
+    const url = new URL(originalUrl)
+    
+    // 构建图片处理参数
+    // m_fill: 等比缩放，短边优先
+    // m_lfit: 等比缩放，长边优先
+    // m_fixed: 固定宽高，可能会裁剪
+    let processParams = `image/resize,m_lfit`
+    
+    if (width > 0) {
+      processParams += `,w_${width}`
+    }
+    
+    if (height > 0) {
+      processParams += `,h_${height}`
+    }
+    
+    // 添加质量参数
+    if (quality > 0 && quality <= 100) {
+      processParams += `/quality,q_${quality}`
+    }
+    
+    // 添加处理参数到URL
+    url.searchParams.set('x-oss-process', processParams)
+    
+    return url.toString()
+  } catch (error) {
+    console.error('生成缩略图URL失败:', error)
+    // 如果URL解析失败，返回原URL
+    return originalUrl
+  }
+}

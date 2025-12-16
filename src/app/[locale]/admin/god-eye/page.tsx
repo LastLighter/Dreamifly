@@ -3,14 +3,32 @@
 import { useSession } from '@/lib/auth-client'
 import { ExtendedUser } from '@/types/auth'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import AdminSidebar from '@/components/AdminSidebar'
 import Image from 'next/image'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
+import AvatarWithFrame from '@/components/AvatarWithFrame'
+import { getThumbnailUrl } from '@/utils/oss'
 
 type TabType = 'approved' | 'rejected'
+type RoleFilter = 'all' | 'subscribed' | 'premium' | 'oldUser' | 'regular'
+
+interface ImageItem {
+  id: string
+  imageUrl: string
+  prompt: string | null
+  model: string | null
+  width: number | null
+  height: number | null
+  userRole: string
+  userAvatar: string
+  userNickname: string
+  avatarFrameId: number | null
+  createdAt: string
+  userId: string
+}
 
 export default function GodEyePage() {
   const { data: session, isPending: sessionLoading } = useSession()
@@ -23,6 +41,22 @@ export default function GodEyePage() {
   const [checkingAdmin, setCheckingAdmin] = useState(true)
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string>('')
   const [activeTab, setActiveTab] = useState<TabType>('approved')
+  
+  // 图片列表相关状态
+  const [images, setImages] = useState<ImageItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+  const [searchInput, setSearchInput] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null)
+  const [clickedPromptId, setClickedPromptId] = useState<string | null>(null)
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
+  const promptPopoverRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
 
   // 隐藏父级 layout 的 Navbar 和 Footer
   useEffect(() => {
@@ -112,6 +146,146 @@ export default function GodEyePage() {
 
     fetchCurrentUser()
   }, [session?.user])
+
+  // 获取图片列表
+  useEffect(() => {
+    if (activeTab !== 'approved' || !isAdmin) return
+
+    const fetchImages = async () => {
+      setLoading(true)
+      try {
+        const params = new URLSearchParams()
+        params.set('page', String(page))
+        params.set('limit', '20')
+        if (roleFilter !== 'all') {
+          params.set('role', roleFilter)
+        }
+        if (searchTerm.trim()) {
+          params.set('search', searchTerm.trim())
+        }
+        if (startDate) {
+          params.set('startDate', startDate)
+        }
+        if (endDate) {
+          params.set('endDate', endDate)
+        }
+
+        const response = await fetch(`/api/admin/god-eye/images?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch images')
+        }
+        const data = await response.json()
+        setImages(data.images || [])
+        setTotal(data.pagination?.total || 0)
+        setTotalPages(data.pagination?.totalPages || 0)
+      } catch (error) {
+        console.error('Error fetching images:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchImages()
+  }, [activeTab, isAdmin, page, roleFilter, searchTerm, startDate, endDate])
+
+  // 切换tab时重置页码
+  useEffect(() => {
+    setPage(1)
+  }, [activeTab])
+
+  // 处理搜索
+  const handleSearch = () => {
+    setSearchTerm(searchInput)
+    setPage(1)
+  }
+
+  // 处理图片点击预览
+  const handleImageClick = (imageUrl: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setZoomedImage(imageUrl)
+  }
+
+  // 处理复制提示词
+  const handleCopyPrompt = async (prompt: string, imageId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(prompt)
+      setCopiedPromptId(imageId)
+      setTimeout(() => {
+        setCopiedPromptId(null)
+      }, 2000)
+    } catch (error) {
+      console.error('复制失败:', error)
+    }
+  }
+
+  // 检查文本是否被截断
+  const isTextTruncated = (element: HTMLElement | null): boolean => {
+    if (!element) return false
+    return element.scrollHeight > element.clientHeight
+  }
+
+  // 处理点击提示词（无论是否截断都可打开）
+  const handlePromptClick = (imageId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setClickedPromptId((prev) => (prev === imageId ? null : imageId))
+  }
+
+  // 点击外部关闭Popover
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (clickedPromptId) {
+        const popoverElement = promptPopoverRefs.current[clickedPromptId]
+        const promptElement = (event.target as HTMLElement).closest('.prompt-container')
+        
+        // 如果点击的不是Popover或提示词容器，则关闭
+        if (popoverElement && !popoverElement.contains(event.target as Node) && 
+            !promptElement) {
+          setClickedPromptId(null)
+        }
+      }
+    }
+
+    if (clickedPromptId) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [clickedPromptId])
+
+  // 获取角色标签样式
+  const getRoleBadgeStyle = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return 'bg-gradient-to-r from-orange-400 to-amber-400 text-white'
+      case 'subscribed':
+        return 'bg-green-100 text-green-800'
+      case 'premium':
+        return 'bg-purple-100 text-purple-800'
+      case 'oldUser':
+        return 'bg-blue-100 text-blue-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  // 获取角色标签文本
+  const getRoleLabel = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return '管理员'
+      case 'subscribed':
+        return '付费用户'
+      case 'premium':
+        return '优质用户'
+      case 'oldUser':
+        return '首批用户'
+      default:
+        return '普通用户'
+    }
+  }
 
   if (sessionLoading || checkingAdmin || !isAdmin) {
     return (
@@ -221,27 +395,332 @@ export default function GodEyePage() {
             </div>
 
             {/* 内容区域 */}
-            <div className="bg-white rounded-xl p-12 text-center border border-gray-200 shadow-sm">
-              <div className="flex flex-col items-center justify-center">
-                <svg
-                  className="w-16 h-16 text-gray-400 mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </svg>
-                <p className="text-lg font-medium text-gray-700 mb-2">功能正在开发中</p>
-                <p className="text-sm text-gray-500">
-                  {activeTab === 'approved' ? '通过审核图片' : '未通过审核图片'}功能即将上线
-                </p>
+            {activeTab === 'approved' ? (
+              <div className="space-y-4">
+                {/* 筛选区域 */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                  <div className="flex flex-wrap gap-4 items-end">
+                    {/* 用户角色筛选 */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700 whitespace-nowrap">用户角色：</span>
+                      <select
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm min-w-[120px] focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        value={roleFilter}
+                        onChange={(e) => {
+                          setRoleFilter(e.target.value as RoleFilter)
+                          setPage(1)
+                        }}
+                      >
+                        <option value="all">全部</option>
+                        <option value="subscribed">付费用户</option>
+                        <option value="premium">优质用户</option>
+                        <option value="oldUser">首批用户</option>
+                        <option value="regular">普通用户</option>
+                      </select>
+                    </div>
+
+                    {/* 搜索 */}
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                      <input
+                        type="text"
+                        placeholder="搜索用户昵称"
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSearch()
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={handleSearch}
+                        className="px-4 py-1.5 rounded-lg text-sm bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                      >
+                        搜索
+                      </button>
+                    </div>
+
+                    {/* 日期范围 */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        value={startDate}
+                        onChange={(e) => {
+                          setStartDate(e.target.value)
+                          setPage(1)
+                        }}
+                      />
+                      <span className="text-sm text-gray-500">至</span>
+                      <input
+                        type="date"
+                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                        value={endDate}
+                        onChange={(e) => {
+                          setEndDate(e.target.value)
+                          setPage(1)
+                        }}
+                      />
+                      {(startDate || endDate) && (
+                        <button
+                          onClick={() => {
+                            setStartDate('')
+                            setEndDate('')
+                            setPage(1)
+                          }}
+                          className="px-3 py-1.5 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                        >
+                          清除
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 统计信息 */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">
+                      共找到 <span className="font-semibold text-orange-600">{total}</span> 张图片
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      第 {page} 页 / 共 {totalPages} 页
+                    </span>
+                  </div>
+                </div>
+
+                {/* 图片列表 */}
+                {loading ? (
+                  <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">加载中...</p>
+                  </div>
+                ) : images.length === 0 ? (
+                  <div className="bg-white rounded-xl p-12 text-center border border-gray-200">
+                    <svg
+                      className="w-16 h-16 text-gray-400 mx-auto mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <p className="text-gray-600">暂无图片</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {images.map((image) => (
+                        <div
+                          key={image.id}
+                          className="group relative rounded-xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-all"
+                        >
+                          <div className="aspect-square relative overflow-hidden bg-gray-100">
+                            <Image
+                              src={getThumbnailUrl(image.imageUrl, 400, 400, 75)}
+                              alt={image.prompt || '生成的图片'}
+                              fill
+                              className="object-cover cursor-zoom-in"
+                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                              onClick={(e) => handleImageClick(image.imageUrl, e)}
+                              unoptimized={image.imageUrl.startsWith('http')}
+                            />
+
+                            {/* 用户信息覆盖层 */}
+                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 via-black/50 to-transparent backdrop-blur-sm">
+                              <div className="flex items-center gap-2 mb-2">
+                                <AvatarWithFrame
+                                  avatar={image.userAvatar}
+                                  avatarFrameId={image.avatarFrameId}
+                                  size={24}
+                                  className="border border-white/30"
+                                />
+                                <span className="text-white text-xs font-medium truncate flex-1">
+                                  {image.userNickname}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeStyle(
+                                    image.userRole
+                                  )}`}
+                                >
+                                  {getRoleLabel(image.userRole)}
+                                </span>
+                              </div>
+                              {image.prompt && (
+                                <div 
+                                  className="relative group/prompt prompt-container"
+                                  onClick={(e) => handlePromptClick(image.id, e)}
+                                >
+                                  <p className="text-white text-xs line-clamp-2 cursor-pointer hover:text-orange-300 transition-colors">
+                                    {image.prompt}
+                                  </p>
+                                  
+                                  {/* 点击弹出的提示框 */}
+                                  {clickedPromptId === image.id && (
+                                    <div
+                                      ref={(el) => {
+                                        promptPopoverRefs.current[image.id] = el
+                                      }}
+                                      className="absolute bottom-full left-0 mb-2 p-3 bg-black/95 backdrop-blur-md text-white text-xs rounded-lg shadow-2xl z-30 max-w-sm max-h-48 overflow-y-auto animate-fadeIn"
+                                      style={{
+                                        minWidth: '200px',
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <div className="flex items-start justify-between gap-2 mb-2">
+                                        <span className="font-semibold text-sm">完整提示词</span>
+                                        <button
+                                          onClick={(e) => handleCopyPrompt(image.prompt!, image.id, e)}
+                                          className="p-1 hover:bg-white/20 rounded transition-colors"
+                                          title="复制提示词"
+                                        >
+                                          {copiedPromptId === image.id ? (
+                                            <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                          ) : (
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                            </svg>
+                                          )}
+                                        </button>
+                                      </div>
+                                      <p className="text-white/90 leading-relaxed whitespace-pre-wrap break-words">
+                                        {image.prompt}
+                                      </p>
+                                      {copiedPromptId === image.id && (
+                                        <div className="mt-2 text-green-400 text-xs flex items-center gap-1">
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                          已复制到剪贴板
+                                        </div>
+                                      )}
+                                      {/* 箭头 */}
+                                      <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black/95"></div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {(image.width && image.height) || image.model ? (
+                                <div className="flex gap-2 mt-2">
+                                  {image.width && image.height && (
+                                    <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm text-white text-xs rounded border border-white/30">
+                                      {image.width} × {image.height}
+                                    </span>
+                                  )}
+                                  {image.model && (
+                                    <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm text-white text-xs rounded border border-white/30">
+                                      {image.model}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* 分页 */}
+                    {totalPages > 1 && (
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                        <div className="flex items-center justify-between">
+                          <button
+                            disabled={page <= 1 || loading}
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+                              page <= 1 || loading
+                                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            上一页
+                          </button>
+                          <span className="text-sm text-gray-600">
+                            第 {page} 页 / 共 {totalPages} 页
+                          </span>
+                          <button
+                            disabled={page >= totalPages || loading}
+                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+                              page >= totalPages || loading
+                                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            下一页
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="bg-white rounded-xl p-12 text-center border border-gray-200 shadow-sm">
+                <div className="flex flex-col items-center justify-center">
+                  <svg
+                    className="w-16 h-16 text-gray-400 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                    />
+                  </svg>
+                  <p className="text-lg font-medium text-gray-700 mb-2">功能正在开发中</p>
+                  <p className="text-sm text-gray-500">未通过审核图片功能即将上线</p>
+                </div>
+              </div>
+            )}
+
+            {/* 图片预览模态框 */}
+            {zoomedImage && (
+              <div
+                className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center p-4"
+                onClick={() => setZoomedImage(null)}
+              >
+                <div className="relative max-w-7xl max-h-full">
+                  <Image
+                    src={zoomedImage}
+                    alt="预览图片"
+                    width={1200}
+                    height={1200}
+                    className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                    unoptimized
+                  />
+                  <button
+                    onClick={() => setZoomedImage(null)}
+                    className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-md rounded-lg hover:bg-white/30 transition-colors"
+                  >
+                    <svg
+                      className="w-6 h-6 text-white"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
