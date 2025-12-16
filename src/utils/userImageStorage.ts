@@ -214,7 +214,7 @@ export async function saveUserGeneratedImage(
   }> = []
   
   if (userId) {
-    userData = await db
+    const rawUserData = await db
       .select({
         isAdmin: user.isAdmin,
         isSubscribed: user.isSubscribed,
@@ -228,6 +228,18 @@ export async function saveUserGeneratedImage(
       .from(user)
       .where(eq(user.id, userId))
       .limit(1)
+    
+    // 确保布尔字段不为 null
+    userData = rawUserData.map(u => ({
+      isAdmin: u.isAdmin ?? false,
+      isSubscribed: u.isSubscribed ?? false,
+      subscriptionExpiresAt: u.subscriptionExpiresAt,
+      isPremium: u.isPremium ?? false,
+      isOldUser: u.isOldUser ?? false,
+      avatar: u.avatar,
+      nickname: u.nickname,
+      avatarFrameId: u.avatarFrameId,
+    }))
   }
 
   // 判断用户角色

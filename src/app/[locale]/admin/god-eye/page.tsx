@@ -349,12 +349,6 @@ export default function GodEyePage() {
     }
   }
 
-  // 检查文本是否被截断
-  const isTextTruncated = (element: HTMLElement | null): boolean => {
-    if (!element) return false
-    return element.scrollHeight > element.clientHeight
-  }
-
   // 处理点击提示词（无论是否截断都可打开）
   const handlePromptClick = (imageId: string, e: React.MouseEvent) => {
     e.stopPropagation()

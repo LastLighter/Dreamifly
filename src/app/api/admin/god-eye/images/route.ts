@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/db'
 import { userGeneratedImages, user } from '@/db/schema'
-import { eq, ne, desc, and, or, like, isNull, inArray, gte, lte, sql } from 'drizzle-orm'
+import { eq, ne, desc, and, or, like, isNull, gte, lte, sql } from 'drizzle-orm'
 import { headers } from 'next/headers'
 
 /**

@@ -12,8 +12,6 @@ import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import {
   LineChart,
   Line,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
