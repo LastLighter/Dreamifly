@@ -4,7 +4,6 @@ import { db } from '@/db'
 import { rejectedImages, user } from '@/db/schema'
 import { eq, desc, and, or, like, gte, lte, sql, isNull } from 'drizzle-orm'
 import { headers } from 'next/headers'
-import { getRejectedImageBuffer } from '@/utils/rejectedImageStorage'
 
 /**
  * 获取未通过审核的图片列表（管理员专用）
@@ -172,63 +171,10 @@ export async function GET(request: NextRequest) {
 /**
  * 获取单个图片（解码后返回base64）
  */
-export async function POST(request: NextRequest) {
-  try {
-    // 验证管理员权限
-    const session = await auth.api.getSession({
-      headers: await headers()
-    })
-
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: '未授权，请先登录' },
-        { status: 401 }
-      )
-    }
-
-    // 检查是否为管理员
-    const currentUser = await db.select()
-      .from(user)
-      .where(eq(user.id, session.user.id))
-      .limit(1)
-
-    if (currentUser.length === 0 || !currentUser[0].isAdmin) {
-      return NextResponse.json(
-        { error: '无权限访问，需要管理员权限' },
-        { status: 403 }
-      )
-    }
-
-    const { imageUrl } = await request.json()
-
-    if (!imageUrl) {
-      return NextResponse.json(
-        { error: '缺少 imageUrl 参数' },
-        { status: 400 }
-      )
-    }
-
-    try {
-      const imageBuffer = await getRejectedImageBuffer(imageUrl)
-      const base64 = imageBuffer.toString('base64')
-      
-      return NextResponse.json({
-        success: true,
-        imageData: `data:image/png;base64,${base64}`,
-      })
-    } catch (error) {
-      console.error('解码图片失败:', error)
-      return NextResponse.json(
-        { error: '获取图片失败' },
-        { status: 500 }
-      )
-    }
-  } catch (error) {
-    console.error('Error decoding rejected image:', error)
-    return NextResponse.json(
-      { error: '处理请求失败' },
-      { status: 500 }
-    )
-  }
+export async function POST() {
+  return NextResponse.json(
+    { error: 'Method not allowed' },
+    { status: 405 }
+  )
 }
 

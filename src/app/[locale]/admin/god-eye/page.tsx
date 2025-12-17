@@ -261,39 +261,75 @@ export default function GodEyePage() {
     setRejectedPage(1)
   }
 
-  // 获取解码后的图片
-  const fetchDecodedImage = async (imageId: string, imageUrl: string) => {
-    if (decodedImages[imageId]) return decodedImages[imageId]
-    
-    try {
-      const response = await fetch('/api/admin/god-eye/rejected-images', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl }),
+  // 解码OSS中的被拒图片（前端执行，遮罩仅遮挡视觉）
+  const decodeObfuscatedBase64 = (obfuscated: string) => {
+    return obfuscated
+      .split('')
+      .map((char, index) => {
+        if (char >= 'A' && char <= 'Z') {
+          return String.fromCharCode(((char.charCodeAt(0) - 65 - (index % 26) + 26) % 26) + 65)
+        }
+        if (char >= 'a' && char <= 'z') {
+          return String.fromCharCode(((char.charCodeAt(0) - 97 - (index % 26) + 26) % 26) + 97)
+        }
+        if (char >= '0' && char <= '9') {
+          return String.fromCharCode(((char.charCodeAt(0) - 48 - (index % 10) + 10) % 10) + 48)
+        }
+        return char
       })
-      const data = await response.json()
-      if (data.success && data.imageData) {
-        setDecodedImages(prev => ({ ...prev, [imageId]: data.imageData }))
-        return data.imageData
-      }
-    } catch (error) {
-      console.error('解码图片失败:', error)
-    }
-    return null
+      .join('')
   }
 
-  // 预加载图片（当磨砂玻璃关闭时）
-  useEffect(() => {
-    if (activeTab === 'rejected' && !blurEnabled && rejectedImages.length > 0) {
-      rejectedImages.forEach((image) => {
-        if (!decodedImages[image.id]) {
-          fetchDecodedImage(image.id, image.imageUrl).catch(err => {
-            console.error('预加载图片失败:', err)
-          })
-        }
+  const decodeRejectedImage = async (imageId: string, imageUrl: string) => {
+    try {
+      const response = await fetch(imageUrl)
+      if (!response.ok) {
+        throw new Error(`fetch rejected image failed: ${response.status}`)
+      }
+      const obfuscated = await response.text()
+      const base64 = decodeObfuscatedBase64(obfuscated)
+      const dataUrl = `data:image/png;base64,${base64}`
+      setDecodedImages((prev) => {
+        if (prev[imageId]) return prev
+        return { ...prev, [imageId]: dataUrl }
       })
+    } catch (error) {
+      console.error('前端解码未通过图片失败:', error)
     }
-  }, [activeTab, blurEnabled, rejectedImages, decodedImages])
+  }
+
+  // 列表加载后即解码（遮罩不阻塞解码）
+  useEffect(() => {
+    if (activeTab !== 'rejected' || !isAdmin) return
+    if (!rejectedImages.length) return
+
+    const pendingImages = rejectedImages.filter(
+      (img) => img.imageUrl && !decodedImages[img.id]
+    )
+    if (pendingImages.length === 0) return
+
+    let cancelled = false
+    const concurrency = 4
+    const queue = [...pendingImages]
+
+    const runWorker = async () => {
+      while (queue.length && !cancelled) {
+        const next = queue.shift()
+        if (next) {
+          await decodeRejectedImage(next.id, next.imageUrl)
+        }
+      }
+    }
+
+    const workers = Array.from({ length: Math.min(concurrency, queue.length) }, runWorker)
+    Promise.all(workers).catch((err) => {
+      console.error('批量解码未通过图片失败:', err)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, isAdmin, rejectedImages, decodedImages])
 
   // 获取拒绝原因标签
   const getRejectionReasonLabel = (reason: string) => {
@@ -948,19 +984,22 @@ export default function GodEyePage() {
                           <div className="aspect-square relative overflow-hidden bg-gray-100">
                             {/* 磨砂玻璃层 */}
                             {blurEnabled && (
-                              <div className="absolute inset-0 bg-white/30 backdrop-blur-md z-10 flex items-center justify-center">
+                              <div className="absolute inset-0 bg-white/30 backdrop-blur-md z-10 flex flex-col items-center justify-center gap-2">
                                 <button
-                                  onClick={async (e) => {
+                                  onClick={(e) => {
                                     e.stopPropagation()
-                                    if (!decodedImages[image.id]) {
-                                      await fetchDecodedImage(image.id, image.imageUrl)
-                                    }
                                     setBlurEnabled(false)
                                   }}
                                   className="px-4 py-2 bg-black/60 backdrop-blur-sm text-white rounded-lg hover:bg-black/80 transition-colors"
                                 >
-                                  {decodedImages[image.id] ? '显示图片' : '点击查看'}
+                                  移除遮罩
                                 </button>
+                                {!decodedImages[image.id] && (
+                                  <div className="flex items-center gap-2 text-xs text-gray-800 bg-white/70 px-2 py-1 rounded-md">
+                                    <div className="h-3 w-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                                    <span>正在解码...</span>
+                                  </div>
+                                )}
                               </div>
                             )}
                             
@@ -980,12 +1019,10 @@ export default function GodEyePage() {
                               />
                             ) : (
                               <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                                {!blurEnabled ? (
-                                  <div className="text-center">
-                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto mb-2"></div>
-                                    <p className="text-xs text-gray-500">解码中...</p>
-                                  </div>
-                                ) : null}
+                                <div className="text-center">
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                                  <p className="text-xs text-gray-500">解码中...</p>
+                                </div>
                               </div>
                             )}
 
