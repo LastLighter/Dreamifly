@@ -102,8 +102,9 @@ export async function POST(request: NextRequest) {
 
     // 生成以dreamifly开头的订单号
     const orderId = generateOrderNo();
+    const now = new Date(); // 使用 UTC 时间，确保与 paidAt / updatedAt 一致
 
-    // 创建订单记录
+    // 创建订单记录（显式写入 createdAt / updatedAt，避免依赖数据库默认 now() 的时区）
     await db.insert(paymentOrder).values({
       id: orderId,
       userId: session.user.id,
@@ -113,6 +114,8 @@ export async function POST(request: NextRequest) {
       pointsAmount,
       status: 'pending',
       paymentMethod: 'alipay',
+      createdAt: now,
+      updatedAt: now,
     });
 
     // 调用支付宝创建支付链接
