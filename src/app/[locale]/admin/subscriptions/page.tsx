@@ -100,6 +100,20 @@ const STATUS_NAMES: Record<string, string> = {
   cancelled: '已取消'
 }
 
+const formatDateTimeShanghai = (value?: string | null) => {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(new Date(value))
+}
+
 export default function SubscriptionsAdminPage() {
   const { data: session, isPending: sessionLoading } = useSession()
   const { avatar: globalAvatar } = useAvatar()
@@ -940,14 +954,10 @@ export default function SubscriptionsAdminPage() {
                                   : order.paymentMethod || '-'}
                               </td>
                               <td className="px-4 py-2 text-xs text-gray-600">
-                                {order.createdAt
-                                  ? new Date(order.createdAt).toLocaleString()
-                                  : '-'}
+                                {formatDateTimeShanghai(order.createdAt)}
                               </td>
                               <td className="px-4 py-2 text-xs text-gray-600">
-                                {order.paidAt
-                                  ? new Date(order.paidAt).toLocaleString()
-                                  : '-'}
+                                {formatDateTimeShanghai(order.paidAt)}
                               </td>
                             </tr>
                           ))

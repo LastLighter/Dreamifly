@@ -1352,60 +1352,6 @@ export default function AdminPage() {
               </p>
             </div>
 
-            {/* 补偿会员 */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  补偿会员
-                </label>
-                <div className="text-xs text-gray-500">
-                  当前状态：{selectedUser.isSubscribed && selectedUser.subscriptionExpiresAt
-                    ? `已开通，过期时间 ${formatDate(selectedUser.subscriptionExpiresAt)}`
-                    : '未开通'}
-                </div>
-              </div>
-              {subscriptionPlans.length === 0 ? (
-                <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
-                  暂无可用套餐，请先在订阅套餐配置中添加
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex flex-col gap-2">
-                    <select
-                      value={selectedPlanId ?? ''}
-                      onChange={(e) => setSelectedPlanId(e.target.value ? parseInt(e.target.value, 10) : null)}
-                      disabled={compensating}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
-                    >
-                      {subscriptionPlans.map(plan => (
-                        <option key={plan.id} value={plan.id}>
-                          {plan.name}（{renderPlanType(plan.type)}，赠送积分 {plan.bonusPoints}）
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-500">
-                      选择套餐后点击补偿，将按套餐时长叠加当前会员有效期，并赠送对应积分（积分有效期一年）。
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCompensateSubscription}
-                    disabled={compensating}
-                    className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {compensating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>补偿中...</span>
-                      </>
-                    ) : (
-                      '补偿会员'
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-
             {/* 设置用户封禁状态 */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -1611,6 +1557,60 @@ export default function AdminPage() {
                 <p className="mt-2 text-xs text-gray-500">暂无头像框，请先在装饰管理中添加</p>
               )}
                 </>
+              )}
+            </div>
+
+            {/* 补偿会员 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  补偿会员
+                </label>
+                <div className="text-xs text-gray-500">
+                  当前状态：{selectedUser.isSubscribed && selectedUser.subscriptionExpiresAt
+                    ? `已开通，过期时间 ${formatDate(selectedUser.subscriptionExpiresAt)}`
+                    : '未开通'}
+                </div>
+              </div>
+              {subscriptionPlans.length === 0 ? (
+                <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                  暂无可用套餐，请先在订阅套餐配置中添加
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-2">
+                    <select
+                      value={selectedPlanId ?? ''}
+                      onChange={(e) => setSelectedPlanId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                      disabled={compensating}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                    >
+                      {subscriptionPlans.map(plan => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name}（{renderPlanType(plan.type)}，赠送积分 {plan.bonusPoints}）
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500">
+                      选择套餐后点击补偿，将按套餐时长叠加当前会员有效期，并赠送对应积分（积分有效期一年）。
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCompensateSubscription}
+                    disabled={compensating}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {compensating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>补偿中...</span>
+                      </>
+                    ) : (
+                      '补偿会员'
+                    )}
+                  </button>
+                </div>
               )}
             </div>
 

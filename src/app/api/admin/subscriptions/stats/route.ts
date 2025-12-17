@@ -7,6 +7,17 @@ import { headers } from 'next/headers'
 
 type TimeRange = 'today' | 'yesterday' | 'week' | 'month' | 'all'
 
+const SHANGHAI_TZ = 'Asia/Shanghai'
+
+function formatDateInShanghai(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: SHANGHAI_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
+
 function getTimeRangeDate(range: TimeRange): Date {
   const now = new Date()
   
@@ -14,10 +25,10 @@ function getTimeRangeDate(range: TimeRange): Date {
     case 'today':
       // 今天00:00:00（中国时区 UTC+8）
       const shanghaiDate = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Shanghai',
+        timeZone: SHANGHAI_TZ,
         year: 'numeric',
         month: '2-digit',
-        day: '2-digit'
+        day: '2-digit',
       }).formatToParts(now)
       
       const year = parseInt(shanghaiDate.find(p => p.type === 'year')!.value)
@@ -28,10 +39,10 @@ function getTimeRangeDate(range: TimeRange): Date {
       return new Date(todayInShanghai.getTime() - 8 * 60 * 60 * 1000)
     case 'yesterday':
       const shanghaiDateYesterday = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Shanghai',
+        timeZone: SHANGHAI_TZ,
         year: 'numeric',
         month: '2-digit',
-        day: '2-digit'
+        day: '2-digit',
       }).formatToParts(now)
       
       const yearYesterday = parseInt(shanghaiDateYesterday.find(p => p.type === 'year')!.value)
@@ -63,10 +74,10 @@ function getTimeRangeEndDate(range: TimeRange): Date | null {
   
   const now = new Date()
   const shanghaiDate = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai',
+    timeZone: SHANGHAI_TZ,
     year: 'numeric',
     month: '2-digit',
-    day: '2-digit'
+    day: '2-digit',
   }).formatToParts(now)
   
   const year = parseInt(shanghaiDate.find(p => p.type === 'year')!.value)
@@ -100,17 +111,17 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const timeRange = (searchParams.get('timeRange') || 'all') as TimeRange
 
+    const now = new Date()
+    const todayStr = formatDateInShanghai(now)
+    const yesterdayStr = formatDateInShanghai(new Date(now.getTime() - 24 * 60 * 60 * 1000))
+
     const startDate = getTimeRangeDate(timeRange)
     const endDate = getTimeRangeEndDate(timeRange)
-
-    const now = new Date()
     const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
-    // 统一的日期字符串（用于与 to_char(..., 'YYYY-MM-DD') 对齐）
-    const todayStr = new Date().toISOString().slice(0, 10) // 假设数据库按 UTC 存储，与 to_char 结果一致
-    const yesterdayDate = new Date()
-    yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1)
-    const yesterdayStr = yesterdayDate.toISOString().slice(0, 10)
+    // 统一的日期字符串（使用上海时区）
+    const subscriptionDateExpr = sql<string>`to_char(${userSubscription.createdAt} AT TIME ZONE 'UTC' AT TIME ZONE ${sql.raw(`'${SHANGHAI_TZ}'`)}, 'YYYY-MM-DD')`
+    const paidDateExpr = sql<string>`to_char(${paymentOrder.paidAt} AT TIME ZONE 'UTC' AT TIME ZONE ${sql.raw(`'${SHANGHAI_TZ}'`)}, 'YYYY-MM-DD')`
 
     // 1. 总订阅用户数
     // - 当 timeRange = 'today' 时：统计今天有订阅记录的用户数（去重，不判断是否仍然有效）
@@ -124,7 +135,7 @@ export async function GET(request: Request) {
         })
         .from(userSubscription)
         .where(
-          sql`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD') = ${todayStr}` as any,
+          sql`${subscriptionDateExpr} = ${todayStr}` as any,
         )
 
       totalSubscriptionsCount = todaySubscriptions[0]?.count || 0
@@ -148,14 +159,14 @@ export async function GET(request: Request) {
       .select({ count: sql<number>`count(*)::int` })
       .from(userSubscription)
       .where(
-        sql`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD') = ${todayStr}` as any,
+        sql`${subscriptionDateExpr} = ${todayStr}` as any,
       )
 
     const yesterdayNewSubscriptions = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(userSubscription)
       .where(
-        sql`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD') = ${yesterdayStr}` as any,
+        sql`${subscriptionDateExpr} = ${yesterdayStr}` as any,
       )
 
     // 3. 本月新增订阅数
@@ -175,11 +186,11 @@ export async function GET(request: Request) {
     // 日期范围过滤
     if (timeRange === 'yesterday') {
       baseRevenueConditions.push(
-        sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD') = ${yesterdayStr}` as any
+        sql`${paidDateExpr} = ${yesterdayStr}` as any
       )
     } else if (timeRange === 'today') {
       baseRevenueConditions.push(
-        sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD') = ${todayStr}` as any
+        sql`${paidDateExpr} = ${todayStr}` as any
       )
     } else {
       baseRevenueConditions.push(gte(paymentOrder.paidAt, startDate))
@@ -221,7 +232,7 @@ export async function GET(request: Request) {
           eq(paymentOrder.orderType, 'subscription'),
           eq(paymentOrder.status, 'paid'),
           isNotNull(paymentOrder.paidAt),
-          sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD') = ${todayStr}` as any
+          sql`${paidDateExpr} = ${todayStr}` as any
         )
       )
 
@@ -234,7 +245,7 @@ export async function GET(request: Request) {
           eq(paymentOrder.orderType, 'points'),
           eq(paymentOrder.status, 'paid'),
           isNotNull(paymentOrder.paidAt),
-          sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD') = ${todayStr}` as any
+          sql`${paidDateExpr} = ${todayStr}` as any
         )
       )
 
@@ -247,7 +258,7 @@ export async function GET(request: Request) {
           eq(paymentOrder.orderType, 'subscription'),
           eq(paymentOrder.status, 'paid'),
           isNotNull(paymentOrder.paidAt),
-          sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD') = ${yesterdayStr}` as any
+          sql`${paidDateExpr} = ${yesterdayStr}` as any
         )
       )
 
@@ -260,7 +271,7 @@ export async function GET(request: Request) {
           eq(paymentOrder.orderType, 'points'),
           eq(paymentOrder.status, 'paid'),
           isNotNull(paymentOrder.paidAt),
-          sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD') = ${yesterdayStr}` as any
+          sql`${paidDateExpr} = ${yesterdayStr}` as any
         )
       )
 
@@ -337,11 +348,11 @@ export async function GET(request: Request) {
     const statusWhereConditions: any[] = []
     if (timeRange === 'yesterday') {
       statusWhereConditions.push(
-        sql`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD') = ${yesterdayStr}` as any
+        sql`${subscriptionDateExpr} = ${yesterdayStr}` as any
       )
     } else if (timeRange === 'today') {
       statusWhereConditions.push(
-        sql`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD') = ${todayStr}` as any
+        sql`${subscriptionDateExpr} = ${todayStr}` as any
       )
     } else {
       statusWhereConditions.push(gte(userSubscription.createdAt, startDate))
@@ -375,11 +386,11 @@ export async function GET(request: Request) {
     const trendWhereConditions: any[] = []
     if (timeRange === 'yesterday') {
       trendWhereConditions.push(
-        sql`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD') = ${yesterdayStr}` as any
+        sql`${subscriptionDateExpr} = ${yesterdayStr}` as any
       )
     } else if (timeRange === 'today') {
       trendWhereConditions.push(
-        sql`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD') = ${todayStr}` as any
+        sql`${subscriptionDateExpr} = ${todayStr}` as any
       )
     } else {
       trendWhereConditions.push(gte(userSubscription.createdAt, startDate))
@@ -390,38 +401,38 @@ export async function GET(request: Request) {
 
     const subscriptionTrend = await db
       .select({
-        date: sql<string>`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD')`,
+        date: subscriptionDateExpr,
         count: sql<number>`count(*)::int`
       })
       .from(userSubscription)
       .where(and(...trendWhereConditions))
-      .groupBy(sql`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD')`)
-      .orderBy(sql`to_char(${userSubscription.createdAt}, 'YYYY-MM-DD')`)
+      .groupBy(subscriptionDateExpr)
+      .orderBy(subscriptionDateExpr)
 
     // 9. 收入趋势数据（按日期分组，分类统计）
     // 订阅收入趋势
     const subscriptionRevenueTrend = await db
       .select({
-        date: sql<string>`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD')`,
+        date: paidDateExpr,
         total: sql<number>`coalesce(sum(${paymentOrder.amount}), 0)`,
         count: sql<number>`count(*)::int`
       })
       .from(paymentOrder)
       .where(and(...subscriptionRevenueConditions))
-      .groupBy(sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD')`)
-      .orderBy(sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD')`)
+      .groupBy(paidDateExpr)
+      .orderBy(paidDateExpr)
 
     // 积分收入趋势
     const pointsRevenueTrend = await db
       .select({
-        date: sql<string>`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD')`,
+        date: paidDateExpr,
         total: sql<number>`coalesce(sum(${paymentOrder.amount}), 0)`,
         count: sql<number>`count(*)::int`
       })
       .from(paymentOrder)
       .where(and(...pointsRevenueConditions))
-      .groupBy(sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD')`)
-      .orderBy(sql`to_char(${paymentOrder.paidAt}, 'YYYY-MM-DD')`)
+      .groupBy(paidDateExpr)
+      .orderBy(paidDateExpr)
 
     // 合并收入趋势数据（按日期）
     const allDates = new Set([
