@@ -139,6 +139,9 @@ export default function AdminPage() {
   const [directFrameIdInput, setDirectFrameIdInput] = useState<string>('')
   const [updatingUser, setUpdatingUser] = useState(false)
   const [isAvatarFrameExpanded, setIsAvatarFrameExpanded] = useState(false) // 头像框模块默认折叠
+  const [subscriptionPlans, setSubscriptionPlans] = useState<Array<{ id: number; name: string; type: string; bonusPoints: number }>>([])
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
+  const [compensating, setCompensating] = useState(false)
   
   // 邮箱白名单状态
   const [emailDomains, setEmailDomains] = useState<Array<{ id: number; domain: string; isEnabled: boolean }>>([])
@@ -315,6 +318,7 @@ export default function AdminPage() {
       fetchLimitConfig()
       fetchAvatarFrames()
       fetchEmailDomains()
+      fetchSubscriptionPlans()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter, statusFilter])
@@ -336,6 +340,27 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Failed to fetch avatar frames:', error)
+    }
+  }
+
+  const fetchSubscriptionPlans = async () => {
+    try {
+      const response = await fetch(`/api/subscription/plans?t=${Date.now()}`, { cache: 'no-store' })
+      if (response.ok) {
+        const data = await response.json()
+        const plans = (data?.plans || []).map((plan: any) => ({
+          id: plan.id,
+          name: plan.name,
+          type: plan.type,
+          bonusPoints: plan.bonusPoints ?? 0,
+        }))
+        setSubscriptionPlans(plans)
+        if (plans.length > 0) {
+          setSelectedPlanId(plans[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscription plans:', error)
     }
   }
 
@@ -442,6 +467,13 @@ export default function AdminPage() {
     return formatInShanghai(new Date(dateStr))
   }
 
+  const renderPlanType = (type: string) => {
+    if (type === 'monthly') return '月度'
+    if (type === 'quarterly') return '季度'
+    if (type === 'yearly') return '年度'
+    return type
+  }
+
   // 获取用户限额配置（仅用于显示）
   const fetchLimitConfig = async () => {
     try {
@@ -512,6 +544,7 @@ export default function AdminPage() {
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput(user.avatarFrameId?.toString() || '')
     setIsAvatarFrameExpanded(false) // 重置为折叠状态
+    setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
     setShowUserActionModal(true)
   }
 
@@ -527,6 +560,8 @@ export default function AdminPage() {
     setDirectFrameIdInput('')
     setUpdatingUser(false)
     setIsAvatarFrameExpanded(false) // 重置为折叠状态
+    setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
+    setCompensating(false)
   }
 
   // 处理直接输入头像框ID
@@ -603,6 +638,53 @@ export default function AdminPage() {
       showDialog('error', '操作失败', error instanceof Error ? error.message : '更新用户设置失败')
     } finally {
       setUpdatingUser(false)
+    }
+  }
+
+  const handleCompensateSubscription = async () => {
+    if (!selectedUser) return
+    if (!selectedPlanId) {
+      showDialog('error', '补偿失败', '请选择要补偿的会员套餐')
+      return
+    }
+
+    const plan = subscriptionPlans.find(p => p.id === selectedPlanId)
+
+    setCompensating(true)
+    try {
+      const response = await fetch(`/api/admin/users/compensate-subscription?t=${Date.now()}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          planId: selectedPlanId,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data?.error || '补偿失败')
+      }
+
+      await fetchUsers()
+      setSelectedUser(prev => prev ? {
+        ...prev,
+        isSubscribed: true,
+        subscriptionExpiresAt: data.subscriptionExpiresAt || prev.subscriptionExpiresAt,
+      } : prev)
+
+      const expiresText = data.subscriptionExpiresAt ? formatDate(data.subscriptionExpiresAt) : ''
+      const planName = plan ? `${plan.name}（${renderPlanType(plan.type)}）` : '会员'
+
+      showDialog('success', '补偿成功', `已为该用户补偿 ${planName}${expiresText ? `，有效期至 ${expiresText}` : ''}`)
+    } catch (error) {
+      console.error('Failed to compensate subscription:', error)
+      showDialog('error', '补偿失败', error instanceof Error ? error.message : '补偿会员失败')
+    } finally {
+      setCompensating(false)
     }
   }
 
@@ -1268,6 +1350,60 @@ export default function AdminPage() {
               <p className="mt-2 text-xs text-gray-500">
                 注意：用户可以同时拥有多个身份（优质用户、首批用户、付费用户等）
               </p>
+            </div>
+
+            {/* 补偿会员 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  补偿会员
+                </label>
+                <div className="text-xs text-gray-500">
+                  当前状态：{selectedUser.isSubscribed && selectedUser.subscriptionExpiresAt
+                    ? `已开通，过期时间 ${formatDate(selectedUser.subscriptionExpiresAt)}`
+                    : '未开通'}
+                </div>
+              </div>
+              {subscriptionPlans.length === 0 ? (
+                <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                  暂无可用套餐，请先在订阅套餐配置中添加
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-2">
+                    <select
+                      value={selectedPlanId ?? ''}
+                      onChange={(e) => setSelectedPlanId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                      disabled={compensating}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                    >
+                      {subscriptionPlans.map(plan => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name}（{renderPlanType(plan.type)}，赠送积分 {plan.bonusPoints}）
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500">
+                      选择套餐后点击补偿，将按套餐时长叠加当前会员有效期，并赠送对应积分（积分有效期一年）。
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCompensateSubscription}
+                    disabled={compensating}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {compensating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>补偿中...</span>
+                      </>
+                    ) : (
+                      '补偿会员'
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* 设置用户封禁状态 */}
