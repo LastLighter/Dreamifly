@@ -843,6 +843,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                     isHighResolution={isHighResolution}
                     setIsHighResolution={setIsHighResolution}
                     aspectRatio={aspectRatio}
+                    setAspectRatio={setAspectRatio}
                   />
                 </div>
               ) : (

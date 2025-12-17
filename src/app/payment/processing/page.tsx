@@ -16,7 +16,8 @@ function PaymentProcessingContent() {
   useEffect(() => {
     let stopped = false
     let timer: ReturnType<typeof setTimeout> | null = null
-    const maxAttempts = 24
+    const pollingInterval = 5000
+    const maxAttempts = Math.ceil((30 * 60 * 1000) / pollingInterval) // 支付宝订单30分钟关闭，轮询覆盖支付窗口
 
     const poll = async (attempt = 0) => {
       if (stopped) return
@@ -67,7 +68,7 @@ function PaymentProcessingContent() {
           setMessage('等待支付，请在支付宝完成付款。')
         }
 
-        timer = setTimeout(() => poll(attempt + 1), 2500)
+        timer = setTimeout(() => poll(attempt + 1), pollingInterval)
       } catch (error) {
         console.error('查询支付状态失败:', error)
         setStatus('processing')

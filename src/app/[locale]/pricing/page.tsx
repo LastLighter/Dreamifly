@@ -164,7 +164,8 @@ export default function PricingPage() {
   }
 
   const pollOrderStatus = async (orderId: string, attempt = 0) => {
-    const maxAttempts = 20
+    const pollingInterval = 6000
+    const maxAttempts = Math.ceil((30 * 60 * 1000) / pollingInterval) // 支付宝订单30分钟关闭，轮询覆盖整个支付窗口
     if (attempt >= maxAttempts) {
       clearPolling()
       setPayingPlanId(null)
@@ -208,11 +209,11 @@ export default function PricingPage() {
         alipayStatus === 'TRADE_SUCCESS' ||
         alipayStatus === 'TRADE_FINISHED'
       ) {
-        pollingTimer.current = setTimeout(() => pollOrderStatus(orderId, attempt + 1), 3000)
+        pollingTimer.current = setTimeout(() => pollOrderStatus(orderId, attempt + 1), pollingInterval)
         return
       }
 
-      pollingTimer.current = setTimeout(() => pollOrderStatus(orderId, attempt + 1), 3000)
+      pollingTimer.current = setTimeout(() => pollOrderStatus(orderId, attempt + 1), pollingInterval)
     } catch (error) {
       console.error('查询支付状态失败:', error)
       pollingTimer.current = setTimeout(() => pollOrderStatus(orderId, attempt + 1), 4000)

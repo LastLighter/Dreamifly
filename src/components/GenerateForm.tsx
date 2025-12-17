@@ -35,6 +35,7 @@ interface GenerateFormProps {
   isHighResolution: boolean;
   setIsHighResolution: (value: boolean) => void;
   aspectRatio: string;
+  setAspectRatio: (value: string) => void;
 }
 
 export default function GenerateForm({
@@ -63,7 +64,8 @@ export default function GenerateForm({
   setIsQueuing: setIsQueuingProp,
   isHighResolution,
   setIsHighResolution,
-  aspectRatio
+  aspectRatio,
+  setAspectRatio
 }: GenerateFormProps) {
   const t = useTranslations('home.generate')
   const [progress, setProgress] = useState(0)
@@ -78,6 +80,60 @@ export default function GenerateForm({
   const [isQueuing, setIsQueuing] = useState(false)
   const previousModelRef = useRef<string>(model)
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'warning' | 'success' | 'info' } | null>(null)
+  const DEFAULT_PIXELS = 1024 * 1024
+  const MIN_DIMENSION = 64
+  const getTargetPixels = (useHigh: boolean) => {
+    const thresholds = getModelThresholds(model)
+    const normalPixels = thresholds.normalResolutionPixels || DEFAULT_PIXELS
+    const highPixels = thresholds.highResolutionPixels || 1416 * 1416
+    return useHigh ? highPixels : normalPixels
+  }
+
+  const normalizeAspectRatio = (w: number, h: number) => {
+    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
+    if (w <= 0 || h <= 0) return '1:1'
+    const divisor = gcd(Math.round(w), Math.round(h))
+    const ratioW = Math.max(1, Math.round(w / divisor))
+    const ratioH = Math.max(1, Math.round(h / divisor))
+    return `${ratioW}:${ratioH}`
+  }
+
+  const getDimensionsByPixels = (targetPixels: number, ratio: string) => {
+    const [wStr, hStr] = ratio.split(':')
+    const w = parseInt(wStr) || 1
+    const h = parseInt(hStr) || 1
+    const ratioNum = w / h || 1
+
+    let newWidth = Math.round(Math.sqrt(targetPixels * ratioNum) / 8) * 8
+    let newHeight = Math.round(newWidth / ratioNum / 8) * 8
+
+    // 如果像素误差较大，使用另一套计算方案
+    if (newWidth * newHeight < targetPixels * 0.9 || newWidth * newHeight > targetPixels * 1.1) {
+      newHeight = Math.round(Math.sqrt(targetPixels / ratioNum) / 8) * 8
+      newWidth = Math.round(newHeight * ratioNum / 8) * 8
+    }
+
+    // 保证最小边界同时保持比例
+    if (newWidth < MIN_DIMENSION || newHeight < MIN_DIMENSION) {
+      if (ratioNum >= 1) {
+        newWidth = Math.max(newWidth, Math.round(MIN_DIMENSION / 8) * 8)
+        newHeight = Math.round(newWidth / ratioNum / 8) * 8
+        if (newHeight < MIN_DIMENSION) {
+          newHeight = Math.round(MIN_DIMENSION / 8) * 8
+          newWidth = Math.round(newHeight * ratioNum / 8) * 8
+        }
+      } else {
+        newHeight = Math.max(newHeight, Math.round(MIN_DIMENSION / 8) * 8)
+        newWidth = Math.round(newHeight * ratioNum / 8) * 8
+        if (newWidth < MIN_DIMENSION) {
+          newWidth = Math.round(MIN_DIMENSION / 8) * 8
+          newHeight = Math.round(newWidth / ratioNum / 8) * 8
+        }
+      }
+    }
+
+    return { width: newWidth, height: newHeight }
+  }
   
   // 获取未登录用户延迟时间（秒）
   const unauthDelay = parseInt(process.env.NEXT_PUBLIC_UNAUTHENTICATED_USER_DELAY || '20', 10)
@@ -265,46 +321,11 @@ export default function GenerateForm({
     if (thresholds.normalResolutionPixels !== null && thresholds.highResolutionPixels !== null) {
       // 重置高分辨率开关为关闭状态
       setIsHighResolution(false);
-      
-      // 根据当前图片比例和普通分辨率重新计算宽高
-      // 使用当前的 aspectRatio（从 props 获取，确保是最新值）
+
       const currentAspectRatio = aspectRatio;
-      const normalPixels = thresholds.normalResolutionPixels;
-      const [wStr, hStr] = currentAspectRatio.split(':');
-      const w = parseInt(wStr);
-      const h = parseInt(hStr);
-      const ratioNum = w / h;
-      
-      let newWidth = Math.round(Math.sqrt(normalPixels * ratioNum) / 8) * 8;
-      let newHeight = Math.round(newWidth / ratioNum / 8) * 8;
-      
-      // 如果计算出的尺寸不准确，重新计算
-      if (newWidth * newHeight < normalPixels * 0.9 || newWidth * newHeight > normalPixels * 1.1) {
-        newHeight = Math.round(Math.sqrt(normalPixels / ratioNum) / 8) * 8;
-        newWidth = Math.round(newHeight * ratioNum / 8) * 8;
-      }
-      
-      // 确保最小尺寸
-      const minDimension = 64;
-      
-      if (newWidth < minDimension || newHeight < minDimension) {
-        if (ratioNum >= 1) {
-          newWidth = Math.max(newWidth, Math.round(minDimension / 8) * 8);
-          newHeight = Math.round(newWidth / ratioNum / 8) * 8;
-          if (newHeight < minDimension) {
-            newHeight = Math.round(minDimension / 8) * 8;
-            newWidth = Math.round(newHeight * ratioNum / 8) * 8;
-          }
-        } else {
-          newHeight = Math.max(newHeight, Math.round(minDimension / 8) * 8);
-          newWidth = Math.round(newHeight * ratioNum / 8) * 8;
-          if (newWidth < minDimension) {
-            newWidth = Math.round(minDimension / 8) * 8;
-            newHeight = Math.round(newWidth / ratioNum / 8) * 8;
-          }
-        }
-      }
-      
+      const normalPixels = thresholds.normalResolutionPixels || DEFAULT_PIXELS;
+      const { width: newWidth, height: newHeight } = getDimensionsByPixels(normalPixels, currentAspectRatio);
+
       setWidth(newWidth);
       setHeight(newHeight);
     } else {
@@ -488,17 +509,13 @@ export default function GenerateForm({
           // 创建图片对象以获取尺寸
           const img = new window.Image()
           img.onload = () => {
-            console.log('GenerateForm: Successfully set previewImage')
-            
-            // 计算合适的尺寸（保持8的倍数）
-            const newWidth = Math.round(img.width / 8) * 8
-            const newHeight = Math.round(img.height / 8) * 8
-            
-            // 确保最小尺寸
-            const finalWidth = Math.max(newWidth, 64)
-            const finalHeight = Math.max(newHeight, 64)
-            
-            // 更新宽高状态
+            // 默认以百万像素限制分辨率，并继承原图比例
+            const ratio = normalizeAspectRatio(img.width, img.height)
+            const targetPixels = getTargetPixels(false)
+            const { width: finalWidth, height: finalHeight } = getDimensionsByPixels(targetPixels, ratio)
+
+            setIsHighResolution(false)
+            setAspectRatio(ratio)
             setWidth(finalWidth)
             setHeight(finalHeight)
 
@@ -568,13 +585,12 @@ export default function GenerateForm({
         const base64String = event.target.result.toString().split(',')[1]
         const img = new window.Image()
         img.onload = () => {
-          // 计算合适的尺寸（保持8的倍数）
-          const newWidth = Math.round(img.width / 8) * 8
-          const newHeight = Math.round(img.height / 8) * 8
-          
-          // 确保最小尺寸
-          const finalWidth = Math.max(newWidth, 64)
-          const finalHeight = Math.max(newHeight, 64)
+          const ratio = normalizeAspectRatio(img.width, img.height)
+          const targetPixels = getTargetPixels(false)
+          const { width: finalWidth, height: finalHeight } = getDimensionsByPixels(targetPixels, ratio)
+
+          setIsHighResolution(false)
+          setAspectRatio(ratio)
           setWidth(finalWidth)
           setHeight(finalHeight)
           setUploadedImages((prev: string[]) => [...prev, base64String])
@@ -685,15 +701,12 @@ export default function GenerateForm({
                 // 创建图片对象以获取尺寸
                 const img = new window.Image();
                 img.onload = () => {
-                  // 计算合适的尺寸（保持8的倍数）
-                  const newWidth = Math.round(img.width / 8) * 8;
-                  const newHeight = Math.round(img.height / 8) * 8;
-                  
-                  // 确保最小尺寸
-                  const finalWidth = Math.max(newWidth, 64);
-                  const finalHeight = Math.max(newHeight, 64);
-                  
-                  // 更新宽高状态
+                  const ratio = normalizeAspectRatio(img.width, img.height);
+                  const targetPixels = getTargetPixels(false);
+                  const { width: finalWidth, height: finalHeight } = getDimensionsByPixels(targetPixels, ratio);
+
+                  setIsHighResolution(false);
+                  setAspectRatio(ratio);
                   setWidth(finalWidth);
                   setHeight(finalHeight);
 
@@ -988,47 +1001,9 @@ export default function GenerateForm({
                               const newIsHighResolution = !isHighResolution;
                               setIsHighResolution(newIsHighResolution);
                               
-                              // 根据当前图片比例和新的分辨率设置重新计算宽高
-                              const [wStr, hStr] = aspectRatio.split(':');
-                              const w = parseInt(wStr);
-                              const h = parseInt(hStr);
-                              const ratioNum = w / h;
-                              
-                              // 根据新的分辨率状态确定目标总像素数
                               const targetArea = newIsHighResolution ? highPixels : normalPixels;
-                              
-                              // 根据目标总像素数和当前比例计算新的宽高
-                              let newWidth = Math.round(Math.sqrt(targetArea * ratioNum) / 8) * 8;
-                              let newHeight = Math.round(newWidth / ratioNum / 8) * 8;
-                              
-                              // 如果计算出的尺寸不准确，重新计算
-                              if (newWidth * newHeight < targetArea * 0.9 || newWidth * newHeight > targetArea * 1.1) {
-                                newHeight = Math.round(Math.sqrt(targetArea / ratioNum) / 8) * 8;
-                                newWidth = Math.round(newHeight * ratioNum / 8) * 8;
-                              }
-                              
-                              // 确保最小尺寸
-                              const minDimension = 64;
-                              
-                              // 确保最小尺寸
-                              if (newWidth < minDimension || newHeight < minDimension) {
-                                if (ratioNum >= 1) {
-                                  newWidth = Math.max(newWidth, Math.round(minDimension / 8) * 8);
-                                  newHeight = Math.round(newWidth / ratioNum / 8) * 8;
-                                  if (newHeight < minDimension) {
-                                    newHeight = Math.round(minDimension / 8) * 8;
-                                    newWidth = Math.round(newHeight * ratioNum / 8) * 8;
-                                  }
-                                } else {
-                                  newHeight = Math.max(newHeight, Math.round(minDimension / 8) * 8);
-                                  newWidth = Math.round(newHeight * ratioNum / 8) * 8;
-                                  if (newWidth < minDimension) {
-                                    newWidth = Math.round(minDimension / 8) * 8;
-                                    newHeight = Math.round(newWidth / ratioNum / 8) * 8;
-                                  }
-                                }
-                              }
-                              
+                              const { width: newWidth, height: newHeight } = getDimensionsByPixels(targetArea, aspectRatio);
+
                               setWidth(newWidth);
                               setHeight(newHeight);
                             }}
