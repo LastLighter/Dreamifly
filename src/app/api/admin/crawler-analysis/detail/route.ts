@@ -321,12 +321,15 @@ export async function GET(request: Request) {
           userNickname: user.nickname,
           isActive: user.isActive,
           isAdmin: user.isAdmin,
+          isPremium: user.isPremium,
+          isOldUser: user.isOldUser,
+          isSubscribed: user.isSubscribed,
           callCount: sql<number>`count(*)::int`,
         })
         .from(modelUsageStats)
         .innerJoin(user, eq(modelUsageStats.userId, user.id))
         .where(and(...ipUserWhereConditions))
-        .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname, user.isActive, user.isAdmin)
+        .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname, user.isActive, user.isAdmin, user.isPremium, user.isOldUser, user.isSubscribed)
         .orderBy(sql`count(*) DESC`)
 
       ipUsers = ipUserStats
@@ -338,6 +341,9 @@ export async function GET(request: Request) {
           userNickname: stat.userNickname,
           isActive: stat.isActive !== undefined ? stat.isActive : true,
           isAdmin: stat.isAdmin || false,
+          isPremium: stat.isPremium || false,
+          isOldUser: stat.isOldUser || false,
+          isSubscribed: stat.isSubscribed || false,
           callCount: Number(stat.callCount),
         }))
 

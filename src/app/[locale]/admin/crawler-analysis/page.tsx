@@ -35,6 +35,7 @@ interface UserCallRanking {
   isAdmin: boolean
   isPremium: boolean
   isOldUser: boolean
+  isSubscribed: boolean
   isActive: boolean
   dailyRequestCount: number
   maxDailyLimit: number | null
@@ -80,7 +81,7 @@ export default function CrawlerAnalysisPage() {
   const [detailData, setDetailData] = useState<{
     timeDistribution: Array<{ date: string; hour: number; count: number }>
     modelDistribution: Array<{ modelName: string; count: number }>
-    ipUsers?: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; isActive: boolean; isAdmin: boolean; callCount: number }>
+    ipUsers?: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; isActive: boolean; isAdmin: boolean; isPremium: boolean; isOldUser: boolean; isSubscribed: boolean; callCount: number }>
     dailyDistribution?: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }>
     dailyHourlyDistribution?: Array<{ date: string; hour: number; total: number; authenticated?: number; unauthenticated?: number }>
   } | null>(null)
@@ -652,7 +653,12 @@ export default function CrawlerAnalysisPage() {
                                         首批用户
                                       </span>
                                     )}
-                                    {!user.isAdmin && !user.isPremium && !user.isOldUser && (
+                                    {user.isSubscribed && (
+                                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        订阅用户
+                                      </span>
+                                    )}
+                                    {!user.isAdmin && !user.isPremium && !user.isOldUser && !user.isSubscribed && (
                                       <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
                                         新用户
                                       </span>
@@ -1232,6 +1238,7 @@ export default function CrawlerAnalysisPage() {
                               <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户信息</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">身份标识</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">占比</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
@@ -1257,6 +1264,35 @@ export default function CrawlerAnalysisPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                       {ipUser.userEmail}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <div className="flex flex-wrap items-center gap-1">
+                                        {ipUser.isAdmin && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
+                                            管理员
+                                          </span>
+                                        )}
+                                        {ipUser.isPremium && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                            优质用户
+                                          </span>
+                                        )}
+                                        {ipUser.isOldUser && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            首批用户
+                                          </span>
+                                        )}
+                                        {ipUser.isSubscribed && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            订阅用户
+                                          </span>
+                                        )}
+                                        {!ipUser.isAdmin && !ipUser.isPremium && !ipUser.isOldUser && !ipUser.isSubscribed && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                                            新用户
+                                          </span>
+                                        )}
+                                      </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                       <span className="text-sm font-semibold text-orange-600">
