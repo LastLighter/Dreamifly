@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
       isAdmin: user.isAdmin,
       isPremium: user.isPremium,
       isOldUser: user.isOldUser,
+      banReason: user.banReason,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     })
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email } = body;
+    const { email, reason } = body;
 
     if (!email || typeof email !== 'string') {
       return NextResponse.json(
@@ -164,10 +165,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 封禁用户（设置isActive为false）
+    // 封禁用户（设置isActive为false，保存封禁原因）
     await db.update(user)
       .set({
         isActive: false,
+        banReason: reason && typeof reason === 'string' ? reason.trim() || null : null,
         updatedAt: new Date(),
       })
       .where(eq(user.id, userData.id));
@@ -216,10 +218,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // 解封用户（设置isActive为true）
+    // 解封用户（设置isActive为true，清除封禁原因）
     await db.update(user)
       .set({
         isActive: true,
+        banReason: null,
         updatedAt: new Date(),
       })
       .where(eq(user.id, userId));
@@ -229,6 +232,68 @@ export async function DELETE(request: NextRequest) {
     console.error('Error unbanning account:', error);
     return NextResponse.json(
       { error: '解封账户失败' },
+      { status: 500 }
+    );
+  }
+}
+
+// 编辑封禁原因
+export async function PATCH(request: NextRequest) {
+  try {
+    const adminCheck = await checkAdmin();
+    if (adminCheck.error) {
+      return NextResponse.json(
+        { error: adminCheck.error },
+        { status: adminCheck.status! }
+      );
+    }
+
+    const body = await request.json();
+    const { userId, reason } = body;
+
+    if (!userId || typeof userId !== 'string') {
+      return NextResponse.json(
+        { error: '参数错误：需要userId' },
+        { status: 400 }
+      );
+    }
+
+    // 查找用户
+    const targetUser = await db.select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (targetUser.length === 0) {
+      return NextResponse.json(
+        { error: '用户不存在' },
+        { status: 404 }
+      );
+    }
+
+    const userData = targetUser[0];
+
+    // 检查用户是否被封禁
+    if (userData.isActive) {
+      return NextResponse.json(
+        { error: '该账户未被封禁，无法编辑封禁原因' },
+        { status: 400 }
+      );
+    }
+
+    // 更新封禁原因
+    await db.update(user)
+      .set({
+        banReason: reason && typeof reason === 'string' ? reason.trim() || null : null,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, userId));
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error updating ban reason:', error);
+    return NextResponse.json(
+      { error: '更新封禁原因失败' },
       { status: 500 }
     );
   }

@@ -27,6 +27,7 @@ interface AccountBlacklistRecord {
   isAdmin: boolean
   isPremium: boolean
   isOldUser: boolean
+  banReason: string | null
   createdAt: Date | string
   updatedAt: Date | string
 }
@@ -63,6 +64,9 @@ export default function BlacklistPage() {
   const [accountTotal, setAccountTotal] = useState(0)
   const [showAddAccountModal, setShowAddAccountModal] = useState(false)
   const [newAccountEmail, setNewAccountEmail] = useState('')
+  const [newAccountReason, setNewAccountReason] = useState('')
+  const [editingAccount, setEditingAccount] = useState<AccountBlacklistRecord | null>(null)
+  const [editAccountReason, setEditAccountReason] = useState('')
 
   // 防抖定时器引用
   const accountSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -317,6 +321,7 @@ export default function BlacklistPage() {
         },
         body: JSON.stringify({
           email: newAccountEmail.trim(),
+          reason: newAccountReason.trim() || null,
         }),
       })
 
@@ -328,6 +333,7 @@ export default function BlacklistPage() {
 
       // 重置表单
       setNewAccountEmail('')
+      setNewAccountReason('')
       setShowAddAccountModal(false)
       setAccountError('')
       
@@ -337,6 +343,47 @@ export default function BlacklistPage() {
     } catch (error: any) {
       console.error('Error banning account:', error)
       setAccountError(error.message || '封禁账户失败')
+    }
+  }
+
+  // 编辑封禁原因
+  const handleEditReason = (record: AccountBlacklistRecord) => {
+    setEditingAccount(record)
+    setEditAccountReason(record.banReason || '')
+  }
+
+  // 保存编辑的封禁原因
+  const handleSaveEditReason = async () => {
+    if (!editingAccount) return
+
+    try {
+      const response = await fetch(`/api/admin/blacklist/account?_t=${Date.now()}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: editingAccount.id,
+          reason: editAccountReason.trim() || null,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '更新封禁原因失败')
+      }
+
+      // 关闭编辑模态框
+      setEditingAccount(null)
+      setEditAccountReason('')
+      setAccountError('')
+      
+      // 刷新列表
+      await fetchAccountBlacklist(accountCurrentPage, accountSearchTerm)
+    } catch (error: any) {
+      console.error('Error updating ban reason:', error)
+      setAccountError(error.message || '更新封禁原因失败')
     }
   }
 
@@ -752,6 +799,9 @@ export default function BlacklistPage() {
                                 身份标识
                               </th>
                               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                封禁原因
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 封禁时间
                               </th>
                               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -797,18 +847,31 @@ export default function BlacklistPage() {
                                     )}
                                   </div>
                                 </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-sm text-gray-500 max-w-xs">
+                                    {record.banReason || <span className="text-gray-400">未填写</span>}
+                                  </div>
+                                </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                   <div className="text-sm text-gray-500">
                                     {new Date(record.updatedAt).toLocaleString('zh-CN')}
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                  <button
-                                    onClick={() => handleDeleteAccount(record.id)}
-                                    className="text-green-600 hover:text-green-900 transition-colors"
-                                  >
-                                    解封
-                                  </button>
+                                  <div className="flex items-center justify-end gap-3">
+                                    <button
+                                      onClick={() => handleEditReason(record)}
+                                      className="text-blue-600 hover:text-blue-900 transition-colors"
+                                    >
+                                      编辑原因
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteAccount(record.id)}
+                                      className="text-green-600 hover:text-green-900 transition-colors"
+                                    >
+                                      解封
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -960,6 +1023,19 @@ export default function BlacklistPage() {
                 />
                 <p className="mt-1 text-xs text-gray-500">输入要封禁的账户邮箱地址</p>
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  封禁原因（可选）
+                </label>
+                <textarea
+                  value={newAccountReason}
+                  onChange={(e) => setNewAccountReason(e.target.value)}
+                  placeholder="请输入封禁原因..."
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none resize-none"
+                />
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -967,6 +1043,7 @@ export default function BlacklistPage() {
                 onClick={() => {
                   setShowAddAccountModal(false)
                   setNewAccountEmail('')
+                  setNewAccountReason('')
                   setAccountError('')
                 }}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
@@ -1035,6 +1112,61 @@ export default function BlacklistPage() {
                 className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-400 to-amber-400 text-white font-semibold rounded-lg hover:from-orange-500 hover:to-amber-500 transition-all"
               >
                 确认添加
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 编辑封禁原因模态框 */}
+      {editingAccount && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">编辑封禁原因</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  账户邮箱
+                </label>
+                <input
+                  type="text"
+                  value={editingAccount.email}
+                  disabled
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  封禁原因
+                </label>
+                <textarea
+                  value={editAccountReason}
+                  onChange={(e) => setEditAccountReason(e.target.value)}
+                  placeholder="请输入封禁原因..."
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setEditingAccount(null)
+                  setEditAccountReason('')
+                  setAccountError('')
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveEditReason}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-400 to-amber-400 text-white font-semibold rounded-lg hover:from-orange-500 hover:to-amber-500 transition-all"
+              >
+                保存
               </button>
             </div>
           </div>
