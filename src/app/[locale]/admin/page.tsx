@@ -139,9 +139,22 @@ export default function AdminPage() {
   const [directFrameIdInput, setDirectFrameIdInput] = useState<string>('')
   const [updatingUser, setUpdatingUser] = useState(false)
   const [isAvatarFrameExpanded, setIsAvatarFrameExpanded] = useState(false) // 头像框模块默认折叠
+  const [isCompensateSubscriptionExpanded, setIsCompensateSubscriptionExpanded] = useState(false) // 补偿会员模块默认折叠
+  const [isRechargeHistoryExpanded, setIsRechargeHistoryExpanded] = useState(false) // 充值记录模块默认折叠
   const [subscriptionPlans, setSubscriptionPlans] = useState<Array<{ id: number; name: string; type: string; bonusPoints: number }>>([])
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
   const [compensating, setCompensating] = useState(false)
+  const [rechargeHistory, setRechargeHistory] = useState<Array<{
+    id: string
+    orderType: string
+    productName: string
+    amount: number
+    pointsAmount: number | null
+    paymentMethod: string | null
+    paidAt: Date | string | null
+    createdAt: Date | string
+  }>>([])
+  const [loadingRechargeHistory, setLoadingRechargeHistory] = useState(false)
   
   // 邮箱白名单状态
   const [emailDomains, setEmailDomains] = useState<Array<{ id: number; domain: string; isEnabled: boolean }>>([])
@@ -544,6 +557,7 @@ export default function AdminPage() {
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput(user.avatarFrameId?.toString() || '')
     setIsAvatarFrameExpanded(false) // 重置为折叠状态
+    setIsCompensateSubscriptionExpanded(false) // 重置补偿会员为折叠状态
     setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
     setShowUserActionModal(true)
   }
@@ -558,6 +572,8 @@ export default function AdminPage() {
     setSelectedAvatarFrameId(null)
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput('')
+    setIsRechargeHistoryExpanded(false) // 重置充值记录为折叠状态
+    setRechargeHistory([]) // 清空充值记录
     setUpdatingUser(false)
     setIsAvatarFrameExpanded(false) // 重置为折叠状态
     setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
@@ -649,43 +665,46 @@ export default function AdminPage() {
     }
 
     const plan = subscriptionPlans.find(p => p.id === selectedPlanId)
+    const planName = plan ? `${plan.name}（${renderPlanType(plan.type)}）` : '会员'
 
-    setCompensating(true)
-    try {
-      const response = await fetch(`/api/admin/users/compensate-subscription?t=${Date.now()}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-        },
-        body: JSON.stringify({
-          userId: selectedUser.id,
-          planId: selectedPlanId,
-        }),
-      })
+    // 二次确认
+    showDialog('confirm', '确认补偿会员', `确定要为用户 ${selectedUser.name || selectedUser.email} 补偿 ${planName} 吗？补偿后将按套餐时长叠加当前会员有效期，并赠送对应积分。`, async () => {
+      setCompensating(true)
+      try {
+        const response = await fetch(`/api/admin/users/compensate-subscription?t=${Date.now()}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify({
+            userId: selectedUser.id,
+            planId: selectedPlanId,
+          }),
+        })
 
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data?.error || '补偿失败')
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data?.error || '补偿失败')
+        }
+
+        await fetchUsers()
+        setSelectedUser(prev => prev ? {
+          ...prev,
+          isSubscribed: true,
+          subscriptionExpiresAt: data.subscriptionExpiresAt || prev.subscriptionExpiresAt,
+        } : prev)
+
+        const expiresText = data.subscriptionExpiresAt ? formatDate(data.subscriptionExpiresAt) : ''
+
+        showDialog('success', '补偿成功', `已为该用户补偿 ${planName}${expiresText ? `，有效期至 ${expiresText}` : ''}`)
+      } catch (error) {
+        console.error('Failed to compensate subscription:', error)
+        showDialog('error', '补偿失败', error instanceof Error ? error.message : '补偿会员失败')
+      } finally {
+        setCompensating(false)
       }
-
-      await fetchUsers()
-      setSelectedUser(prev => prev ? {
-        ...prev,
-        isSubscribed: true,
-        subscriptionExpiresAt: data.subscriptionExpiresAt || prev.subscriptionExpiresAt,
-      } : prev)
-
-      const expiresText = data.subscriptionExpiresAt ? formatDate(data.subscriptionExpiresAt) : ''
-      const planName = plan ? `${plan.name}（${renderPlanType(plan.type)}）` : '会员'
-
-      showDialog('success', '补偿成功', `已为该用户补偿 ${planName}${expiresText ? `，有效期至 ${expiresText}` : ''}`)
-    } catch (error) {
-      console.error('Failed to compensate subscription:', error)
-      showDialog('error', '补偿失败', error instanceof Error ? error.message : '补偿会员失败')
-    } finally {
-      setCompensating(false)
-    }
+    })
   }
 
   // 加载中或权限检查
@@ -1560,57 +1579,182 @@ export default function AdminPage() {
               )}
             </div>
 
+            {/* 用户充值记录 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  用户充值记录
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsRechargeHistoryExpanded(!isRechargeHistoryExpanded)}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <span>{isRechargeHistoryExpanded ? '收起' : '展开'}</span>
+                  <svg
+                    className={`w-4 h-4 transform transition-transform duration-200 ${isRechargeHistoryExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              <div className="text-sm text-gray-600">
+                已充值金额：¥{rechargeHistory.reduce((sum, order) => sum + order.amount, 0).toFixed(2)}
+              </div>
+              {isRechargeHistoryExpanded && (
+                <>
+                  {loadingRechargeHistory ? (
+                    <div className="mt-3 text-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                      <p className="text-sm text-gray-500">加载中...</p>
+                    </div>
+                  ) : rechargeHistory.length === 0 ? (
+                    <div className="mt-3 text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                      暂无充值记录
+                    </div>
+                  ) : (
+                    <div className="mt-3 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单号</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单类型</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">产品名称</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">积分</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付方式</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付时间</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {rechargeHistory.map((order) => (
+                              <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <div className="text-xs font-mono text-gray-900">{order.id}</div>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    order.orderType === 'subscription'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {order.orderType === 'subscription' ? '订阅付费' : '积分付费'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2">
+                                  <div className="text-xs text-gray-900 max-w-xs truncate">{order.productName}</div>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <span className="text-xs font-semibold text-orange-600">
+                                    ¥{order.amount.toFixed(2)}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  {order.pointsAmount ? (
+                                    <span className="text-xs font-semibold text-blue-600">
+                                      {order.pointsAmount.toLocaleString()}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <span className="text-xs text-gray-600">
+                                    {order.paymentMethod === 'alipay' ? '支付宝' : order.paymentMethod === 'wechat' ? '微信支付' : order.paymentMethod || '-'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <div className="text-xs text-gray-500">
+                                    {order.paidAt ? new Date(order.paidAt).toLocaleString('zh-CN') : '-'}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
             {/* 补偿会员 */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <label className="block text-sm font-medium text-gray-700">
                   补偿会员
                 </label>
-                <div className="text-xs text-gray-500">
-                  当前状态：{selectedUser.isSubscribed && selectedUser.subscriptionExpiresAt
-                    ? `已开通，过期时间 ${formatDate(selectedUser.subscriptionExpiresAt)}`
-                    : '未开通'}
-                </div>
-              </div>
-              {subscriptionPlans.length === 0 ? (
-                <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
-                  暂无可用套餐，请先在订阅套餐配置中添加
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex flex-col gap-2">
-                    <select
-                      value={selectedPlanId ?? ''}
-                      onChange={(e) => setSelectedPlanId(e.target.value ? parseInt(e.target.value, 10) : null)}
-                      disabled={compensating}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
-                    >
-                      {subscriptionPlans.map(plan => (
-                        <option key={plan.id} value={plan.id}>
-                          {plan.name}（{renderPlanType(plan.type)}，赠送积分 {plan.bonusPoints}）
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-xs text-gray-500">
-                      选择套餐后点击补偿，将按套餐时长叠加当前会员有效期，并赠送对应积分（积分有效期一年）。
-                    </p>
+                <div className="flex items-center gap-3">
+                  <div className="text-xs text-gray-500">
+                    当前状态：{selectedUser.isSubscribed && selectedUser.subscriptionExpiresAt
+                      ? `已开通，过期时间 ${formatDate(selectedUser.subscriptionExpiresAt)}`
+                      : '未开通'}
                   </div>
                   <button
                     type="button"
-                    onClick={handleCompensateSubscription}
-                    disabled={compensating}
-                    className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    onClick={() => setIsCompensateSubscriptionExpanded(!isCompensateSubscriptionExpanded)}
+                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
                   >
-                    {compensating ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>补偿中...</span>
-                      </>
-                    ) : (
-                      '补偿会员'
-                    )}
+                    <span>{isCompensateSubscriptionExpanded ? '收起' : '展开'}</span>
+                    <svg
+                      className={`w-4 h-4 transform transition-transform duration-200 ${isCompensateSubscriptionExpanded ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </button>
                 </div>
+              </div>
+              {isCompensateSubscriptionExpanded && (
+                <>
+                  {subscriptionPlans.length === 0 ? (
+                    <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                      暂无可用套餐，请先在订阅套餐配置中添加
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-2">
+                        <select
+                          value={selectedPlanId ?? ''}
+                          onChange={(e) => setSelectedPlanId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                          disabled={compensating}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                        >
+                          {subscriptionPlans.map(plan => (
+                            <option key={plan.id} value={plan.id}>
+                              {plan.name}（{renderPlanType(plan.type)}，赠送积分 {plan.bonusPoints}）
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500">
+                          选择套餐后点击补偿，将按套餐时长叠加当前会员有效期，并赠送对应积分（积分有效期一年）。
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCompensateSubscription}
+                        disabled={compensating}
+                        className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {compensating ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>补偿中...</span>
+                          </>
+                        ) : (
+                          '补偿会员'
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
