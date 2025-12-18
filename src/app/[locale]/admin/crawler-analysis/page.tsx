@@ -82,6 +82,16 @@ export default function CrawlerAnalysisPage() {
     timeDistribution: Array<{ date: string; hour: number; count: number }>
     modelDistribution: Array<{ modelName: string; count: number }>
     ipUsers?: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; isActive: boolean; isAdmin: boolean; isPremium: boolean; isOldUser: boolean; isSubscribed: boolean; callCount: number }>
+    paidOrders?: Array<{
+      id: string
+      orderType: string
+      productName: string
+      amount: number
+      pointsAmount: number | null
+      paymentMethod: string | null
+      paidAt: Date | string | null
+      createdAt: Date | string
+    }>
     dailyDistribution?: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }>
     dailyHourlyDistribution?: Array<{ date: string; hour: number; total: number; authenticated?: number; unauthenticated?: number }>
   } | null>(null)
@@ -256,6 +266,7 @@ export default function CrawlerAnalysisPage() {
         timeDistribution: detailResponse.timeDistribution || [],
         modelDistribution: detailResponse.modelDistribution || [],
         ipUsers: detailResponse.ipUsers || [],
+        paidOrders: detailResponse.paidOrders || [],
         dailyDistribution: detailResponse.dailyDistribution || [],
         dailyHourlyDistribution: detailResponse.dailyHourlyDistribution || [],
       })
@@ -1345,6 +1356,75 @@ export default function CrawlerAnalysisPage() {
                                   </tr>
                                 )
                               })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 已完成的付费订单（仅用户详情显示） */}
+                  {detailType === 'user' && detailData.paidOrders && detailData.paidOrders.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">已完成的付费订单</h3>
+                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单号</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单类型</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">产品名称</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付金额</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">积分数量</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付方式</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付时间</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {detailData.paidOrders.map((order) => (
+                                <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm font-mono text-gray-900">{order.id}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      order.orderType === 'subscription'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {order.orderType === 'subscription' ? '订阅付费' : '积分付费'}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <div className="text-sm text-gray-900">{order.productName}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className="text-sm font-semibold text-orange-600">
+                                      ¥{order.amount.toFixed(2)}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    {order.pointsAmount ? (
+                                      <span className="text-sm font-semibold text-blue-600">
+                                        {order.pointsAmount.toLocaleString()}
+                                      </span>
+                                    ) : (
+                                      <span className="text-sm text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className="text-sm text-gray-600">
+                                      {order.paymentMethod === 'alipay' ? '支付宝' : order.paymentMethod === 'wechat' ? '微信支付' : order.paymentMethod || '-'}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm text-gray-500">
+                                      {order.paidAt ? new Date(order.paidAt).toLocaleString('zh-CN') : '-'}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
                             </tbody>
                           </table>
                         </div>
