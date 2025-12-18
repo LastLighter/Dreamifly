@@ -300,7 +300,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, isPremium, isOldUser, isActive, avatarFrameId } = body;
+    const { userId, isPremium, isOldUser, isActive, avatarFrameId, banReason } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -336,6 +336,7 @@ export async function PATCH(request: NextRequest) {
       isOldUser?: boolean;
       isActive?: boolean;
       avatarFrameId?: number | null;
+      banReason?: string | null;
       updatedAt: Date;
     } = {
       updatedAt: new Date(),
@@ -354,6 +355,12 @@ export async function PATCH(request: NextRequest) {
     // 如果提供了isActive，更新封禁状态
     if (typeof isActive === 'boolean') {
       updateData.isActive = isActive;
+      // 如果封禁用户，可以设置封禁原因；如果解封用户，清除封禁原因
+      if (isActive === false && banReason !== undefined) {
+        updateData.banReason = banReason && typeof banReason === 'string' ? banReason.trim() || null : null;
+      } else if (isActive === true) {
+        updateData.banReason = null; // 解封时清除封禁原因
+      }
     }
 
     // 如果提供了avatarFrameId，验证并更新

@@ -110,6 +110,15 @@ export default function CrawlerAnalysisPage() {
     message: '',
   })
 
+  // 封禁原因输入状态
+  const [banReasonInput, setBanReasonInput] = useState('')
+  const [showBanReasonModal, setShowBanReasonModal] = useState(false)
+  const [pendingBanAction, setPendingBanAction] = useState<{
+    userId: string
+    currentIsActive: boolean
+    isAdmin: boolean
+  } | null>(null)
+
   // 获取当前用户完整信息（包括头像）
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -318,6 +327,48 @@ export default function CrawlerAnalysisPage() {
     closeConfirmDialog()
   }
 
+  // 执行封禁/解封操作
+  const executeToggleUserActive = async (userId: string, isActive: boolean, banReason?: string | null) => {
+    const action = isActive ? '解封' : '封禁'
+    try {
+      const response = await fetch(`/api/admin/users?_t=${Date.now()}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+        body: JSON.stringify({
+          userId,
+          isActive,
+          ...(isActive === false && banReason !== undefined ? { banReason } : {}),
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || `${action}失败`)
+      }
+
+      // 刷新详情数据
+      if (detailType === 'ip' && detailTitle) {
+        const identifier = detailTitle.replace(' - 详情', '')
+        await openDetailModal('ip', identifier, detailTitle)
+      }
+
+      // 关闭封禁原因模态框
+      setShowBanReasonModal(false)
+      setBanReasonInput('')
+      setPendingBanAction(null)
+    } catch (error: any) {
+      console.error(`Error ${action} user:`, error)
+      showConfirmDialog(
+        '操作失败',
+        error.message || `${action}用户失败`,
+        () => {}
+      )
+    }
+  }
+
   // 封禁/解封用户
   const handleToggleUserActive = (userId: string, currentIsActive: boolean, isAdmin: boolean) => {
     if (isAdmin) {
@@ -329,44 +380,28 @@ export default function CrawlerAnalysisPage() {
       return
     }
 
-    const action = currentIsActive ? '封禁' : '解封'
-    showConfirmDialog(
-      `确认${action}`,
-      `确定要${action}该用户吗？${currentIsActive ? '封禁后用户将无法发起生图请求和签到获得积分。' : '解封后用户将恢复为活跃状态。'}`,
-      async () => {
-        try {
-          const response = await fetch(`/api/admin/users?_t=${Date.now()}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache',
-            },
-            body: JSON.stringify({
-              userId,
-              isActive: !currentIsActive,
-            }),
-          })
-
-          if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || `${action}失败`)
-          }
-
-          // 刷新详情数据
-          if (detailType === 'ip' && detailTitle) {
-            const identifier = detailTitle.replace(' - 详情', '')
-            await openDetailModal('ip', identifier, detailTitle)
-          }
-        } catch (error: any) {
-          console.error(`Error ${action} user:`, error)
-          showConfirmDialog(
-            '操作失败',
-            error.message || `${action}用户失败`,
-            () => {}
-          )
+    // 如果是解封操作，直接执行
+    if (!currentIsActive) {
+      showConfirmDialog(
+        '确认解封',
+        '确定要解封该用户吗？解封后用户将恢复为活跃状态。',
+        async () => {
+          await executeToggleUserActive(userId, true)
         }
-      }
-    )
+      )
+      return
+    }
+
+    // 如果是封禁操作，显示封禁原因输入模态框
+    setPendingBanAction({ userId, currentIsActive, isAdmin })
+    setBanReasonInput('')
+    setShowBanReasonModal(true)
+  }
+
+  // 确认封禁（带原因）
+  const handleConfirmBan = async () => {
+    if (!pendingBanAction) return
+    await executeToggleUserActive(pendingBanAction.userId, false, banReasonInput.trim() || null)
   }
 
   // 格式化时间分布数据用于图表
@@ -1534,6 +1569,50 @@ export default function CrawlerAnalysisPage() {
                 className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl"
               >
                 确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 封禁原因输入模态框 */}
+      {showBanReasonModal && pendingBanAction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">封禁用户</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  封禁原因（可选）
+                </label>
+                <textarea
+                  value={banReasonInput}
+                  onChange={(e) => setBanReasonInput(e.target.value)}
+                  placeholder="请输入封禁原因..."
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none resize-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">填写封禁原因有助于记录和管理</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowBanReasonModal(false)
+                  setBanReasonInput('')
+                  setPendingBanAction(null)
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmBan}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-lg hover:from-red-600 hover:to-red-700 transition-all"
+              >
+                确认封禁
               </button>
             </div>
           </div>
