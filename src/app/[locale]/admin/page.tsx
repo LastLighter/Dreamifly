@@ -547,6 +547,26 @@ export default function AdminPage() {
   }
 
 
+  // 获取用户充值记录
+  const fetchRechargeHistory = async (userId: string) => {
+    setLoadingRechargeHistory(true)
+    try {
+      const response = await fetch(`/api/admin/users/recharge-history?userId=${userId}&t=${Date.now()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setRechargeHistory(data.orders || [])
+      } else {
+        console.error('Failed to fetch recharge history')
+        setRechargeHistory([])
+      }
+    } catch (error) {
+      console.error('Error fetching recharge history:', error)
+      setRechargeHistory([])
+    } finally {
+      setLoadingRechargeHistory(false)
+    }
+  }
+
   // 打开用户操作模态框
   const handleOpenUserActionModal = (user: User) => {
     setSelectedUser(user)
@@ -558,8 +578,12 @@ export default function AdminPage() {
     setDirectFrameIdInput(user.avatarFrameId?.toString() || '')
     setIsAvatarFrameExpanded(false) // 重置为折叠状态
     setIsCompensateSubscriptionExpanded(false) // 重置补偿会员为折叠状态
+    setIsRechargeHistoryExpanded(false) // 重置充值记录为折叠状态
     setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
+    setRechargeHistory([]) // 清空充值记录
     setShowUserActionModal(true)
+    // 获取用户充值记录
+    fetchRechargeHistory(user.id)
   }
 
   // 关闭用户操作模态框
