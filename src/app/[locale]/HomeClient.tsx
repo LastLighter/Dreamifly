@@ -13,7 +13,7 @@ import { getAvailableWorkflows } from '@/utils/workflowConfig'
 import AIPlazaCard from '@/components/AIPlazaCard'
 import { ModelConfig } from '@/utils/modelConfig'
 import { WorkflowConfig } from '@/utils/workflowConfig'
-import AvatarWithFrame from '@/components/AvatarWithFrame'
+import CommunityMasonry, { type CommunityWork } from '@/components/CommunityMasonry'
 
 interface FAQItem {
   q: string;
@@ -108,7 +108,9 @@ export default function HomeClient() {
   }
 
   // 社区作品数据状态
-  const [communityWorks, setCommunityWorks] = useState(community)
+  const [communityWorks, setCommunityWorks] = useState<CommunityWork[]>(
+    community as unknown as CommunityWork[]
+  )
 
   // 加载社区作品图片
   useEffect(() => {
@@ -416,14 +418,6 @@ export default function HomeClient() {
           </div>
         </section>
 
-        {/* Stats Section - 改进响应式设计 */}
-        <section id="site-stats" className="py-8 sm:py-12 px-5 sm:px-8 lg:px-40 bg-gray-200/80 backdrop-blur-md relative">
-            
-          <div className="w-full max-w-[1260px] mx-auto relative px-4 sm:px-6">
-            <SiteStats />
-          </div>
-        </section>
-
         {/* AI Plaza Section - 统一的AI广场 */}
         <section id="ai-plaza" className="py-14 sm:py-20 px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 bg-gray-50/90 backdrop-blur-md relative">
           <div className="w-full max-w-[1260px] mx-auto relative px-4 sm:px-6">
@@ -476,81 +470,27 @@ export default function HomeClient() {
                 />
                 <h2 className="text-2xl font-bold text-gray-900 animate-fadeInUp">{t('community.title')}</h2>
               </div>
+            </div>
+
+            {/* Stats Section - 移动到社区标题下方 */}
+            <section id="site-stats" className="mb-12">
+              <div className="w-full max-w-[1260px] mx-auto relative px-4 sm:px-6">
+                <SiteStats />
+              </div>
+            </section>
+
+            {/* 副标题 - 移动到site-stats下方 */}
+            <div className="text-center mb-8">
               <p className="text-lg text-gray-700 animate-fadeInUp animation-delay-200">{t('community.subtitle')}</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
-              {communityWorks.map((work, index) => (
-                <div 
-                  key={work.id} 
-                  className="relative group animate-fadeInUp" 
-                  style={{ animationDelay: `${index * 200}ms` }}
-                >
-                  <div className="aspect-square rounded-2xl overflow-hidden shadow-xl border border-orange-400/30 transform hover:scale-[1.02] transition-transform duration-300">
-                    <Image
-                      src={work.image}
-                      alt={`Community work ${work.id}`}
-                      width={450}
-                      height={450}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      priority={index < 3}
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    />
-                  </div>
-                  <div className="absolute inset-0 bg-gray-100/90 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl">
-                    <div className="absolute inset-0 flex flex-col justify-between p-6">
-                      {/* 顶部：用户头像、昵称和模型 */}
-                      <div className="flex flex-col items-start gap-2">
-                        <div className="flex items-center gap-3">
-                          <AvatarWithFrame
-                            avatar={(work as any).userAvatar || '/images/default-avatar.svg'}
-                            avatarFrameId={(work as any).avatarFrameId || null}
-                            size={48}
-                            className="border-2 border-orange-400/40 shadow-sm"
-                          />
-                          <div className="flex flex-col">
-                            <span className="text-gray-900 font-medium text-sm">
-                              {(work as any).userNickname || '默认'}
-                            </span>
-                            <span className="text-gray-600 text-xs">
-                              {(work as any).model || '默认'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      {/* 底部：提示词和按钮 */}
-                      <div className="flex flex-col">
-                        <p className="text-gray-900 text-sm mb-6 line-clamp-3">{work.prompt}</p>
-                        <button
-                          onClick={() => handleGenerateSame(work.prompt, (work as any).model)}
-                          className="group w-full py-2.5 px-5 bg-gradient-to-r from-orange-500 to-amber-500 text-gray-900 rounded-lg font-medium hover:from-orange-400 hover:to-amber-400 transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden"
-                        >
-                          <span className="relative z-10">{t('community.generateSame')}</span>
-                          <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* 添加优雅的描述文本 */}
-            <div className="mt-10 text-center">
-              <Link 
-                href="https://fizuclq6u3i.feishu.cn/share/base/form/shrcnQsyy6dMkoOSa1RjqeBrOQf"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block text-gray-600 hover:text-gray-800 text-base transition-colors duration-300 cursor-pointer group"
-              >
-                <span className="relative">
-                  {t('community.sharePrompt.title')}
-                  <span className="block text-gray-500 group-hover:text-gray-700 text-sm mt-1.5">
-                    {t('community.sharePrompt.description')}
-                  </span>
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-orange-400/30 group-hover:w-full transition-all duration-300"></span>
-                </span>
-              </Link>
+            <div className="animate-fadeInUp">
+              <CommunityMasonry
+                works={communityWorks}
+                onGenerateSame={(prompt, model) => handleGenerateSame(prompt, model)}
+                onPreview={(img) => setZoomedImage(img)}
+                generateSameText={t('community.generateSame')}
+              />
             </div>
           </div>
         </section>

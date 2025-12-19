@@ -42,6 +42,8 @@ export async function generateMetadata({params}: { params: Promise<{ locale: str
   const t = await getTranslations({locale, namespace: 'site'})
   // 获取当前域名
   const siteUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://dreamifly.com';
+  // 获取 Twitter 账号（优先环境变量，其次使用默认账号）
+  const twitterSite = process.env.NEXT_PUBLIC_TWITTER_SITE || '@Last_Lighter';
 
   return {
     title: t('title'),
@@ -66,6 +68,7 @@ export async function generateMetadata({params}: { params: Promise<{ locale: str
       title: 'Dreamifly - 免费AI绘画工具 | AI画图网站在线生成',
       description: 'Dreamifly 是无需注册的AI生图网站，支持动漫、插画、3D风格，提供智能AI绘画服务，让创作更简单。',
       images: [ `${siteUrl}/images/dreamifly-logo.jpg`],
+      site: twitterSite,
     },
   }
 }

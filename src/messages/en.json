@@ -277,9 +277,16 @@
     },
     "stats": {
       "title": "Site Statistics",
-      "uptime": "Uptime",
-      "totalGenerations": "Total Generations",
-      "dailyGenerations": "Today's Generations",
+      "uptime": "Time with you",
+      "totalGenerations": "Total creations",
+      "dailyGenerations": "Today's creations",
+      "loadFailed": "Failed to load data, please refresh later",
+      "joinGroup": {
+        "title": "Join QQ group",
+        "subtitle": "Get model updates, report issues, and exchange inspiration — let’s chat about AI art together!",
+        "qrAlt": "Dreamifly QQ group QR code",
+        "cta": "Scan to join"
+      },
       "intro": {
         "prefix": "Since",
         "suffix": "launch",
@@ -314,7 +321,8 @@
     "friends": "Friends",
     "workflows": "Workflows",
     "pricing": "Subscription",
-    "myWorks": "My Works"
+    "myWorks": "My Works",
+    "aiPlaza": "AI Plaza"
   },
   "friends": {
     "title": "Friends",
@@ -413,12 +421,112 @@
       "emailDomainNotAllowed": "This email domain is not allowed for registration",
       "emailSendFailed": "Registration successful, but verification email failed to send. Please join the official group and contact the administrator",
       "unauthorized": "Unauthorized, please refresh the page and try again",
-      "ipRegistrationLimitExceeded": "You can only register up to 2 times within 24 hours. Please try again later"
+      "ipRegistrationLimitExceeded": "You can only register up to 2 times within 24 hours. Please try again later",
+      "termsRequired": "Please agree to the Terms of Service and Privacy Policy first"
     },
     "validation": {
       "minLength": "Must be at least {min} characters",
       "maxLength": "Must be at most {max} characters",
       "emailFormat": "Please enter a valid email address"
+    },
+    "agreeToTerms": "I have read and agree to the",
+    "termsAndPrivacy": "Terms of Service and Privacy Policy",
+    "terms": {
+      "title": "Dreamifly Terms of Service and Privacy Policy",
+      "effectiveDate": "Effective Date: December 19, 2025",
+      "close": "I have read",
+      "section1": {
+        "title": "I. Introduction",
+        "content": "Welcome to Dreamifly (hereinafter referred to as \"this platform\"). This agreement is entered into between Dreamifly operators (hereinafter referred to as \"we\") and you (the user). By using this platform, you agree to: (1) comply with all terms of this agreement; (2) authorize us to collect and use your data in accordance with this policy; (3) accept our handling measures for violations.",
+        "note": "If you do not agree, please stop using immediately."
+      },
+      "section2": {
+        "title": "II. User Conduct Standards",
+        "intro": "You promise that when using this platform:",
+        "subsection1": {
+          "title": "2.1 Prohibited Content",
+          "item1": "Content that violates laws, regulations, or public order and morals (such as violence, pornography, hate speech, infringement of others' rights)",
+          "item2": "Content that infringes intellectual property rights (such as unauthorized celebrity portraits, copyrighted art styles)",
+          "item3": "False information or content that may cause social harm (such as deepfakes, politically sensitive content)",
+          "item4": "Other content that violates this platform's Content Safety Guidelines (see [link])"
+        },
+        "subsection2": {
+          "title": "2.2 Violation Handling Measures",
+          "intro": "If users generate prohibited content, we have the right to:",
+          "item1": "Immediately ban accounts (including temporary or permanent bans)",
+          "item2": "Delete prohibited content and associated data",
+          "item3": "Report to regulatory authorities (if involving illegal activities)",
+          "item4": "Pursue legal liability (if causing losses)",
+          "note": "Ban decisions are final and not subject to appeal (except for major misjudgments)."
+        }
+      },
+      "section3": {
+        "title": "III. Data Collection and Use",
+        "subsection1": {
+          "title": "3.1 Types of Data We Collect",
+          "table": {
+            "header1": "Data Type",
+            "header2": "Purpose",
+            "row1": {
+              "col1": "Account Information",
+              "col2": "Email/phone number, username (for login and notifications)"
+            },
+            "row2": {
+              "col1": "Generated Content Data",
+              "col2": "Input prompts, generated images, operation logs (for content moderation and model optimization)"
+            },
+            "row3": {
+              "col1": "Device and Behavior Data",
+              "col2": "IP address, device model, usage frequency, feature clickstream (for security and product improvement)"
+            },
+            "row4": {
+              "col1": "Feedback Data",
+              "col2": "User complaints, report content (for violation handling and model tuning)"
+            }
+          }
+        },
+        "subsection2": {
+          "title": "3.2 Data Use Purposes",
+          "item1": "Core purposes: Provide AI generation services, content safety review, account management",
+          "item2": "Optimization purposes: Improve AI model performance, develop new features, enhance user experience",
+          "item3": "Compliance purposes: Fulfill legal obligations, cooperate with regulatory investigations, handle user disputes"
+        },
+        "subsection3": {
+          "title": "3.3 User Authorization",
+          "intro": "You explicitly authorize us to:",
+          "item1": "Automatically analyze your submitted prompts and generated images (including AI recognition and manual sampling) for: (a) real-time detection of prohibited content; (b) training/optimizing Dreamifly AI models (Note: Generated images used for training undergo desensitization and do not contain personally identifiable information); (c) platform security protection (such as identifying malicious attacks and abuse)"
+        },
+        "subsection4": {
+          "title": "3.4 Data Sharing and Disclosure",
+          "intro": "No sharing: Except for the following situations, we will never sell or share your data with third parties;",
+          "item1": "Necessary sharing: Cloud service providers, content moderation service providers (with confidentiality agreements)",
+          "item2": "When required by judicial authorities in accordance with the law",
+          "item3": "Control change scenarios such as corporate mergers (data security must be guaranteed)"
+        }
+      },
+      "section4": {
+        "title": "IV. Privacy Protection Measures",
+        "item1": "Technical safeguards: Data transmission encryption (TLS), storage encryption, access control",
+        "item2": "Retention period: Account data retained for 1 year after account deletion; Generated content retained until violation risk is removed (usually ≤6 months)",
+        "item3": "Your rights: You can export/delete personal data in account settings at any time (except data required to be retained by law)"
+      },
+      "section5": {
+        "title": "V. Disclaimer",
+        "item1": "AI-generated content may have deviations, and the platform does not guarantee content accuracy or legality",
+        "item2": "Users are solely responsible for legal liability arising from inputting prohibited prompts",
+        "item3": "For data breaches caused by force majeure (such as hacker attacks, policy changes), we will notify promptly but do not assume compensation liability"
+      },
+      "section6": {
+        "title": "VI. Agreement Updates",
+        "content": "We may update this agreement based on legal or business adjustments. After updates, we will notify through:",
+        "item1": "Platform announcements",
+        "item2": "Email notifications (registered email)",
+        "note": "Continued use is deemed acceptance of new terms."
+      },
+      "section7": {
+        "title": "VII. Contact Us",
+        "content": "Privacy issues/Account appeals"
+      }
     }
   },
   "pricing": {
@@ -453,6 +561,11 @@
     "perYear": "/year",
     "perQuarter": "/quarter",
     "bonusPoints": "Get {points} credits instantly",
+    "totalPoints": ", total {total} credits",
+    "dailyMultiplier": "{multiplier} daily check-in credits",
+    "multiplierFive": "5x",
+    "multiplierDouble": "2x",
+    "multiplierN": "{n}x",
     "dailyDouble": "Double daily check-in credits",
     "subscribe": "Subscribe Now",
     "buy": "Buy Now",

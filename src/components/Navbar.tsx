@@ -250,6 +250,17 @@ export default function Navbar() {
 
           {/* 导航菜单 */}
           <nav className="flex-1 flex flex-col items-center space-y-8 w-full px-4">
+            {/* AI广场菜单 - 最上方 */}
+            <button
+              onClick={() => handleNavItemClick('ai-plaza')}
+              className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
+            >
+              <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('aiPlaza')}</span>
+            </button>
+
             <button
               onClick={handleQuickGenerateClick}
               className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
@@ -259,18 +270,6 @@ export default function Navbar() {
               </svg>
               <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('quickGenerate')}</span>
             </button>
-
-            {/* 工作流菜单 - 所有用户可见 */}
-            <Link
-              href={transferUrl('/workflows', locale)}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
-            >
-              <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h10m-6 5h6" />
-              </svg>
-              <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('workflows')}</span>
-            </Link>
 
             {/* 价格/会员菜单 */}
             <Link
@@ -319,16 +318,6 @@ export default function Navbar() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
               <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('community')}</span>
-            </button>
-            <button
-              onClick={() => handleNavItemClick('friends-section')}
-              className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
-            >
-              <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="currentColor" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-                <path d="M546.9184 665.4976a187.9552 187.9552 0 0 1-133.3248-55.1424 25.6 25.6 0 0 1 36.1984-36.1984 137.472 137.472 0 0 0 194.2016 0l186.1632-186.1632c53.5552-53.5552 53.5552-140.6464 0-194.2016s-140.6464-53.5552-194.2016 0L478.8736 350.8736a25.6 25.6 0 0 1-36.1984-36.1984l157.0816-157.0816c73.5232-73.5232 193.1264-73.5232 266.5984 0s73.5232 193.1264 0 266.5984l-186.1632 186.1632a187.9552 187.9552 0 0 1-133.3248 55.1424z" />
-                <path d="M239.7184 972.6976a187.9552 187.9552 0 0 1-133.3248-55.1424 188.672 188.672 0 0 1 0-266.5984l186.1632-186.1632a188.672 188.672 0 0 1 266.5984 0 25.6 25.6 0 0 1-36.1984 36.1984 137.472 137.472 0 0 0-194.2016 0l-186.1632 186.1632c-53.5552 53.5552-53.5552 140.6464 0 194.2016s140.6464 53.5552 194.2016 0l157.0816-157.0816a25.6 25.6 0 0 1 36.1984 36.1984l-157.0816 157.0816a187.9552 187.9552 0 0 1-133.3248 55.1424z" />
-              </svg>
-              <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('friends')}</span>
             </button>
 
             {/* 管理员菜单 - 仅管理员可见 */}

@@ -513,8 +513,34 @@ export default function PricingPage() {
                           </svg>
                         </div>
                         <div>
-                          <p className="font-semibold text-orange-700">{t('bonusPoints', { points: plan.bonusPoints })}</p>
-                          <p className="text-sm text-orange-600">{t('dailyDouble')}</p>
+                          {(() => {
+                            // 计算30天签到积分：基础积分20 * 倍数 * 30天
+                            const baseDailyPoints = 20; // 基础每日积分
+                            const dailyCheckinPoints = Math.round(baseDailyPoints * plan.dailyPointsMultiplier * 30);
+                            const totalPoints = plan.bonusPoints + dailyCheckinPoints;
+                            
+                            // 获取倍数文本
+                            let multiplierText = '';
+                            if (plan.dailyPointsMultiplier === 5) {
+                              multiplierText = t('multiplierFive');
+                            } else if (plan.dailyPointsMultiplier === 2) {
+                              multiplierText = t('multiplierDouble');
+                            } else {
+                              multiplierText = t('multiplierN', { n: plan.dailyPointsMultiplier });
+                            }
+                            
+                            return (
+                              <>
+                                <p className="font-semibold text-orange-700">
+                                  {t('bonusPoints', { points: plan.bonusPoints })}
+                                  {t('totalPoints', { total: totalPoints })}
+                                </p>
+                                <p className="text-sm text-orange-600">
+                                  {t('dailyMultiplier', { multiplier: multiplierText })}
+                                </p>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

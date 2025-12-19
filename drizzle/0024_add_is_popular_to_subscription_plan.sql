@@ -8,3 +8,8 @@ SET "is_popular" = false
 WHERE "is_popular" IS NULL;
 
 
+
+
+
+
+

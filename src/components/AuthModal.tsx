@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { signIn, sendVerificationEmail, forgetPassword } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
+import TermsModal from './TermsModal'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -21,6 +22,15 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+
+  // Reset terms agreement when mode changes
+  useEffect(() => {
+    if (mode !== 'register') {
+      setAgreedToTerms(false)
+    }
+  }, [mode])
 
   if (!isOpen) return null
 
@@ -62,6 +72,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
       }
       if (password !== confirmPassword) {
         setError(t('error.passwordMismatch'))
+        return
+      }
+      if (!agreedToTerms) {
+        setError(t('error.termsRequired'))
         return
       }
     }
@@ -443,6 +457,29 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             </div>
           )}
 
+          {/* Terms agreement (register only) */}
+          {mode === 'register' && (
+            <div className="flex items-start gap-2">
+              <input
+                id="agreeTerms"
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-400"
+              />
+              <label htmlFor="agreeTerms" className="text-sm text-gray-700 flex-1">
+                {t('agreeToTerms')}{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="text-orange-500 hover:text-orange-600 underline"
+                >
+                  {t('termsAndPrivacy')}
+                </button>
+              </label>
+            </div>
+          )}
+
           {/* Forgot password link (login only) */}
           {mode === 'login' && (
             <div className="text-right">
@@ -516,6 +553,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           )}
         </div>}
       </div>
+
+      {/* Terms Modal */}
+      <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>
   )
 }
