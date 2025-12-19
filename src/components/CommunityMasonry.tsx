@@ -192,7 +192,13 @@ export default function CommunityMasonry({
                     <div className="pointer-events-auto inline-flex max-w-full items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border border-white/30 bg-white/70 px-2 py-1.5 sm:px-3.5 sm:py-2.5 backdrop-blur-md shadow-sm">
                       <AvatarWithFrame
                         avatar={avatar}
-                        avatarFrameId={work.avatarFrameId ?? null}
+                        avatarFrameId={
+                          work.avatarFrameId === null || work.avatarFrameId === undefined
+                            ? null
+                            : typeof work.avatarFrameId === 'string'
+                              ? Number.parseInt(work.avatarFrameId, 10) || null
+                              : work.avatarFrameId
+                        }
                         // 移动端缩小至原来的一半左右
                         size={interactionMode === 'hover' ? 40 : 20}
                         className="border border-orange-200/70"
