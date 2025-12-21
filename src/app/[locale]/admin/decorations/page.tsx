@@ -601,7 +601,6 @@ export default function DecorationsPage() {
 
         // 为当前批次创建FormData
         batch.forEach((fileInfo, batchIndex) => {
-          const globalIndex = i + batchIndex
           formData.append(`file_${batchIndex}`, fileInfo.file)
           formData.append(`path_${batchIndex}`, fileInfo.path)
         })
@@ -1311,7 +1310,7 @@ export default function DecorationsPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <h2 className="text-xl font-bold mb-4 text-red-600">确认删除分类</h2>
             <p className="mb-6 text-gray-700">
-              确定要删除分类 <span className="font-semibold">"{deletingCategory}"</span> 及其下的所有 <span className="font-semibold">{groupedFrames[deletingCategory]?.length || 0}</span> 个头像框吗？此操作不可恢复。
+              确定要删除分类 <span className="font-semibold">&quot;{deletingCategory}&quot;</span> 及其下的所有 <span className="font-semibold">{groupedFrames[deletingCategory]?.length || 0}</span> 个头像框吗？此操作不可恢复。
             </p>
 
             {formError && (

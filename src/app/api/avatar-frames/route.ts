@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getAllAvatarFrames } from '@/utils/avatarFrame';
 
 /**
  * 获取所有头像框列表（公开API，无需管理员权限）
  * GET /api/avatar-frames
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const frames = await getAllAvatarFrames();
     

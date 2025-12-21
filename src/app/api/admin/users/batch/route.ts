@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
             .where(eq(user.id, targetUser.id));
 
           results.success.push(targetUser.id);
-        } catch (error) {
+        } catch {
           results.failed.push({
             userId: targetUser.id,
             reason: '更新失败'
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
             .where(eq(user.id, targetUser.id));
 
           results.success.push(targetUser.id);
-        } catch (error) {
+        } catch {
           results.failed.push({
             userId: targetUser.id,
             reason: '更新失败'

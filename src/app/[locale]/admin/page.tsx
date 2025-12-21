@@ -818,7 +818,7 @@ export default function AdminPage() {
 
     setBatchProcessing(true)
     try {
-      let requestBody: any = {
+      const requestBody: any = {
         userIds: Array.from(userIdsToProcess),
         operation: batchOperation,
       }
@@ -1967,7 +1967,7 @@ export default function AdminPage() {
               {availableFrameIds.length === 0 ? (
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-800">
-                    该用户暂无被授予的头像框，请先在"头像框库存"中添加头像框
+                    该用户暂无被授予的头像框，请先在&quot;头像框库存&quot;中添加头像框
                   </p>
                 </div>
               ) : (

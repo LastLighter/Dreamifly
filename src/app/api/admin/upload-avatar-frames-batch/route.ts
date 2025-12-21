@@ -4,7 +4,7 @@ import { uploadToOSS, checkOSSConfig } from '@/utils/oss'
 import { auth } from '@/lib/auth'
 import { db } from '@/db'
 import { avatarFrame, user } from '@/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { headers } from 'next/headers'
 
 interface FileInfo {

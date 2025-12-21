@@ -62,7 +62,6 @@ export default function ProfilePage() {
   // Avatar frame selection state
   const [showAvatarFrameSelector, setShowAvatarFrameSelector] = useState(false)
   const [availableFrames, setAvailableFrames] = useState<Array<{ id: number; category: string; imageUrl: string | null }>>([])
-  const [selectedFrameId, setSelectedFrameId] = useState<number | null>(null)
   const [previewFrameId, setPreviewFrameId] = useState<number | null>(null)
   const [framesLoading, setFramesLoading] = useState(false)
 
@@ -73,7 +72,6 @@ export default function ProfilePage() {
       const user = session.user as ExtendedUser
       setNickname(user.nickname || '')
       setAvatar(user.avatar || '/images/default-avatar.svg')
-      setSelectedFrameId(user.avatarFrameId ?? null)
       setPreviewFrameId(user.avatarFrameId ?? null)
     }
   }, [session])
@@ -361,8 +359,7 @@ export default function ProfilePage() {
       // 立即更新全局头像和昵称状态
       updateProfile(avatarUrlToSave, nickname)
       
-      // 更新选中的头像框ID和全局头像框ID
-      setSelectedFrameId(previewFrameId)
+      // 更新全局头像框ID
       setAvatarFrameId(previewFrameId)
       
       setSuccess(t('success.profileUpdated'))
