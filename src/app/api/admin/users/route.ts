@@ -251,6 +251,7 @@ export async function GET(request: NextRequest) {
       updatedAt: u.updatedAt,
       lastLoginAt: u.lastLoginAt,
       avatarFrameId: u.avatarFrameId ?? null,
+      availableAvatarFrameIds: u.availableAvatarFrameIds ?? null,
     }));
 
     return NextResponse.json({
@@ -300,7 +301,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, isPremium, isOldUser, isActive, avatarFrameId, banReason } = body;
+    const { userId, isPremium, isOldUser, isActive, avatarFrameId, banReason, availableAvatarFrameIds } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -337,6 +338,7 @@ export async function PATCH(request: NextRequest) {
       isActive?: boolean;
       avatarFrameId?: number | null;
       banReason?: string | null;
+      availableAvatarFrameIds?: string | null;
       updatedAt: Date;
     } = {
       updatedAt: new Date(),
@@ -392,6 +394,30 @@ export async function PATCH(request: NextRequest) {
         }
 
         updateData.avatarFrameId = frameId;
+      }
+    }
+
+    // 如果提供了availableAvatarFrameIds，更新
+    if (availableAvatarFrameIds !== undefined) {
+      if (availableAvatarFrameIds === null || availableAvatarFrameIds === '') {
+        updateData.availableAvatarFrameIds = null;
+      } else {
+        // 验证格式：应该是逗号分隔的数字ID
+        const ids = typeof availableAvatarFrameIds === 'string' 
+          ? availableAvatarFrameIds.split(',').map(id => id.trim()).filter(id => id !== '')
+          : [];
+        
+        // 验证每个ID都是有效的数字
+        const validIds = ids.filter(id => {
+          const numId = parseInt(id, 10);
+          return !isNaN(numId) && numId > 0;
+        });
+
+        if (validIds.length > 0) {
+          updateData.availableAvatarFrameIds = validIds.join(',');
+        } else {
+          updateData.availableAvatarFrameIds = null;
+        }
       }
     }
 

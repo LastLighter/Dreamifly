@@ -30,6 +30,7 @@ interface User {
   updatedAt: Date | string
   lastLoginAt: Date | string | null
   avatarFrameId: number | null
+  availableAvatarFrameIds: string | null
 }
 
 interface UserListResponse {
@@ -139,6 +140,9 @@ export default function AdminPage() {
   const [directFrameIdInput, setDirectFrameIdInput] = useState<string>('')
   const [updatingUser, setUpdatingUser] = useState(false)
   const [isAvatarFrameExpanded, setIsAvatarFrameExpanded] = useState(false) // 头像框模块默认折叠
+  const [isAvatarFrameInventoryExpanded, setIsAvatarFrameInventoryExpanded] = useState(false) // 头像框库存模块默认折叠
+  const [availableFrameIds, setAvailableFrameIds] = useState<string[]>([]) // 用户可用头像框ID列表
+  const [newFrameIdInput, setNewFrameIdInput] = useState('') // 新增头像框ID输入
   const [isCompensateSubscriptionExpanded, setIsCompensateSubscriptionExpanded] = useState(false) // 补偿会员模块默认折叠
   const [isCompensatePointsPackageExpanded, setIsCompensatePointsPackageExpanded] = useState(false) // 补偿积分套餐模块默认折叠
   const [isRechargeHistoryExpanded, setIsRechargeHistoryExpanded] = useState(false) // 充值记录模块默认折叠
@@ -645,6 +649,9 @@ export default function AdminPage() {
     setRechargeHistory([]) // 清空充值记录
     setUpdatingUser(false)
     setIsAvatarFrameExpanded(false) // 重置为折叠状态
+    setAvailableFrameIds([])
+    setNewFrameIdInput('')
+    setIsAvatarFrameInventoryExpanded(false) // 重置头像框库存为折叠状态
     setIsCompensatePointsPackageExpanded(false) // 重置补偿积分套餐为折叠状态
     setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
     setSelectedPointsPackageId(pointsPackages[0]?.id ?? null)
@@ -699,6 +706,7 @@ export default function AdminPage() {
           isOldUser: selectedIsOldUser,
           isActive: selectedIsActive,
           avatarFrameId: selectedAvatarFrameId,
+          availableAvatarFrameIds: availableFrameIds.length > 0 ? availableFrameIds.join(',') : null,
         }),
       })
 
@@ -1693,6 +1701,166 @@ export default function AdminPage() {
                 <p className="mt-2 text-xs text-gray-500">暂无头像框，请先在装饰管理中添加</p>
               )}
                 </>
+              )}
+            </div>
+
+            {/* 头像框库存管理 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    头像框库存
+                  </label>
+                  {availableFrameIds.length > 0 && (
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      共 {availableFrameIds.length} 个
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAvatarFrameInventoryExpanded(!isAvatarFrameInventoryExpanded)}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <span>{isAvatarFrameInventoryExpanded ? '收起' : '展开'}</span>
+                  <svg
+                    className={`w-4 h-4 transform transition-transform duration-200 ${isAvatarFrameInventoryExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+
+              {isAvatarFrameInventoryExpanded && (
+                <div className="space-y-4">
+                  {/* 当前库存列表 */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">
+                      当前可用头像框ID列表
+                    </label>
+                    {availableFrameIds.length === 0 ? (
+                      <p className="text-xs text-gray-500 py-2">暂无可用头像框</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50 min-h-[60px]">
+                        {availableFrameIds.map((frameId, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-1 bg-white border border-gray-300 rounded px-2 py-1 text-sm"
+                          >
+                            <span className="text-gray-700">{frameId}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newIds = availableFrameIds.filter((_, i) => i !== index)
+                                setAvailableFrameIds(newIds)
+                              }}
+                              disabled={updatingUser}
+                              className="text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
+                              title="删除"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 添加新头像框ID */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">
+                      添加头像框ID
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newFrameIdInput}
+                        onChange={(e) => {
+                          const value = e.target.value.trim()
+                          // 只允许输入数字和逗号
+                          if (value === '' || /^[\d,]+$/.test(value)) {
+                            setNewFrameIdInput(value)
+                          }
+                        }}
+                        placeholder="输入头像框ID（多个用逗号分隔，如：1,2,3）"
+                        disabled={updatingUser}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            const ids = newFrameIdInput.split(',').map(id => id.trim()).filter(id => id !== '')
+                            const validIds = ids.filter(id => {
+                              const numId = parseInt(id, 10)
+                              return !isNaN(numId) && numId > 0
+                            })
+                            const newIds = [...new Set([...availableFrameIds, ...validIds])]
+                            setAvailableFrameIds(newIds)
+                            setNewFrameIdInput('')
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ids = newFrameIdInput.split(',').map(id => id.trim()).filter(id => id !== '')
+                          const validIds = ids.filter(id => {
+                            const numId = parseInt(id, 10)
+                            return !isNaN(numId) && numId > 0
+                          })
+                          const newIds = [...new Set([...availableFrameIds, ...validIds])]
+                          setAvailableFrameIds(newIds)
+                          setNewFrameIdInput('')
+                        }}
+                        disabled={updatingUser || !newFrameIdInput.trim()}
+                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        添加
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      可以输入单个ID或多个ID（用逗号分隔），按Enter或点击添加按钮
+                    </p>
+                  </div>
+
+                  {/* 快速操作 */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">
+                      快速操作
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm('确定要清空所有头像框库存吗？')) {
+                            setAvailableFrameIds([])
+                          }
+                        }}
+                        disabled={updatingUser || availableFrameIds.length === 0}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        清空全部
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // 从所有头像框中快速添加
+                          const allFrameIds = avatarFrames.map(f => f.id.toString())
+                          const newIds = [...new Set([...availableFrameIds, ...allFrameIds])]
+                          setAvailableFrameIds(newIds)
+                        }}
+                        disabled={updatingUser || avatarFrames.length === 0}
+                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        添加所有头像框
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
 

@@ -12,6 +12,7 @@ export interface ExtendedUser {
   nickname?: string
   isAdmin?: boolean
   avatarFrameId?: number | null
+  availableAvatarFrameIds?: string | null
 }
 
 // Extended session type

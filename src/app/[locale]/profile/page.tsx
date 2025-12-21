@@ -14,7 +14,7 @@ export default function ProfilePage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { data: session, isPending } = useSession()
-  const { avatar: globalAvatar, nickname: globalNickname, avatarFrameId, updateProfile } = useAvatar()
+  const { avatar: globalAvatar, nickname: globalNickname, avatarFrameId, updateProfile, setAvatarFrameId } = useAvatar()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [nickname, setNickname] = useState('')
@@ -59,6 +59,13 @@ export default function ProfilePage() {
   } | null>(null)
   const [subscriptionLoading, setSubscriptionLoading] = useState(false)
 
+  // Avatar frame selection state
+  const [showAvatarFrameSelector, setShowAvatarFrameSelector] = useState(false)
+  const [availableFrames, setAvailableFrames] = useState<Array<{ id: number; category: string; imageUrl: string | null }>>([])
+  const [selectedFrameId, setSelectedFrameId] = useState<number | null>(null)
+  const [previewFrameId, setPreviewFrameId] = useState<number | null>(null)
+  const [framesLoading, setFramesLoading] = useState(false)
+
 
   // 监听session变化，更新用户数据
   useEffect(() => {
@@ -66,7 +73,49 @@ export default function ProfilePage() {
       const user = session.user as ExtendedUser
       setNickname(user.nickname || '')
       setAvatar(user.avatar || '/images/default-avatar.svg')
+      setSelectedFrameId(user.avatarFrameId ?? null)
+      setPreviewFrameId(user.avatarFrameId ?? null)
     }
+  }, [session])
+
+  // 获取用户可用的头像框列表
+  useEffect(() => {
+    const fetchAvailableFrames = async () => {
+      if (!session?.user) return
+
+      setFramesLoading(true)
+      try {
+        const user = session.user as ExtendedUser
+        const availableFrameIds = user.availableAvatarFrameIds
+          ? user.availableAvatarFrameIds.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id))
+          : []
+
+        // 如果用户没有可用头像框ID列表，则不显示任何头像框选项
+        if (availableFrameIds.length === 0) {
+          setAvailableFrames([])
+          setFramesLoading(false)
+          return
+        }
+
+        // 获取所有头像框
+        const response = await fetch(`/api/avatar-frames?t=${Date.now()}`)
+        if (response.ok) {
+          const data = await response.json()
+          const allFrames = data.frames || []
+          
+          // 只显示available_avatar_frame_ids字段中允许的头像框
+          const frames = allFrames.filter((frame: { id: number }) => availableFrameIds.includes(frame.id))
+          
+          setAvailableFrames(frames)
+        }
+      } catch (error) {
+        console.error('Error fetching available frames:', error)
+      } finally {
+        setFramesLoading(false)
+      }
+    }
+
+    fetchAvailableFrames()
   }, [session])
 
   // 同步全局头像和昵称状态到本地状态
@@ -295,6 +344,7 @@ export default function ProfilePage() {
         body: JSON.stringify({
           nickname,
           avatar: avatarUrlToSave,
+          avatarFrameId: previewFrameId,
         }),
       })
 
@@ -310,6 +360,10 @@ export default function ProfilePage() {
       
       // 立即更新全局头像和昵称状态
       updateProfile(avatarUrlToSave, nickname)
+      
+      // 更新选中的头像框ID和全局头像框ID
+      setSelectedFrameId(previewFrameId)
+      setAvatarFrameId(previewFrameId)
       
       setSuccess(t('success.profileUpdated'))
       setTimeout(() => {
@@ -384,7 +438,7 @@ export default function ProfilePage() {
               <div className="relative">
                 <AvatarWithFrame
                   avatar={avatarPreview || avatar}
-                  avatarFrameId={avatarFrameId}
+                  avatarFrameId={previewFrameId !== null ? previewFrameId : avatarFrameId}
                   size={112}
                   className="ring-4 ring-white/10 shadow-xl shadow-orange-500/20 rounded-full"
                 />
@@ -493,6 +547,120 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            {/* 更换头像框折叠框 - 仅当用户有可用头像框ID列表时显示 */}
+            {(() => {
+              const user = session?.user as ExtendedUser | undefined
+              const hasAvailableFrames = user?.availableAvatarFrameIds && user.availableAvatarFrameIds.trim() !== ''
+              
+              if (!hasAvailableFrames) {
+                return null
+              }
+
+              return (
+                <div className="mt-6 rounded-xl border border-gray-200 bg-white">
+                  <button
+                    onClick={() => setShowAvatarFrameSelector(!showAvatarFrameSelector)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left transition hover:bg-gray-50"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">更换头像框</p>
+                      <p className="text-xs text-gray-500">选择你喜欢的头像框样式</p>
+                    </div>
+                    <svg
+                      className={`w-5 h-5 text-gray-500 transform transition-transform duration-200 ${showAvatarFrameSelector ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showAvatarFrameSelector && (
+                    <div className="border-t border-gray-200 p-4">
+                      {framesLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-orange-400"></div>
+                        </div>
+                      ) : availableFrames.length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-4">暂无可用头像框</p>
+                      ) : (
+                        <div className="space-y-4">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                        {/* 无头像框选项 */}
+                        <button
+                          onClick={() => setPreviewFrameId(null)}
+                          className={`relative flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                            previewFrameId === null
+                              ? 'border-orange-400 bg-orange-50'
+                              : 'border-gray-200 bg-white hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                            <AvatarWithFrame
+                              avatar={avatarPreview || avatar}
+                              avatarFrameId={null}
+                              size={64}
+                            />
+                          </div>
+                          <span className="text-xs text-gray-600">无头像框</span>
+                          {previewFrameId === null && (
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-orange-400 flex items-center justify-center">
+                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </button>
+
+                        {/* 头像框选项 */}
+                        {availableFrames.map((frame) => (
+                          <button
+                            key={frame.id}
+                            onClick={() => setPreviewFrameId(frame.id)}
+                            className={`relative flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all ${
+                              previewFrameId === frame.id
+                                ? 'border-orange-400 bg-orange-50'
+                                : 'border-gray-200 bg-white hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-2 overflow-hidden">
+                              {frame.imageUrl ? (
+                                <AvatarWithFrame
+                                  avatar={avatarPreview || avatar}
+                                  avatarFrameId={frame.id}
+                                  size={64}
+                                />
+                              ) : (
+                                <AvatarWithFrame
+                                  avatar={avatarPreview || avatar}
+                                  avatarFrameId={null}
+                                  size={64}
+                                />
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-600 truncate w-full text-center">ID: {frame.id}</span>
+                            {previewFrameId === frame.id && (
+                              <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-orange-400 flex items-center justify-center">
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 text-center">
+                        当前预览：{previewFrameId === null ? '无头像框' : `头像框 ID ${previewFrameId}`}
+                      </p>
+                      </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
             <div className="mt-8 flex flex-wrap gap-3">
               <button
                 onClick={handleSaveProfile}
@@ -513,7 +681,7 @@ export default function ProfilePage() {
               >
                 🔒 {t('changePassword')}
               </button>
-              <p className="text-xs text-gray-500">头像更换后记得点击保存同步。</p>
+              <p className="text-xs text-gray-500">头像和头像框更换后记得点击保存同步。</p>
             </div>
           </section>
 

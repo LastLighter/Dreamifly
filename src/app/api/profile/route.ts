@@ -16,15 +16,38 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { nickname, avatar } = body;
+    const { nickname, avatar, avatarFrameId } = body;
+
+    // 构建更新数据
+    const updateData: {
+      nickname?: string;
+      avatar?: string;
+      avatarFrameId?: number | null;
+    } = {};
+
+    if (nickname !== undefined) {
+      updateData.nickname = nickname;
+    }
+    if (avatar !== undefined) {
+      updateData.avatar = avatar;
+    }
+    if (avatarFrameId !== undefined) {
+      // 如果avatarFrameId为null，直接设置为null
+      if (avatarFrameId === null) {
+        updateData.avatarFrameId = null;
+      } else {
+        // 验证头像框ID是否为有效数字
+        const frameId = typeof avatarFrameId === 'string' ? parseInt(avatarFrameId, 10) : avatarFrameId;
+        if (!isNaN(frameId)) {
+          updateData.avatarFrameId = frameId;
+        }
+      }
+    }
 
     // 更新用户信息
     await db
       .update(user)
-      .set({
-        nickname,
-        avatar,
-      })
+      .set(updateData)
       .where(eq(user.id, session.user.id));
 
     return NextResponse.json({ success: true });

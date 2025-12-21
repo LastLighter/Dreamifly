@@ -31,6 +31,7 @@ export const user = pgTable("user", {
   dailyRequestCount: integer("daily_request_count").default(0), // 数据库字段名: daily_request_count，当日请求次数
   lastRequestResetDate: timestamp("last_request_reset_date").defaultNow(), // 数据库字段名: last_request_reset_date，上次重置请求次数的日期（类型为 timestamptz）
   avatarFrameId: integer("avatar_frame_id"), // 数据库字段名: avatar_frame_id，头像框ID，为null时使用默认头像框
+  availableAvatarFrameIds: text("available_avatar_frame_ids"), // 数据库字段名: available_avatar_frame_ids，可用头像框ID列表，用逗号分隔
   isSubscribed: boolean("is_subscribed").default(false), // 是否为订阅用户
   subscriptionExpiresAt: timestamp("subscription_expires_at"), // 订阅过期时间
   lastDailyAwardDate: timestamp("last_daily_award_date"), // 数据库字段名: last_daily_award_date，最后签到日期（东八区凌晨4点刷新）

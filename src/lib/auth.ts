@@ -143,6 +143,10 @@ export const auth = betterAuth({
         type: "number",
         required: false,
       },
+      availableAvatarFrameIds: {
+        type: "string",
+        required: false,
+      },
     },
   },
   session: {

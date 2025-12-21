@@ -37,8 +37,14 @@ export default function DecorationsPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showDeleteCategoryModal, setShowDeleteCategoryModal] = useState(false)
+  const [showBatchDeleteCategoryModal, setShowBatchDeleteCategoryModal] = useState(false)
   const [editingFrame, setEditingFrame] = useState<AvatarFrame | null>(null)
   const [deletingFrame, setDeletingFrame] = useState<AvatarFrame | null>(null)
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null)
+  
+  // 批量选择分类
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
 
   // 表单状态
   const [formData, setFormData] = useState({
@@ -51,10 +57,20 @@ export default function DecorationsPage() {
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [filePreview, setFilePreview] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
   
   // 上传方式：'file' | 'url' | 'url-download'
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url' | 'url-download'>('file')
   const [urlToDownload, setUrlToDownload] = useState('')
+  
+  // 批量上传状态
+  const [uploadingBatch, setUploadingBatch] = useState(false)
+  const [batchUploadProgress, setBatchUploadProgress] = useState<{
+    total: number
+    processed: number
+    success: number
+    failed: number
+  } | null>(null)
 
   // 筛选状态
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -412,6 +428,281 @@ export default function DecorationsPage() {
     }
   }
 
+  // 处理删除分类
+  const handleDeleteCategory = (category: string) => {
+    setDeletingCategory(category)
+    setShowDeleteCategoryModal(true)
+    setFormError('')
+  }
+
+  // 确认删除分类
+  const handleConfirmDeleteCategory = async () => {
+    if (!deletingCategory) return
+
+    setSubmitting(true)
+    setFormError('')
+
+    try {
+      const timestamp = Date.now()
+      const encodedCategory = encodeURIComponent(deletingCategory)
+      const response = await fetch(`/api/admin/avatar-frames/categories/${encodedCategory}?t=${timestamp}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || '删除分类失败')
+      }
+
+      // 重新加载数据
+      await loadData()
+      
+      // 关闭对话框
+      setShowDeleteCategoryModal(false)
+      setDeletingCategory(null)
+      
+      // 重置筛选
+      setSelectedCategory('all')
+    } catch (err) {
+      console.error('Error deleting category:', err)
+      setFormError(err instanceof Error ? err.message : '删除分类失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // 切换分类选择
+  const handleToggleCategory = (category: string) => {
+    setSelectedCategories(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(category)) {
+        newSet.delete(category)
+      } else {
+        newSet.add(category)
+      }
+      return newSet
+    })
+  }
+
+  // 全选/取消全选
+  const handleSelectAllCategories = () => {
+    if (selectedCategories.size === sortedCategories.length) {
+      setSelectedCategories(new Set())
+    } else {
+      setSelectedCategories(new Set(sortedCategories))
+    }
+  }
+
+  // 处理批量删除分类
+  const handleBatchDeleteCategories = () => {
+    if (selectedCategories.size === 0) {
+      setFormError('请至少选择一个分类')
+      return
+    }
+    setShowBatchDeleteCategoryModal(true)
+    setFormError('')
+  }
+
+  // 确认批量删除分类
+  const handleConfirmBatchDeleteCategories = async () => {
+    if (selectedCategories.size === 0) return
+
+    setSubmitting(true)
+    setFormError('')
+
+    try {
+      const timestamp = Date.now()
+      const response = await fetch(`/api/admin/avatar-frames/categories/batch-delete?t=${timestamp}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          categories: Array.from(selectedCategories)
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || '批量删除分类失败')
+      }
+
+      // 重新加载数据
+      await loadData()
+      
+      // 关闭对话框并清空选择
+      setShowBatchDeleteCategoryModal(false)
+      setSelectedCategories(new Set())
+      
+      // 重置筛选
+      setSelectedCategory('all')
+    } catch (err) {
+      console.error('Error batch deleting categories:', err)
+      setFormError(err instanceof Error ? err.message : '批量删除分类失败')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // 处理文件夹上传
+  const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingBatch(true)
+    setFormError('')
+    
+    // 收集文件信息
+    const fileInfos: Array<{ file: File; path: string }> = []
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      // 获取文件的相对路径（webkitRelativePath）
+      const path = (file as any).webkitRelativePath || file.name
+      
+      // 验证文件类型
+      if (!file.type.startsWith('image/')) {
+        continue // 跳过非图片文件
+      }
+
+      // 验证文件大小（最大 10MB）
+      if (file.size > 10 * 1024 * 1024) {
+        continue // 跳过过大的文件
+      }
+
+      fileInfos.push({ file, path })
+    }
+
+    if (fileInfos.length === 0) {
+      setFormError('没有有效的图片文件')
+      setUploadingBatch(false)
+      setBatchUploadProgress(null)
+      return
+    }
+
+    // 初始化进度
+    setBatchUploadProgress({
+      total: fileInfos.length,
+      processed: 0,
+      success: 0,
+      failed: 0
+    })
+
+    try {
+      // 分批上传，每批10个文件，实时更新进度
+      const batchSize = 10
+      let successCount = 0
+      let failedCount = 0
+      const allErrors: string[] = []
+
+      for (let i = 0; i < fileInfos.length; i += batchSize) {
+        const batch = fileInfos.slice(i, i + batchSize)
+        const formData = new FormData()
+
+        // 为当前批次创建FormData
+        batch.forEach((fileInfo, batchIndex) => {
+          const globalIndex = i + batchIndex
+          formData.append(`file_${batchIndex}`, fileInfo.file)
+          formData.append(`path_${batchIndex}`, fileInfo.path)
+        })
+
+        try {
+          // 更新进度：显示正在处理的文件数
+          setBatchUploadProgress(prev => prev ? {
+            ...prev,
+            processed: i + batch.length
+          } : null)
+
+          // 发送当前批次到服务器
+          const response = await fetch('/api/admin/upload-avatar-frames-batch', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            throw new Error(errorData.error || '批量上传失败')
+          }
+
+          const result = await response.json()
+          
+          if (result.results) {
+            successCount += result.results.success || 0
+            failedCount += result.results.failed || 0
+            if (result.results.errors && result.results.errors.length > 0) {
+              console.error(`❌ 批次 ${i / batchSize + 1} 失败的文件:`, result.results.errors)
+              allErrors.push(...result.results.errors)
+            }
+          }
+
+          // 更新进度
+          setBatchUploadProgress(prev => prev ? {
+            ...prev,
+            processed: i + batch.length,
+            success: successCount,
+            failed: failedCount
+          } : null)
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : '未知错误'
+          console.error(`❌ 批次 ${i / batchSize + 1} 上传失败:`, {
+            批次号: i / batchSize + 1,
+            批次文件数: batch.length,
+            错误信息: errorMessage,
+            错误详情: err
+          })
+          failedCount += batch.length
+          batch.forEach(fileInfo => {
+            allErrors.push(`批次 ${i / batchSize + 1} - ${fileInfo.path}: ${errorMessage}`)
+          })
+          
+          // 更新进度
+          setBatchUploadProgress(prev => prev ? {
+            ...prev,
+            processed: i + batch.length,
+            failed: failedCount
+          } : null)
+        }
+      }
+
+      // 最终结果
+      if (successCount > 0) {
+        setError(null)
+        // 延迟一下再刷新，让用户看到结果
+        setTimeout(async () => {
+          await loadData()
+          setBatchUploadProgress(null)
+        }, 1000)
+      } else {
+        setFormError('没有文件成功上传')
+        setBatchUploadProgress(null)
+      }
+
+      // 打印最终统计和失败列表
+      console.log('📊 上传完成统计:', {
+        总文件数: fileInfos.length,
+        成功: successCount,
+        失败: failedCount
+      })
+      
+      if (allErrors.length > 0) {
+        console.error('❌ 上传失败的文件列表:')
+        allErrors.forEach((error, index) => {
+          console.error(`  ${index + 1}. ${error}`)
+        })
+      }
+    } catch (err) {
+      console.error('Error uploading folder:', err)
+      setFormError(err instanceof Error ? err.message : '批量上传失败')
+      setBatchUploadProgress(null)
+    } finally {
+      setUploadingBatch(false)
+      // 清空文件选择
+      if (folderInputRef.current) {
+        folderInputRef.current.value = ''
+      }
+    }
+  }
+
   // 筛选后的头像框列表
   const filteredFrames = selectedCategory === 'all'
     ? frames
@@ -427,8 +718,34 @@ export default function DecorationsPage() {
     return acc
   }, {} as Record<string, typeof frames>)
 
-  // 获取分类列表（按字母顺序排序）
-  const sortedCategories = Object.keys(groupedFrames).sort()
+  // 获取分类列表（Part n 格式优先，按 n 值排序；其他按字母顺序）
+  const sortedCategories = Object.keys(groupedFrames).sort((a, b) => {
+    // 匹配 "Part n" 格式（不区分大小写，支持空格）
+    const partPattern = /^Part\s+(\d+)$/i
+    
+    const aMatch = a.match(partPattern)
+    const bMatch = b.match(partPattern)
+    
+    // 如果两个都是 Part n 格式，按数字大小从大到小排序
+    if (aMatch && bMatch) {
+      const aNum = parseInt(aMatch[1], 10)
+      const bNum = parseInt(bMatch[1], 10)
+      return bNum - aNum
+    }
+    
+    // 如果只有 a 是 Part n 格式，a 排在前面
+    if (aMatch && !bMatch) {
+      return -1
+    }
+    
+    // 如果只有 b 是 Part n 格式，b 排在前面
+    if (!aMatch && bMatch) {
+      return 1
+    }
+    
+    // 如果两个都不是 Part n 格式，按字母顺序排序
+    return a.localeCompare(b)
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -458,6 +775,24 @@ export default function DecorationsPage() {
                 >
                   + 添加头像框
                 </button>
+                <button
+                  onClick={() => folderInputRef.current?.click()}
+                  disabled={uploadingBatch}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-400 to-indigo-400 text-white font-semibold rounded-lg hover:from-blue-500 hover:to-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploadingBatch ? '上传中...' : '📁 上传父文件夹'}
+                </button>
+                <input
+                  ref={folderInputRef}
+                  type="file"
+                  webkitdirectory=""
+                  directory=""
+                  multiple
+                  accept="image/*"
+                  onChange={handleFolderUpload}
+                  className="hidden"
+                  disabled={uploadingBatch}
+                />
                 <AvatarWithFrame
                   avatar={globalAvatar || (session?.user as ExtendedUser)?.avatar || session?.user?.image || '/images/default-avatar.svg'}
                   avatarFrameId={avatarFrameId}
@@ -486,8 +821,29 @@ export default function DecorationsPage() {
                   })}
                 </select>
               </div>
-              <div className="text-sm text-gray-600">
-                共 {filteredFrames.length} 个头像框
+              <div className="flex items-center gap-4">
+                {selectedCategories.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">
+                      已选择 {selectedCategories.size} 个分类
+                    </span>
+                    <button
+                      onClick={handleBatchDeleteCategories}
+                      className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                    >
+                      批量删除
+                    </button>
+                    <button
+                      onClick={() => setSelectedCategories(new Set())}
+                      className="px-3 py-1.5 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                      取消选择
+                    </button>
+                  </div>
+                )}
+                <div className="text-sm text-gray-600">
+                  共 {filteredFrames.length} 个头像框
+                </div>
               </div>
             </div>
           </div>
@@ -498,6 +854,30 @@ export default function DecorationsPage() {
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
               {error}
+            </div>
+          )}
+
+          {/* 批量上传进度 */}
+          {batchUploadProgress && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-blue-900">批量上传进度</h3>
+                <span className="text-sm text-blue-700">
+                  {batchUploadProgress.processed} / {batchUploadProgress.total}
+                </span>
+              </div>
+              <div className="w-full bg-blue-200 rounded-full h-2 mb-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width: `${(batchUploadProgress.processed / batchUploadProgress.total) * 100}%`
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-4 text-xs text-blue-700">
+                <span>成功: {batchUploadProgress.success}</span>
+                <span>失败: {batchUploadProgress.failed}</span>
+              </div>
             </div>
           )}
 
@@ -513,16 +893,55 @@ export default function DecorationsPage() {
             </div>
           ) : (
             <div className="space-y-8">
+              {/* 全选工具栏 */}
+              {sortedCategories.length > 0 && (
+                <div className="flex items-center gap-3 pb-2 border-b border-gray-200">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.size === sortedCategories.length && sortedCategories.length > 0}
+                      onChange={handleSelectAllCategories}
+                      className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      {selectedCategories.size === sortedCategories.length ? '取消全选' : '全选'}
+                    </span>
+                  </label>
+                  {selectedCategories.size > 0 && (
+                    <span className="text-sm text-gray-500">
+                      （已选择 {selectedCategories.size} / {sortedCategories.length} 个分类）
+                    </span>
+                  )}
+                </div>
+              )}
+              
               {sortedCategories.map((category) => (
                 <div key={category} className="space-y-4">
                   {/* 分类标题 */}
-                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200 first:border-t-0 first:pt-0">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      {category}
-                    </h2>
-                    <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                      {groupedFrames[category].length} 个
-                    </span>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200 first:border-t-0 first:pt-0">
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedCategories.has(category)}
+                          onChange={() => handleToggleCategory(category)}
+                          className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                        />
+                      </label>
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        {category}
+                      </h2>
+                      <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        {groupedFrames[category].length} 个
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteCategory(category)}
+                      className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium"
+                      title={`删除分类 "${category}" 及其下所有头像框`}
+                    >
+                      删除分类
+                    </button>
                   </div>
 
                   {/* 该分类下的头像框 */}
@@ -876,6 +1295,102 @@ export default function DecorationsPage() {
               </button>
               <button
                 onClick={handleConfirmDelete}
+                disabled={submitting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? '删除中...' : '确认删除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 删除分类确认对话框 */}
+      {showDeleteCategoryModal && deletingCategory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-4 text-red-600">确认删除分类</h2>
+            <p className="mb-6 text-gray-700">
+              确定要删除分类 <span className="font-semibold">"{deletingCategory}"</span> 及其下的所有 <span className="font-semibold">{groupedFrames[deletingCategory]?.length || 0}</span> 个头像框吗？此操作不可恢复。
+            </p>
+
+            {formError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                {formError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteCategoryModal(false)
+                  setDeletingCategory(null)
+                  setFormError('')
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={submitting}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmDeleteCategory}
+                disabled={submitting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? '删除中...' : '确认删除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批量删除分类确认对话框 */}
+      {showBatchDeleteCategoryModal && selectedCategories.size > 0 && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4 text-red-600">确认批量删除分类</h2>
+            <p className="mb-4 text-gray-700">
+              确定要删除以下 <span className="font-semibold">{selectedCategories.size}</span> 个分类及其下的所有头像框吗？此操作不可恢复。
+            </p>
+
+            <div className="mb-4 max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <ul className="space-y-2">
+                {Array.from(selectedCategories).map((category) => (
+                  <li key={category} className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-gray-900">{category}</span>
+                    <span className="text-gray-500">
+                      {groupedFrames[category]?.length || 0} 个头像框
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="mb-4 text-sm text-gray-600">
+              总计将删除 <span className="font-semibold text-red-600">
+                {Array.from(selectedCategories).reduce((sum, cat) => sum + (groupedFrames[cat]?.length || 0), 0)}
+              </span> 个头像框
+            </div>
+
+            {formError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                {formError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowBatchDeleteCategoryModal(false)
+                  setFormError('')
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                disabled={submitting}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmBatchDeleteCategories}
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
