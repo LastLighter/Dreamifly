@@ -784,8 +784,7 @@ export default function DecorationsPage() {
                 <input
                   ref={folderInputRef}
                   type="file"
-                  webkitdirectory=""
-                  directory=""
+                  {...({ webkitdirectory: '', directory: '' } as any)}
                   multiple
                   accept="image/*"
                   onChange={handleFolderUpload}
