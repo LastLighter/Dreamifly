@@ -115,6 +115,7 @@ export async function GET(request: NextRequest) {
       updatedAt: user.updatedAt,
       lastLoginAt: user.lastLoginAt,
       avatarFrameId: user.avatarFrameId,
+      availableAvatarFrameIds: user.availableAvatarFrameIds,
     }).from(user);
     
     // 应用筛选条件

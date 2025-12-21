@@ -142,6 +142,7 @@ export default function AdminPage() {
   const [isAvatarFrameExpanded, setIsAvatarFrameExpanded] = useState(false) // 头像框模块默认折叠
   const [isAvatarFrameInventoryExpanded, setIsAvatarFrameInventoryExpanded] = useState(false) // 头像框库存模块默认折叠
   const [availableFrameIds, setAvailableFrameIds] = useState<string[]>([]) // 用户可用头像框ID列表
+  const [originalAvailableFrameIds, setOriginalAvailableFrameIds] = useState<string[]>([]) // 原始的头像框库存（用于判断是否修改）
   const [newFrameIdInput, setNewFrameIdInput] = useState('') // 新增头像框ID输入
   const [isCompensateSubscriptionExpanded, setIsCompensateSubscriptionExpanded] = useState(false) // 补偿会员模块默认折叠
   const [isCompensatePointsPackageExpanded, setIsCompensatePointsPackageExpanded] = useState(false) // 补偿积分套餐模块默认折叠
@@ -629,6 +630,33 @@ export default function AdminPage() {
     setSelectedPointsPackageId(pointsPackages[0]?.id ?? null)
     setRechargeHistory([]) // 清空充值记录
     setUserPointsBalance(null) // 重置积分余额
+    // 初始化头像框库存
+    let frameIds: string[] = []
+    // 确保正确处理 availableAvatarFrameIds
+    const availableIds = user.availableAvatarFrameIds
+    
+    if (availableIds !== null && availableIds !== undefined && availableIds !== '') {
+      // 转换为字符串并处理
+      const idsStr = String(availableIds).trim()
+      
+      if (idsStr && idsStr !== 'null' && idsStr !== 'undefined') {
+        // 如果有逗号，按逗号分割；否则作为单个ID处理
+        if (idsStr.includes(',')) {
+          frameIds = idsStr.split(',').map(id => id.trim()).filter(id => id !== '')
+        } else {
+          // 单个ID，确保不是空字符串
+          const trimmed = idsStr.trim()
+          if (trimmed) {
+            frameIds = [trimmed]
+          }
+        }
+      }
+    }
+    
+    setAvailableFrameIds(frameIds)
+    setOriginalAvailableFrameIds([...frameIds]) // 保存原始值
+    setNewFrameIdInput('')
+    setIsAvatarFrameInventoryExpanded(false) // 重置为折叠状态
     setShowUserActionModal(true)
     // 获取用户充值记录和积分余额
     fetchRechargeHistory(user.id)
@@ -650,6 +678,7 @@ export default function AdminPage() {
     setUpdatingUser(false)
     setIsAvatarFrameExpanded(false) // 重置为折叠状态
     setAvailableFrameIds([])
+    setOriginalAvailableFrameIds([])
     setNewFrameIdInput('')
     setIsAvatarFrameInventoryExpanded(false) // 重置头像框库存为折叠状态
     setIsCompensatePointsPackageExpanded(false) // 重置补偿积分套餐为折叠状态
@@ -660,7 +689,7 @@ export default function AdminPage() {
     setUserPointsBalance(null) // 重置积分余额
   }
 
-  // 处理直接输入头像框ID
+  // 处理直接输入头像框ID（只能输入被授予的头像框ID）
   const handleDirectFrameIdChange = (value: string) => {
     setDirectFrameIdInput(value)
     const trimmedValue = value.trim()
@@ -670,23 +699,27 @@ export default function AdminPage() {
     }
     const parsed = parseInt(trimmedValue, 10)
     if (!isNaN(parsed) && parsed > 0) {
-      // 检查ID是否存在
-      const frameExists = avatarFrames.some(f => f.id === parsed)
-      if (frameExists) {
+      // 检查ID是否在授予的头像框列表中
+      const isGranted = availableFrameIds.includes(trimmedValue)
+      if (isGranted) {
         setSelectedAvatarFrameId(parsed)
       } else {
-        // ID不存在，但仍然设置（允许设置不存在的ID）
-        setSelectedAvatarFrameId(parsed)
+        // ID不在授予列表中，不设置
+        setSelectedAvatarFrameId(null)
       }
     } else {
       setSelectedAvatarFrameId(null)
     }
   }
 
-  // 根据分类筛选头像框
+  // 根据分类筛选头像框（仅显示用户被授予的头像框）
+  const grantedFrames = availableFrameIds.length > 0
+    ? avatarFrames.filter(frame => availableFrameIds.includes(frame.id.toString()))
+    : []
+  
   const filteredAvatarFrames = selectedCategoryFilter === 'all'
-    ? avatarFrames
-    : avatarFrames.filter(frame => frame.category === selectedCategoryFilter)
+    ? grantedFrames
+    : grantedFrames.filter(frame => frame.category === selectedCategoryFilter)
 
   // 保存用户设置
   const handleSaveUserSettings = async () => {
@@ -694,20 +727,31 @@ export default function AdminPage() {
 
     setUpdatingUser(true)
     try {
+      // 构建请求体
+      const requestBody: any = {
+        userId: selectedUser.id,
+        isPremium: selectedIsPremium,
+        isOldUser: selectedIsOldUser,
+        isActive: selectedIsActive,
+        avatarFrameId: selectedAvatarFrameId,
+      }
+
+      // 只有在头像框库存被修改时才更新（比较当前值和原始值）
+      const currentIdsStr = availableFrameIds.sort().join(',')
+      const originalIdsStr = originalAvailableFrameIds.sort().join(',')
+      if (currentIdsStr !== originalIdsStr) {
+        // 头像框库存被修改了，需要更新
+        requestBody.availableAvatarFrameIds = availableFrameIds.length > 0 ? availableFrameIds.join(',') : null
+      }
+      // 如果没有修改，不发送 availableAvatarFrameIds 字段，API 就不会更新它
+
       const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
         },
-        body: JSON.stringify({
-          userId: selectedUser.id,
-          isPremium: selectedIsPremium,
-          isOldUser: selectedIsOldUser,
-          isActive: selectedIsActive,
-          avatarFrameId: selectedAvatarFrameId,
-          availableAvatarFrameIds: availableFrameIds.length > 0 ? availableFrameIds.join(',') : null,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {
@@ -1535,12 +1579,12 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* 设置用户头像框 */}
+            {/* 设置用户当前头像框 */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <label className="block text-sm font-medium text-gray-700">
-                    头像框
+                    当前头像框
                   </label>
                   {selectedUser.avatarFrameId && (
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
@@ -1567,6 +1611,14 @@ export default function AdminPage() {
 
               {isAvatarFrameExpanded && (
                 <>
+              {availableFrameIds.length === 0 ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    该用户暂无被授予的头像框，请先在"头像框库存"中添加头像框
+                  </p>
+                </div>
+              ) : (
+                <>
               {/* 直接输入头像框ID */}
               <div className="mb-4">
                 <label className="block text-xs font-medium text-gray-600 mb-2">
@@ -1576,19 +1628,24 @@ export default function AdminPage() {
                   type="text"
                   value={directFrameIdInput}
                   onChange={(e) => handleDirectFrameIdChange(e.target.value)}
-                  placeholder="输入头像框ID（留空为无头像框）"
+                  placeholder="输入被授予的头像框ID（留空为无头像框）"
                   disabled={updatingUser}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
                 />
+                {directFrameIdInput && !availableFrameIds.includes(directFrameIdInput.trim()) && (
+                  <p className="mt-1 text-xs text-orange-600">
+                    注意：ID {directFrameIdInput.trim()} 不在该用户的授予列表中
+                  </p>
+                )}
                 {selectedAvatarFrameId && !avatarFrames.some(f => f.id === selectedAvatarFrameId) && (
                   <p className="mt-1 text-xs text-orange-600">
-                    注意：ID {selectedAvatarFrameId} 不存在于当前头像框列表中
+                    注意：ID {selectedAvatarFrameId} 不存在于系统中
                   </p>
                 )}
               </div>
 
               {/* 分类筛选 */}
-              {avatarFrameCategories.length > 0 && (
+              {avatarFrameCategories.length > 0 && filteredAvatarFrames.length > 0 && (
                 <div className="mb-4">
                   <label className="block text-xs font-medium text-gray-600 mb-2">
                     按分类筛选
@@ -1599,7 +1656,7 @@ export default function AdminPage() {
                       setSelectedCategoryFilter(e.target.value)
                       // 如果当前选中的头像框不在筛选后的列表中，清除选择
                       if (e.target.value !== 'all' && selectedAvatarFrameId) {
-                        const frame = avatarFrames.find(f => f.id === selectedAvatarFrameId)
+                        const frame = filteredAvatarFrames.find(f => f.id === selectedAvatarFrameId)
                         if (!frame || frame.category !== e.target.value) {
                           setSelectedAvatarFrameId(null)
                           setDirectFrameIdInput('')
@@ -1609,14 +1666,14 @@ export default function AdminPage() {
                     disabled={updatingUser}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
                   >
-                    <option value="all">全部分类 ({avatarFrames.length})</option>
+                    <option value="all">全部分类 ({filteredAvatarFrames.length})</option>
                     {avatarFrameCategories.map(cat => {
-                      const count = avatarFrames.filter(f => f.category === cat).length
-                      return (
+                      const count = filteredAvatarFrames.filter(f => f.category === cat).length
+                      return count > 0 ? (
                         <option key={cat} value={cat}>
                           {cat} ({count})
                         </option>
-                      )
+                      ) : null
                     })}
                   </select>
                 </div>
@@ -1625,7 +1682,7 @@ export default function AdminPage() {
               {/* 头像框选择列表 */}
               <div className="mb-2">
                 <label className="block text-xs font-medium text-gray-600 mb-2">
-                  从列表选择
+                  从授予的头像框中选择
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-2 border border-gray-200 rounded-lg">
                   <label className="relative cursor-pointer">
@@ -1694,11 +1751,13 @@ export default function AdminPage() {
                   ))}
                 </div>
               </div>
-              {filteredAvatarFrames.length === 0 && avatarFrames.length > 0 && (
-                <p className="mt-2 text-xs text-gray-500">该分类下暂无头像框</p>
+              {filteredAvatarFrames.length === 0 && grantedFrames.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">该分类下暂无被授予的头像框</p>
               )}
-              {avatarFrames.length === 0 && (
-                <p className="mt-2 text-xs text-gray-500">暂无头像框，请先在装饰管理中添加</p>
+              {grantedFrames.length === 0 && availableFrameIds.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">授予的头像框ID在系统中不存在</p>
+              )}
+                </>
               )}
                 </>
               )}
@@ -1739,34 +1798,63 @@ export default function AdminPage() {
                   {/* 当前库存列表 */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-2">
-                      当前可用头像框ID列表
+                      当前可用头像框列表
                     </label>
                     {availableFrameIds.length === 0 ? (
                       <p className="text-xs text-gray-500 py-2">暂无可用头像框</p>
                     ) : (
-                      <div className="flex flex-wrap gap-2 p-3 border border-gray-200 rounded-lg bg-gray-50 min-h-[60px]">
-                        {availableFrameIds.map((frameId, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center gap-1 bg-white border border-gray-300 rounded px-2 py-1 text-sm"
-                          >
-                            <span className="text-gray-700">{frameId}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newIds = availableFrameIds.filter((_, i) => i !== index)
-                                setAvailableFrameIds(newIds)
-                              }}
-                              disabled={updatingUser}
-                              className="text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
-                              title="删除"
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        {availableFrameIds.map((frameId, index) => {
+                          const frameIdNum = parseInt(frameId, 10)
+                          const frame = avatarFrames.find(f => f.id === frameIdNum)
+                          // 确保 frameId 是有效的
+                          if (isNaN(frameIdNum) || frameIdNum <= 0) {
+                            return null
+                          }
+                          return (
+                            <div
+                              key={index}
+                              className="relative bg-white border border-gray-300 rounded-lg p-2 hover:border-orange-400 transition-colors"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </div>
-                        ))}
+                              <div className="aspect-square bg-gray-100 rounded mb-2 overflow-hidden flex items-center justify-center">
+                                {frame?.imageUrl ? (
+                                  <Image
+                                    src={frame.imageUrl}
+                                    alt={`Frame ${frameId}`}
+                                    width={80}
+                                    height={80}
+                                    className="w-full h-full object-contain"
+                                    unoptimized={frame.imageUrl.startsWith('http')}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center">
+                                    <span className="text-xs text-gray-400">ID: {frameId}</span>
+                                    {!frame && (
+                                      <span className="text-xs text-orange-500 mt-1">不存在</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-center">
+                                <span className="text-xs text-gray-600">ID: {frameId}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newIds = availableFrameIds.filter((_, i) => i !== index)
+                                  setAvailableFrameIds(newIds)
+                                }}
+                                disabled={updatingUser}
+                                className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
+                                title="删除"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -1825,40 +1913,6 @@ export default function AdminPage() {
                     <p className="mt-1 text-xs text-gray-500">
                       可以输入单个ID或多个ID（用逗号分隔），按Enter或点击添加按钮
                     </p>
-                  </div>
-
-                  {/* 快速操作 */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-2">
-                      快速操作
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm('确定要清空所有头像框库存吗？')) {
-                            setAvailableFrameIds([])
-                          }
-                        }}
-                        disabled={updatingUser || availableFrameIds.length === 0}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        清空全部
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // 从所有头像框中快速添加
-                          const allFrameIds = avatarFrames.map(f => f.id.toString())
-                          const newIds = [...new Set([...availableFrameIds, ...allFrameIds])]
-                          setAvailableFrameIds(newIds)
-                        }}
-                        disabled={updatingUser || avatarFrames.length === 0}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        添加所有头像框
-                      </button>
-                    </div>
                   </div>
                 </div>
               )}
