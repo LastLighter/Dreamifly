@@ -144,6 +144,17 @@ export default function AdminPage() {
   const [availableFrameIds, setAvailableFrameIds] = useState<string[]>([]) // 用户可用头像框ID列表
   const [originalAvailableFrameIds, setOriginalAvailableFrameIds] = useState<string[]>([]) // 原始的头像框库存（用于判断是否修改）
   const [newFrameIdInput, setNewFrameIdInput] = useState('') // 新增头像框ID输入
+  
+  // 批量操作状态
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set()) // 选中的用户ID
+  const [allSelectedUserIds, setAllSelectedUserIds] = useState<Set<string>>(new Set()) // 全选所有符合条件的用户ID（不分页）
+  const [isSelectAllPages, setIsSelectAllPages] = useState(false) // 是否全选所有页
+  const [showBatchModal, setShowBatchModal] = useState(false) // 显示批量操作模态框
+  const [batchOperation, setBatchOperation] = useState<'setAvatarFrame' | 'addAvatarFrames' | null>(null) // 批量操作类型
+  const [batchFrameId, setBatchFrameId] = useState<string>('') // 批量设置头像框ID
+  const [batchFrameIds, setBatchFrameIds] = useState<string>('') // 批量新增头像框ID（逗号分隔）
+  const [batchProcessing, setBatchProcessing] = useState(false) // 批量处理中
+  const [fetchingAllUserIds, setFetchingAllUserIds] = useState(false) // 正在获取所有用户ID
   const [isCompensateSubscriptionExpanded, setIsCompensateSubscriptionExpanded] = useState(false) // 补偿会员模块默认折叠
   const [isCompensatePointsPackageExpanded, setIsCompensatePointsPackageExpanded] = useState(false) // 补偿积分套餐模块默认折叠
   const [isRechargeHistoryExpanded, setIsRechargeHistoryExpanded] = useState(false) // 充值记录模块默认折叠
@@ -294,11 +305,75 @@ export default function AdminPage() {
       const data: UserListResponse = await response.json()
       setUsers(data.users)
       setPagination(data.pagination)
+      
+      // 如果当前是全选所有页模式，更新当前页的选中状态
+      if (isSelectAllPages) {
+        // 只显示当前页中在全选列表中的用户为选中状态
+        const currentPageIds = new Set(data.users.filter(u => !u.isAdmin).map(u => u.id))
+        const currentPageSelected = new Set<string>()
+        currentPageIds.forEach(id => {
+          if (allSelectedUserIds.has(id)) {
+            currentPageSelected.add(id)
+          }
+        })
+        setSelectedUserIds(currentPageSelected)
+      } else {
+        // 如果不是全选所有页模式，保持当前页的选择状态（不清空）
+        // 但需要移除不在当前页的选中项
+        const currentPageIds = new Set(data.users.map(u => u.id))
+        const newSelected = new Set<string>()
+        selectedUserIds.forEach(id => {
+          if (currentPageIds.has(id)) {
+            newSelected.add(id)
+          }
+        })
+        setSelectedUserIds(newSelected)
+      }
     } catch (err) {
       console.error('Error fetching users:', err)
       setError(err instanceof Error ? err.message : '获取用户列表失败')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 获取所有符合条件的用户ID（不分页）
+  const fetchAllUserIds = async () => {
+    try {
+      setFetchingAllUserIds(true)
+      
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '10000', // 设置一个很大的limit来获取所有用户
+        ...(searchTerm && { search: searchTerm }),
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        ...(emailVerifiedFilter && { emailVerified: emailVerifiedFilter }),
+        emailType: emailTypeFilter,
+        role: roleFilter,
+        status: statusFilter,
+        t: Date.now().toString(),
+      })
+
+      const response = await fetch(`/api/admin/users?${params}`)
+      
+      if (!response.ok) {
+        throw new Error('获取用户列表失败')
+      }
+
+      const data: UserListResponse = await response.json()
+      // 过滤掉管理员
+      const allIds = new Set(data.users.filter(u => !u.isAdmin).map(u => u.id))
+      console.log('fetchAllUserIds: allIds size =', allIds.size, 'ids =', Array.from(allIds))
+      setAllSelectedUserIds(allIds)
+      setSelectedUserIds(new Set(allIds))
+      setIsSelectAllPages(true)
+      console.log('fetchAllUserIds: set isSelectAllPages = true, allSelectedUserIds.size =', allIds.size)
+    } catch (err) {
+      console.error('Error fetching all user IDs:', err)
+      alert('获取所有用户ID失败')
+    } finally {
+      setFetchingAllUserIds(false)
     }
   }
 
@@ -346,6 +421,16 @@ export default function AdminPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter, statusFilter])
+
+  // 当筛选条件改变时，重置全选状态
+  useEffect(() => {
+    if (isAdmin && !checkingAdmin) {
+      setSelectedUserIds(new Set())
+      setIsSelectAllPages(false)
+      setAllSelectedUserIds(new Set())
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, emailVerifiedFilter, emailTypeFilter, roleFilter, statusFilter])
 
   // 获取头像框列表
   const fetchAvatarFrames = async () => {
@@ -720,6 +805,104 @@ export default function AdminPage() {
   const filteredAvatarFrames = selectedCategoryFilter === 'all'
     ? grantedFrames
     : grantedFrames.filter(frame => frame.category === selectedCategoryFilter)
+
+  // 批量操作处理函数
+  const handleBatchOperation = async () => {
+    // 使用全选所有页的ID列表（如果启用），否则使用当前选中的ID
+    const userIdsToProcess = isSelectAllPages 
+      ? (allSelectedUserIds.size > 0 ? allSelectedUserIds : selectedUserIds)
+      : selectedUserIds
+    
+    if (userIdsToProcess.size === 0) return
+    if (!batchOperation) return
+
+    setBatchProcessing(true)
+    try {
+      let requestBody: any = {
+        userIds: Array.from(userIdsToProcess),
+        operation: batchOperation,
+      }
+
+      if (batchOperation === 'setAvatarFrame') {
+        const frameId = parseInt(batchFrameId.trim(), 10)
+        if (isNaN(frameId) || frameId <= 0) {
+          alert('请输入有效的头像框ID')
+          setBatchProcessing(false)
+          return
+        }
+        requestBody.frameId = frameId
+      } else if (batchOperation === 'addAvatarFrames') {
+        const frameIds = batchFrameIds.split(',').map(id => id.trim()).filter(id => id !== '')
+        const validFrameIds = frameIds
+          .map(id => parseInt(id, 10))
+          .filter(id => !isNaN(id) && id > 0)
+        
+        if (validFrameIds.length === 0) {
+          alert('请输入有效的头像框ID（多个用逗号分隔）')
+          setBatchProcessing(false)
+          return
+        }
+        requestBody.frameIds = validFrameIds
+      }
+
+      const response = await fetch('/api/admin/users/batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || '批量操作失败')
+      }
+
+      const data = await response.json()
+      const results = data.results
+
+      // 显示结果
+      let message = `批量操作完成！\n`
+      message += `总计: ${results.total} 个用户\n`
+      message += `成功: ${results.success} 个\n`
+      message += `失败: ${results.failed} 个\n`
+      message += `跳过: ${results.skipped} 个\n\n`
+
+      if (results.failed > 0 || results.skipped > 0) {
+        message += `详细信息：\n`
+        if (results.details.failed.length > 0) {
+          message += `\n失败的用户：\n`
+          results.details.failed.forEach((item: any) => {
+            const user = users.find(u => u.id === item.userId)
+            message += `- ${user?.email || item.userId}: ${item.reason}\n`
+          })
+        }
+        if (results.details.skipped.length > 0) {
+          message += `\n跳过的用户：\n`
+          results.details.skipped.forEach((item: any) => {
+            const user = users.find(u => u.id === item.userId)
+            message += `- ${user?.email || item.userId}: ${item.reason}\n`
+          })
+        }
+      }
+
+      alert(message)
+
+      // 刷新用户列表
+      await fetchUsers()
+      // 关闭模态框并清空选择
+      setShowBatchModal(false)
+      setSelectedUserIds(new Set())
+      setBatchOperation(null)
+      setBatchFrameId('')
+      setBatchFrameIds('')
+    } catch (error) {
+      console.error('Batch operation error:', error)
+      alert(error instanceof Error ? error.message : '批量操作失败')
+    } finally {
+      setBatchProcessing(false)
+    }
+  }
 
   // 保存用户设置
   const handleSaveUserSettings = async () => {
@@ -1231,10 +1414,100 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <>
+                {/* 全选选项 - 放在表格上方 */}
+                <div className="px-6 py-3 bg-red-50 border-b border-red-200">
+                  <div className="flex items-center gap-6">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!isSelectAllPages && users.filter(u => !u.isAdmin).length > 0 && selectedUserIds.size === users.filter(u => !u.isAdmin).length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            // 全选当前页（排除管理员）
+                            const currentPageIds = users.filter(u => !u.isAdmin).map(u => u.id)
+                            setSelectedUserIds(new Set(currentPageIds))
+                            setIsSelectAllPages(false)
+                            setAllSelectedUserIds(new Set())
+                          } else {
+                            setSelectedUserIds(new Set())
+                            setIsSelectAllPages(false)
+                            setAllSelectedUserIds(new Set())
+                          }
+                        }}
+                        disabled={users.filter(u => !u.isAdmin).length === 0}
+                        className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded disabled:opacity-50"
+                      />
+                      <span className="text-sm text-gray-700">全选当前页</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isSelectAllPages) {
+                          // 取消全选所有页
+                          setSelectedUserIds(new Set())
+                          setIsSelectAllPages(false)
+                          setAllSelectedUserIds(new Set())
+                        } else {
+                          // 全选所有页
+                          fetchAllUserIds()
+                        }
+                      }}
+                      disabled={fetchingAllUserIds}
+                      className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 disabled:opacity-50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelectAllPages}
+                        onChange={() => {}} // 由按钮的onClick处理
+                        className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded pointer-events-none"
+                      />
+                      <span>{fetchingAllUserIds ? '加载中...' : isSelectAllPages ? '✓ 已全选所有' : '全选所有(不分页)'}</span>
+                    </button>
+                  </div>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                          <input
+                            type="checkbox"
+                            checked={isSelectAllPages 
+                              ? users.filter(u => !u.isAdmin).length > 0 && users.filter(u => !u.isAdmin).every(u => allSelectedUserIds.has(u.id))
+                              : users.filter(u => !u.isAdmin).length > 0 && selectedUserIds.size === users.filter(u => !u.isAdmin).length}
+                            onChange={(e) => {
+                              if (isSelectAllPages) {
+                                // 全选所有页模式下的切换
+                                if (e.target.checked) {
+                                  const currentPageIds = users.filter(u => !u.isAdmin).map(u => u.id)
+                                  const newAllSelected = new Set(allSelectedUserIds)
+                                  currentPageIds.forEach(id => newAllSelected.add(id))
+                                  setAllSelectedUserIds(newAllSelected)
+                                  setSelectedUserIds(new Set(currentPageIds))
+                                } else {
+                                  const currentPageIds = users.filter(u => !u.isAdmin).map(u => u.id)
+                                  const newAllSelected = new Set(allSelectedUserIds)
+                                  currentPageIds.forEach(id => newAllSelected.delete(id))
+                                  setAllSelectedUserIds(newAllSelected)
+                                  setSelectedUserIds(new Set())
+                                  if (newAllSelected.size === 0) {
+                                    setIsSelectAllPages(false)
+                                  }
+                                }
+                              } else {
+                                // 普通模式下的切换
+                                if (e.target.checked) {
+                                  const currentPageIds = users.filter(u => !u.isAdmin).map(u => u.id)
+                                  setSelectedUserIds(new Set(currentPageIds))
+                                } else {
+                                  setSelectedUserIds(new Set())
+                                }
+                              }
+                            }}
+                            disabled={users.filter(u => !u.isAdmin).length === 0}
+                            className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded disabled:opacity-50"
+                          />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           用户信息
                         </th>
@@ -1261,6 +1534,39 @@ export default function AdminPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {users.map((user) => (
                         <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={selectedUserIds.has(user.id)}
+                              onChange={(e) => {
+                                const newSelected = new Set(selectedUserIds)
+                                if (e.target.checked) {
+                                  newSelected.add(user.id)
+                                  // 如果全选所有页，也要更新allSelectedUserIds
+                                  if (isSelectAllPages) {
+                                    const newAllSelected = new Set(allSelectedUserIds)
+                                    newAllSelected.add(user.id)
+                                    setAllSelectedUserIds(newAllSelected)
+                                  }
+                                } else {
+                                  newSelected.delete(user.id)
+                                  // 如果全选所有页，也要从allSelectedUserIds中移除
+                                  if (isSelectAllPages) {
+                                    const newAllSelected = new Set(allSelectedUserIds)
+                                    newAllSelected.delete(user.id)
+                                    setAllSelectedUserIds(newAllSelected)
+                                    // 如果移除后没有选中任何用户，取消全选所有页模式
+                                    if (newAllSelected.size === 0) {
+                                      setIsSelectAllPages(false)
+                                    }
+                                  }
+                                }
+                                setSelectedUserIds(newSelected)
+                              }}
+                              disabled={user.isAdmin} // 管理员不可选择
+                              className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded disabled:opacity-50"
+                            />
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <Image
@@ -1387,6 +1693,53 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* 批量操作栏 */}
+                {(selectedUserIds.size > 0 || (isSelectAllPages && allSelectedUserIds.size > 0)) && (
+                  <div className="bg-orange-50 border-t border-orange-200 px-6 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        {isSelectAllPages ? (
+                          <>已全选所有符合条件的用户（共 {allSelectedUserIds.size > 0 ? allSelectedUserIds.size : selectedUserIds.size} 个）</>
+                        ) : (
+                          <>已选择 {selectedUserIds.size} 个用户（当前页）</>
+                        )}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedUserIds(new Set())
+                          setIsSelectAllPages(false)
+                          setAllSelectedUserIds(new Set())
+                        }}
+                        className="text-sm text-gray-600 hover:text-gray-900 underline"
+                      >
+                        取消选择
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setBatchOperation('setAvatarFrame')
+                          setBatchFrameId('')
+                          setShowBatchModal(true)
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+                      >
+                        批量设置当前头像框
+                      </button>
+                      <button
+                        onClick={() => {
+                          setBatchOperation('addAvatarFrames')
+                          setBatchFrameIds('')
+                          setShowBatchModal(true)
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+                      >
+                        批量新增头像框
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* 分页 */}
                 {pagination.totalPages > 1 && (
@@ -2271,6 +2624,117 @@ export default function AdminPage() {
                   我知道了
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批量操作模态框 */}
+      {showBatchModal && batchOperation && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {batchOperation === 'setAvatarFrame' ? '批量设置当前头像框' : '批量新增头像框'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowBatchModal(false)
+                  setBatchOperation(null)
+                  setBatchFrameId('')
+                  setBatchFrameIds('')
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={batchProcessing}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 mb-4">
+                将对选中的 <span className="font-semibold text-orange-600">
+                  {isSelectAllPages ? allSelectedUserIds.size : selectedUserIds.size}
+                </span> 个用户执行操作
+                {isSelectAllPages && (
+                  <span className="block mt-1 text-xs text-orange-600">
+                    （已全选所有符合条件的用户，不分页）
+                  </span>
+                )}
+              </p>
+
+              {batchOperation === 'setAvatarFrame' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    头像框ID
+                  </label>
+                  <input
+                    type="number"
+                    value={batchFrameId}
+                    onChange={(e) => setBatchFrameId(e.target.value)}
+                    placeholder="输入头像框ID"
+                    disabled={batchProcessing}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none disabled:opacity-50"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    注意：只会为已拥有该头像框的用户设置（在available_avatar_frame_ids中）
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    头像框ID（多个用逗号分隔）
+                  </label>
+                  <input
+                    type="text"
+                    value={batchFrameIds}
+                    onChange={(e) => {
+                      const value = e.target.value.trim()
+                      // 只允许输入数字和逗号
+                      if (value === '' || /^[\d,]+$/.test(value)) {
+                        setBatchFrameIds(value)
+                      }
+                    }}
+                    placeholder="例如：1,2,3"
+                    disabled={batchProcessing}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none disabled:opacity-50"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    注意：如果用户已拥有某个头像框，不会重复添加
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowBatchModal(false)
+                  setBatchOperation(null)
+                  setBatchFrameId('')
+                  setBatchFrameIds('')
+                }}
+                disabled={batchProcessing}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBatchOperation}
+                disabled={batchProcessing || (batchOperation === 'setAvatarFrame' ? !batchFrameId.trim() : !batchFrameIds.trim())}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {batchProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>处理中...</span>
+                  </>
+                ) : (
+                  '确认执行'
+                )}
+              </button>
             </div>
           </div>
         </div>
