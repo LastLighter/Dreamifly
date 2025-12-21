@@ -140,10 +140,15 @@ export default function AdminPage() {
   const [updatingUser, setUpdatingUser] = useState(false)
   const [isAvatarFrameExpanded, setIsAvatarFrameExpanded] = useState(false) // 头像框模块默认折叠
   const [isCompensateSubscriptionExpanded, setIsCompensateSubscriptionExpanded] = useState(false) // 补偿会员模块默认折叠
+  const [isCompensatePointsPackageExpanded, setIsCompensatePointsPackageExpanded] = useState(false) // 补偿积分套餐模块默认折叠
   const [isRechargeHistoryExpanded, setIsRechargeHistoryExpanded] = useState(false) // 充值记录模块默认折叠
   const [subscriptionPlans, setSubscriptionPlans] = useState<Array<{ id: number; name: string; type: string; bonusPoints: number }>>([])
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
   const [compensating, setCompensating] = useState(false)
+  const [pointsPackages, setPointsPackages] = useState<Array<{ id: number; name: string; points: number }>>([])
+  const [selectedPointsPackageId, setSelectedPointsPackageId] = useState<number | null>(null)
+  const [compensatingPoints, setCompensatingPoints] = useState(false)
+  const [userPointsBalance, setUserPointsBalance] = useState<number | null>(null)
   const [rechargeHistory, setRechargeHistory] = useState<Array<{
     id: string
     orderType: string
@@ -332,6 +337,7 @@ export default function AdminPage() {
       fetchAvatarFrames()
       fetchEmailDomains()
       fetchSubscriptionPlans()
+      fetchPointsPackages()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter, statusFilter])
@@ -374,6 +380,41 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Failed to fetch subscription plans:', error)
+    }
+  }
+
+  const fetchPointsPackages = async () => {
+    try {
+      const response = await fetch(`/api/points/packages?t=${Date.now()}`, { cache: 'no-store' })
+      if (response.ok) {
+        const data = await response.json()
+        const packages = (data?.packages || []).map((pkg: any) => ({
+          id: pkg.id,
+          name: pkg.name,
+          points: pkg.points ?? 0,
+        }))
+        setPointsPackages(packages)
+        if (packages.length > 0) {
+          setSelectedPointsPackageId(packages[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch points packages:', error)
+    }
+  }
+
+  const fetchUserPointsBalance = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/points-balance?userId=${userId}&t=${Date.now()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setUserPointsBalance(data.balance ?? 0)
+      } else {
+        setUserPointsBalance(null)
+      }
+    } catch (error) {
+      console.error('Failed to fetch user points balance:', error)
+      setUserPointsBalance(null)
     }
   }
 
@@ -578,12 +619,16 @@ export default function AdminPage() {
     setDirectFrameIdInput(user.avatarFrameId?.toString() || '')
     setIsAvatarFrameExpanded(false) // 重置为折叠状态
     setIsCompensateSubscriptionExpanded(false) // 重置补偿会员为折叠状态
+    setIsCompensatePointsPackageExpanded(false) // 重置补偿积分套餐为折叠状态
     setIsRechargeHistoryExpanded(false) // 重置充值记录为折叠状态
     setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
+    setSelectedPointsPackageId(pointsPackages[0]?.id ?? null)
     setRechargeHistory([]) // 清空充值记录
+    setUserPointsBalance(null) // 重置积分余额
     setShowUserActionModal(true)
-    // 获取用户充值记录
+    // 获取用户充值记录和积分余额
     fetchRechargeHistory(user.id)
+    fetchUserPointsBalance(user.id)
   }
 
   // 关闭用户操作模态框
@@ -600,8 +645,12 @@ export default function AdminPage() {
     setRechargeHistory([]) // 清空充值记录
     setUpdatingUser(false)
     setIsAvatarFrameExpanded(false) // 重置为折叠状态
+    setIsCompensatePointsPackageExpanded(false) // 重置补偿积分套餐为折叠状态
     setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
+    setSelectedPointsPackageId(pointsPackages[0]?.id ?? null)
     setCompensating(false)
+    setCompensatingPoints(false)
+    setUserPointsBalance(null) // 重置积分余额
   }
 
   // 处理直接输入头像框ID
@@ -727,6 +776,50 @@ export default function AdminPage() {
         showDialog('error', '补偿失败', error instanceof Error ? error.message : '补偿会员失败')
       } finally {
         setCompensating(false)
+      }
+    })
+  }
+
+  const handleCompensatePointsPackage = async () => {
+    if (!selectedUser) return
+    if (!selectedPointsPackageId) {
+      showDialog('error', '补偿失败', '请选择要补偿的积分套餐')
+      return
+    }
+
+    const packageData = pointsPackages.find(p => p.id === selectedPointsPackageId)
+    const packageName = packageData ? `${packageData.name}（${packageData.points}积分）` : '积分套餐'
+
+    // 二次确认
+    showDialog('confirm', '确认补偿积分套餐', `确定要为用户 ${selectedUser.name || selectedUser.email} 补偿 ${packageName} 吗？补偿后将直接增加对应积分（积分有效期一年）。`, async () => {
+      setCompensatingPoints(true)
+      try {
+        const response = await fetch(`/api/admin/users/compensate-points-package?t=${Date.now()}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify({
+            userId: selectedUser.id,
+            packageId: selectedPointsPackageId,
+          }),
+        })
+
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data?.error || '补偿失败')
+        }
+
+        // 刷新用户积分余额
+        await fetchUserPointsBalance(selectedUser.id)
+
+        showDialog('success', '补偿成功', `已为该用户补偿 ${packageName}`)
+      } catch (error) {
+        console.error('Failed to compensate points package:', error)
+        showDialog('error', '补偿失败', error instanceof Error ? error.message : '补偿积分套餐失败')
+      } finally {
+        setCompensatingPoints(false)
       }
     })
   }
@@ -1774,6 +1867,79 @@ export default function AdminPage() {
                           </>
                         ) : (
                           '补偿会员'
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* 补偿积分套餐 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  补偿积分套餐
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="text-xs text-gray-500">
+                    当前积分：{userPointsBalance !== null ? userPointsBalance : '加载中...'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCompensatePointsPackageExpanded(!isCompensatePointsPackageExpanded)}
+                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <span>{isCompensatePointsPackageExpanded ? '收起' : '展开'}</span>
+                    <svg
+                      className={`w-4 h-4 transform transition-transform duration-200 ${isCompensatePointsPackageExpanded ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              {isCompensatePointsPackageExpanded && (
+                <>
+                  {pointsPackages.length === 0 ? (
+                    <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                      暂无可用套餐，请先在积分套餐配置中添加
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-2">
+                        <select
+                          value={selectedPointsPackageId ?? ''}
+                          onChange={(e) => setSelectedPointsPackageId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                          disabled={compensatingPoints}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                        >
+                          {pointsPackages.map(pkg => (
+                            <option key={pkg.id} value={pkg.id}>
+                              {pkg.name}（{pkg.points}积分）
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500">
+                          选择套餐后点击补偿，将直接增加对应积分（积分有效期一年）。
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCompensatePointsPackage}
+                        disabled={compensatingPoints}
+                        className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {compensatingPoints ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>补偿中...</span>
+                          </>
+                        ) : (
+                          '补偿积分套餐'
                         )}
                       </button>
                     </div>
