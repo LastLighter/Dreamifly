@@ -22,27 +22,37 @@ export function filterProfanity(
 
   let filteredText = text;
 
-  // 对每个违禁词进行替换
-  words.forEach((word) => {
+  // 对每个违禁词进行替换（确保所有违禁词都被替换）
+  // 使用 for...of 循环确保所有违禁词都被处理
+  for (const word of words) {
     if (!word || word.trim() === '') {
-      return;
+      continue;
     }
 
-    const escapedWord = escapeRegExp(word);
+    const trimmedWord = word.trim();
+    const escapedWord = escapeRegExp(trimmedWord);
     
     // 判断是否为中文（包含中文字符）
-    const isChinese = /[\u4e00-\u9fa5]/.test(word);
+    const isChinese = /[\u4e00-\u9fa5]/.test(trimmedWord);
     
     // 对于中文，不使用单词边界；对于英文，使用单词边界
+    // 使用全局标志 'g' 确保替换所有匹配项（包括同一违禁词出现多次的情况）
     const regex = isChinese
-      ? new RegExp(escapedWord, 'gi')
+      ? new RegExp(escapedWord, 'g')
       : new RegExp(`\\b${escapedWord}\\b`, 'gi');
     
     // 将违禁词替换为相同长度的星号
+    // replace 配合全局标志 'g' 会替换所有匹配项，不会只替换第一个
+    const beforeReplace = filteredText;
     filteredText = filteredText.replace(regex, (match) => {
       return '*'.repeat(match.length);
     });
-  });
+    
+    // 调试信息：如果进行了替换，记录日志
+    if (beforeReplace !== filteredText) {
+      console.log(`已替换违禁词: "${trimmedWord}"`);
+    }
+  }
 
   return filteredText;
 }
