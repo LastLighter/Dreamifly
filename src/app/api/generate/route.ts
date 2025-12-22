@@ -691,7 +691,9 @@ export async function POST(request: Request) {
     
     // 解析请求体（提前解析，以便检查积分和额度）
     const body = await request.json()
-    let { prompt, width, height, steps, seed, batch_size, model, images, negative_prompt } = body
+    let prompt: string
+    const { prompt: originalPrompt, width, height, steps, seed, batch_size, model, images, negative_prompt } = body
+    prompt = originalPrompt
     
     // 如果是图生图模式，对 prompt 进行违禁词过滤（在接收请求时处理）
     if (images && images.length > 0) {
