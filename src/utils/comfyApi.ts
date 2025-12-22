@@ -34,6 +34,8 @@ interface GenerateParams {
 }
 
 export async function generateImage(params: GenerateParams): Promise<string> {
+  // 注意：prompt 已经在 API 路由入口处进行了违禁词过滤，这里直接使用即可
+
   // 1. 准备工作流数据
   let workflow = {};
   if(params.images && params.images.length > 0){

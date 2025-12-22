@@ -12,7 +12,7 @@ import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
 import { getThumbnailUrl } from '@/utils/oss'
 
-type TabType = 'approved' | 'rejected'
+type TabType = 'approved' | 'rejected' | 'profanity'
 type RoleFilter = 'all' | 'subscribed' | 'premium' | 'oldUser' | 'regular'
 
 interface ImageItem {
@@ -74,6 +74,25 @@ export default function GodEyePage() {
   const [reasonFilter, setReasonFilter] = useState<'all' | 'image' | 'prompt' | 'both'>('all')
   const [blurEnabled, setBlurEnabled] = useState(true) // 默认开启磨砂玻璃
   const [decodedImages, setDecodedImages] = useState<{ [key: string]: string }>({})
+
+  // 违禁词管理相关状态
+  interface ProfanityWord {
+    id: number
+    word: string
+    isEnabled: boolean
+    createdAt: string | Date
+    updatedAt: string | Date
+  }
+
+  const [profanityWords, setProfanityWords] = useState<ProfanityWord[]>([])
+  const [profanityLoading, setProfanityLoading] = useState(false)
+  const [profanityError, setProfanityError] = useState('')
+  const [profanitySuccess, setProfanitySuccess] = useState('')
+  const [showProfanityModal, setShowProfanityModal] = useState(false)
+  const [editingProfanity, setEditingProfanity] = useState<ProfanityWord | null>(null)
+  const [formProfanityWord, setFormProfanityWord] = useState('')
+  const [formProfanityEnabled, setFormProfanityEnabled] = useState(true)
+  const [savingProfanity, setSavingProfanity] = useState(false)
 
   // 隐藏父级 layout 的 Navbar 和 Footer
   useEffect(() => {
@@ -163,6 +182,32 @@ export default function GodEyePage() {
 
     fetchCurrentUser()
   }, [session?.user])
+
+  // 获取违禁词列表（仅在切到对应Tab时加载）
+  useEffect(() => {
+    const fetchProfanityWords = async () => {
+      if (!isAdmin || activeTab !== 'profanity') return
+
+      setProfanityLoading(true)
+      setProfanityError('')
+      try {
+        const response = await fetch(`/api/admin/profanity-words?t=${Date.now()}`)
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}))
+          throw new Error(data.error || '获取违禁词列表失败')
+        }
+        const data = await response.json()
+        setProfanityWords(data.words || [])
+      } catch (error) {
+        console.error('Error fetching profanity words:', error)
+        setProfanityError(error instanceof Error ? error.message : '获取违禁词列表失败')
+      } finally {
+        setProfanityLoading(false)
+      }
+    }
+
+    fetchProfanityWords()
+  }, [isAdmin, activeTab])
 
   // 获取通过审核图片列表
   useEffect(() => {
@@ -254,6 +299,166 @@ export default function GodEyePage() {
     setPage(1)
     setRejectedPage(1)
   }, [activeTab])
+
+  // 违禁词：打开新增弹窗
+  const handleOpenAddProfanityModal = () => {
+    setEditingProfanity(null)
+    setFormProfanityWord('')
+    setFormProfanityEnabled(true)
+    setShowProfanityModal(true)
+    setProfanityError('')
+    setProfanitySuccess('')
+  }
+
+  // 违禁词：打开编辑弹窗
+  const handleOpenEditProfanityModal = (item: ProfanityWord) => {
+    setEditingProfanity(item)
+    setFormProfanityWord(item.word)
+    setFormProfanityEnabled(item.isEnabled)
+    setShowProfanityModal(true)
+    setProfanityError('')
+    setProfanitySuccess('')
+  }
+
+  // 违禁词：关闭弹窗
+  const handleCloseProfanityModal = () => {
+    setShowProfanityModal(false)
+    setEditingProfanity(null)
+    setFormProfanityWord('')
+    setFormProfanityEnabled(true)
+    setProfanityError('')
+    setProfanitySuccess('')
+  }
+
+  // 违禁词：保存
+  const handleSaveProfanity = async () => {
+    if (!formProfanityWord.trim()) {
+      setProfanityError('请输入违禁词内容')
+      return
+    }
+
+    setSavingProfanity(true)
+    setProfanityError('')
+    setProfanitySuccess('')
+
+    try {
+      const url = '/api/admin/profanity-words'
+      const method = editingProfanity ? 'PATCH' : 'POST'
+      const body = editingProfanity
+        ? { id: editingProfanity.id, word: formProfanityWord.trim(), isEnabled: formProfanityEnabled }
+        : { word: formProfanityWord.trim(), isEnabled: formProfanityEnabled }
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '保存失败')
+      }
+
+      setProfanitySuccess(editingProfanity ? '更新成功' : '添加成功')
+      setTimeout(async () => {
+        handleCloseProfanityModal()
+        try {
+          const listRes = await fetch(`/api/admin/profanity-words?t=${Date.now()}`)
+          const listData = await listRes.json()
+          if (listRes.ok) {
+            setProfanityWords(listData.words || [])
+          }
+        } catch (e) {
+          console.error('刷新违禁词列表失败:', e)
+        }
+      }, 1000)
+    } catch (error) {
+      console.error('Error saving profanity word:', error)
+      setProfanityError(error instanceof Error ? error.message : '保存失败')
+    } finally {
+      setSavingProfanity(false)
+    }
+  }
+
+  // 违禁词：切换启用状态
+  const handleToggleProfanityEnabled = async (item: ProfanityWord) => {
+    try {
+      const response = await fetch('/api/admin/profanity-words', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: item.id,
+          isEnabled: !item.isEnabled,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '更新失败')
+      }
+
+      setProfanitySuccess('更新成功')
+      setTimeout(async () => {
+        setProfanitySuccess('')
+        try {
+          const listRes = await fetch(`/api/admin/profanity-words?t=${Date.now()}`)
+          const listData = await listRes.json()
+          if (listRes.ok) {
+            setProfanityWords(listData.words || [])
+          }
+        } catch (e) {
+          console.error('刷新违禁词列表失败:', e)
+        }
+      }, 2000)
+    } catch (error) {
+      console.error('Error toggling profanity enabled:', error)
+      setProfanityError(error instanceof Error ? error.message : '更新失败')
+      setTimeout(() => setProfanityError(''), 3000)
+    }
+  }
+
+  // 违禁词：删除
+  const handleDeleteProfanity = async (item: ProfanityWord) => {
+    if (!confirm(`确定要删除违禁词 "${item.word}" 吗？`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/profanity-words?id=${item.id}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || '删除失败')
+      }
+
+      setProfanitySuccess('删除成功')
+      setTimeout(async () => {
+        setProfanitySuccess('')
+        try {
+          const listRes = await fetch(`/api/admin/profanity-words?t=${Date.now()}`)
+          const listData = await listRes.json()
+          if (listRes.ok) {
+            setProfanityWords(listData.words || [])
+          }
+        } catch (e) {
+          console.error('刷新违禁词列表失败:', e)
+        }
+      }, 2000)
+    } catch (error) {
+      console.error('Error deleting profanity word:', error)
+      setProfanityError(error instanceof Error ? error.message : '删除失败')
+      setTimeout(() => setProfanityError(''), 3000)
+    }
+  }
 
   // 处理未通过审核图片搜索
   const handleRejectedSearch = () => {
@@ -538,6 +743,7 @@ export default function GodEyePage() {
                 {[
                   { id: 'approved', label: '通过审核图片' },
                   { id: 'rejected', label: '未通过审核图片' },
+                  { id: 'profanity', label: '违禁词管理' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -823,7 +1029,7 @@ export default function GodEyePage() {
                   </>
                 )}
               </div>
-            ) : (
+            ) : activeTab === 'rejected' ? (
               <div className="space-y-4">
                 {/* 控制栏 */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -1155,6 +1361,130 @@ export default function GodEyePage() {
                   </>
                 )}
               </div>
+            ) : (
+              // 违禁词管理
+              <div className="space-y-4">
+                {/* 操作栏 */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      共 {profanityWords.length} 个违禁词，其中{' '}
+                      {profanityWords.filter((w) => w.isEnabled).length} 个已启用
+                    </div>
+                    <button
+                      onClick={handleOpenAddProfanityModal}
+                      className="px-4 py-2 bg-gradient-to-r from-orange-400 to-amber-400 text-white font-semibold rounded-lg hover:from-orange-500 hover:to-amber-500 transition-all flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      添加违禁词
+                    </button>
+                  </div>
+                </div>
+
+                {/* 错误/成功提示 */}
+                {profanityError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+                    {profanityError}
+                  </div>
+                )}
+                {profanitySuccess && (
+                  <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-sm">
+                    {profanitySuccess}
+                  </div>
+                )}
+
+                {/* 列表 */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  {profanityLoading ? (
+                    <div className="p-8 text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                      <p className="text-gray-600">加载中...</p>
+                    </div>
+                  ) : profanityWords.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      暂无违禁词，点击「添加违禁词」按钮添加
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-gray-50 border-b border-gray-200">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              违禁词
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              状态
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              创建时间
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              更新时间
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              操作
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {profanityWords.map((item) => (
+                            <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">{item.word}</div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {item.isEnabled ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    已启用
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    已禁用
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {item.createdAt ? new Date(item.createdAt).toLocaleString('zh-CN') : '-'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {item.updatedAt ? new Date(item.updatedAt).toLocaleString('zh-CN') : '-'}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleToggleProfanityEnabled(item)}
+                                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                                      item.isEnabled
+                                        ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                                        : 'bg-green-100 text-green-800 hover:bg-green-200'
+                                    }`}
+                                  >
+                                    {item.isEnabled ? '禁用' : '启用'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenEditProfanityModal(item)}
+                                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-xs font-medium hover:bg-blue-200 transition-colors"
+                                  >
+                                    编辑
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteProfanity(item)}
+                                    className="px-3 py-1 bg-red-100 text-red-800 rounded-lg text-xs font-medium hover:bg-red-200 transition-colors"
+                                  >
+                                    删除
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
             {/* 图片预览模态框 */}
@@ -1190,6 +1520,92 @@ export default function GodEyePage() {
                       />
                     </svg>
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* 违禁词添加/编辑模态框 */}
+            {showProfanityModal && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      {editingProfanity ? '编辑违禁词' : '添加违禁词'}
+                    </h2>
+                    <button
+                      onClick={handleCloseProfanityModal}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {profanityError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                      {profanityError}
+                    </div>
+                  )}
+                  {profanitySuccess && (
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+                      {profanitySuccess}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="profanity-word" className="block text-sm font-medium text-gray-700 mb-2">
+                        违禁词内容
+                      </label>
+                      <input
+                        id="profanity-word"
+                        type="text"
+                        value={formProfanityWord}
+                        onChange={(e) => setFormProfanityWord(e.target.value)}
+                        placeholder="例如：敏感词"
+                        disabled={savingProfanity}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">支持中英文词语，图生图提示词中会自动替换为星号。</p>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formProfanityEnabled}
+                          onChange={(e) => setFormProfanityEnabled(e.target.checked)}
+                          disabled={savingProfanity}
+                          className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded"
+                        />
+                        <span className="text-sm text-gray-700">启用此违禁词</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6 pt-4 border-top border-gray-200">
+                    <button
+                      onClick={handleCloseProfanityModal}
+                      disabled={savingProfanity}
+                      className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleSaveProfanity}
+                      disabled={savingProfanity}
+                      className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {savingProfanity ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>保存中...</span>
+                        </>
+                      ) : (
+                        '保存'
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

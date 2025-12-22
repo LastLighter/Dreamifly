@@ -289,6 +289,15 @@ export const rejectedImages = pgTable("rejected_images", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// 违禁词表
+export const profanityWord = pgTable("profanity_word", {
+  id: serial("id").primaryKey(), // 自增ID
+  word: text("word").notNull().unique(), // 违禁词内容，唯一
+  isEnabled: boolean("is_enabled").default(true).notNull(), // 是否启用
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+});
+
 // 用户与头像框的关系
 export const userRelations = relations(user, ({ one }) => ({
   avatarFrame: one(avatarFrame, {
