@@ -11,7 +11,7 @@ import { headers } from 'next/headers'
  * - page: 页码（默认1）
  * - limit: 每页数量（默认20）
  * - role: 用户角色筛选（subscribed, premium, oldUser, regular, all）
- * - search: 搜索关键词（用户昵称）
+ * - search: 搜索关键词（支持用户名、昵称、邮箱）
  * - startTime: 开始时间（ISO 8601 UTC 格式，精确到分钟）
  * - endTime: 结束时间（ISO 8601 UTC 格式，精确到分钟）
  * - reason: 拒绝原因筛选（image, prompt, both, all）
@@ -117,12 +117,17 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(rejectedImages.model, modelFilter.trim()))
     }
 
-    // 搜索筛选（用户昵称）- 使用user表的nickname字段
+    // 搜索筛选（支持用户名、昵称、邮箱）
     if (search.trim()) {
+      const searchTerm = `%${search.trim()}%`
       conditions.push(
         and(
           isNotNull(rejectedImages.userId), // 只搜索已登录用户
-          like(user.nickname, `%${search.trim()}%`)
+          or(
+            like(user.name, searchTerm),
+            like(user.nickname, searchTerm),
+            like(user.email, searchTerm)
+          )
         )
       )
     }

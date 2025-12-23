@@ -1268,7 +1268,7 @@ export default function GodEyePage() {
                     <div className="flex items-center gap-2 flex-1 min-w-[200px] h-[38px]">
                       <input
                         type="text"
-                        placeholder="搜索用户昵称"
+                        placeholder="搜索用户名、昵称或邮箱"
                         className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                         value={rejectedSearchInput}
                         onChange={(e) => setRejectedSearchInput(e.target.value)}
