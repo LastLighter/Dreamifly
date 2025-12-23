@@ -1258,52 +1258,64 @@ export default function GodEyePage() {
                           className="group relative rounded-xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-all"
                         >
                           <div className="aspect-square relative overflow-hidden bg-gray-100">
-                            {/* 磨砂玻璃层 */}
-                            {!unmaskedImages.has(image.id) && (
-                              <div className="absolute inset-0 bg-white/30 backdrop-blur-md z-10 flex flex-col items-center justify-center gap-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setUnmaskedImages(prev => new Set(prev).add(image.id))
-                                  }}
-                                  className="px-4 py-2 bg-black/60 backdrop-blur-sm text-white rounded-lg hover:bg-black/80 transition-colors"
-                                >
-                                  移除遮罩
-                                </button>
-                                {!decodedImages[image.id] && (
-                                  <div className="flex items-center gap-2 text-xs text-gray-800 bg-white/70 px-2 py-1 rounded-md">
-                                    <div className="h-3 w-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                                    <span>正在解码...</span>
-                                  </div>
-                                )}
+                            {/* 模型标签 - 右上角毛玻璃效果 */}
+                            {image.model && (
+                              <div className="absolute top-2 right-2 px-2.5 py-1 bg-white/20 backdrop-blur-md rounded-lg border border-white/30 z-30">
+                                <span className="text-xs font-medium text-gray-800 whitespace-nowrap">
+                                  {image.model}
+                                </span>
                               </div>
                             )}
                             
-                            {/* 图片 */}
-                            {decodedImages[image.id] ? (
-                              <Image
-                                src={decodedImages[image.id]}
-                                alt={image.prompt || '未通过审核的图片'}
-                                fill
-                                className={`object-cover cursor-zoom-in ${!unmaskedImages.has(image.id) ? 'blur-sm' : ''}`}
-                                onClick={(e) => {
-                                  if (unmaskedImages.has(image.id)) {
-                                    handleImageClick(decodedImages[image.id], e)
-                                  }
-                                }}
-                                unoptimized
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                                <div className="text-center">
-                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto mb-2"></div>
-                                  <p className="text-xs text-gray-500">解码中...</p>
+                            {/* 图片容器 */}
+                            <div className="absolute inset-0">
+                              {/* 磨砂玻璃层 - 只遮住图片区域，不遮住底部信息 */}
+                              {!unmaskedImages.has(image.id) && (
+                                <div className="absolute top-0 left-0 right-0 bottom-16 bg-white/30 backdrop-blur-md z-[5] flex flex-col items-center justify-center gap-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setUnmaskedImages(prev => new Set(prev).add(image.id))
+                                    }}
+                                    className="px-4 py-2 bg-black/60 backdrop-blur-sm text-white rounded-lg hover:bg-black/80 transition-colors"
+                                  >
+                                    移除遮罩
+                                  </button>
+                                  {!decodedImages[image.id] && (
+                                    <div className="flex items-center gap-2 text-xs text-gray-800 bg-white/70 px-2 py-1 rounded-md">
+                                      <div className="h-3 w-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                                      <span>正在解码...</span>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            )}
+                              )}
+                              
+                              {/* 图片 */}
+                              {decodedImages[image.id] ? (
+                                <Image
+                                  src={decodedImages[image.id]}
+                                  alt={image.prompt || '未通过审核的图片'}
+                                  fill
+                                  className={`object-cover cursor-zoom-in ${!unmaskedImages.has(image.id) ? 'blur-sm' : ''}`}
+                                  onClick={(e) => {
+                                    if (unmaskedImages.has(image.id)) {
+                                      handleImageClick(decodedImages[image.id], e)
+                                    }
+                                  }}
+                                  unoptimized
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                                  <div className="text-center">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                                    <p className="text-xs text-gray-500">解码中...</p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
 
-                            {/* 用户信息覆盖层 */}
-                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 via-black/50 to-transparent backdrop-blur-sm">
+                            {/* 用户信息覆盖层 - 确保在遮罩之上 */}
+                            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 via-black/50 to-transparent backdrop-blur-sm z-20">
                               <div className="flex items-center gap-2 mb-2">
                                 <AvatarWithFrame
                                   avatar={image.userAvatar}
