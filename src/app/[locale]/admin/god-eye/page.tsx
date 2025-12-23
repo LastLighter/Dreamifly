@@ -502,37 +502,13 @@ export default function GodEyePage() {
     setRejectedPage(1)
   }
 
-  // 解码OSS中的被拒图片（前端执行，遮罩仅遮挡视觉）
-  const decodeObfuscatedBase64 = (obfuscated: string) => {
-    return obfuscated
-      .split('')
-      .map((char, index) => {
-        if (char >= 'A' && char <= 'Z') {
-          return String.fromCharCode(((char.charCodeAt(0) - 65 - (index % 26) + 26) % 26) + 65)
-        }
-        if (char >= 'a' && char <= 'z') {
-          return String.fromCharCode(((char.charCodeAt(0) - 97 - (index % 26) + 26) % 26) + 97)
-        }
-        if (char >= '0' && char <= '9') {
-          return String.fromCharCode(((char.charCodeAt(0) - 48 - (index % 10) + 10) % 10) + 48)
-        }
-        return char
-      })
-      .join('')
-  }
-
+  // 解码未通过审核的图片（使用统一的解密函数）
   const decodeRejectedImage = async (imageId: string, imageUrl: string) => {
     try {
-      const response = await fetch(imageUrl)
-      if (!response.ok) {
-        throw new Error(`fetch rejected image failed: ${response.status}`)
-      }
-      const obfuscated = await response.text()
-      const base64 = decodeObfuscatedBase64(obfuscated)
-      const dataUrl = `data:image/png;base64,${base64}`
+      const decodedUrl = await getImageDisplayUrl(imageUrl, decodedImages)
       setDecodedImages((prev) => {
         if (prev[imageId]) return prev
-        return { ...prev, [imageId]: dataUrl }
+        return { ...prev, [imageId]: decodedUrl }
       })
     } catch (error) {
       console.error('前端解码未通过图片失败:', error)
@@ -686,8 +662,26 @@ export default function GodEyePage() {
           setZoomedImage(decodedApprovedImages[imageUrl])
         }
       } else {
-        // 未通过审核的图片使用 decodedImages
-        setZoomedImage(decodedImages[imageUrl] || imageUrl)
+        // 未通过审核的图片：传入的 imageUrl 已经是解码后的 URL（从 decodedImages[image.id]）
+        // 如果是加密的原始 URL，需要查找对应的 image.id 并解码
+        const image = rejectedImages.find(img => img.imageUrl === imageUrl)
+        if (image && decodedImages[image.id]) {
+          // 传入的是解码后的 URL，直接使用
+          setZoomedImage(decodedImages[image.id])
+        } else if (image) {
+          // 传入的是原始加密 URL，需要解码
+          try {
+            const decodedUrl = await getImageDisplayUrl(imageUrl, {})
+            setDecodedImages(prev => ({ ...prev, [image.id]: decodedUrl }))
+            setZoomedImage(decodedUrl)
+          } catch (error) {
+            console.error('解码图片失败:', error)
+            setZoomedImage(imageUrl)
+          }
+        } else {
+          // 直接使用传入的 URL（可能是已解码的）
+          setZoomedImage(imageUrl)
+        }
       }
     } else {
       setZoomedImage(imageUrl)
