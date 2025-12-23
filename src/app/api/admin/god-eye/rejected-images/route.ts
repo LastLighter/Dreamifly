@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/db'
 import { rejectedImages, user } from '@/db/schema'
-import { eq, desc, and, or, like, gte, lte, sql, isNull } from 'drizzle-orm'
+import { eq, desc, and, or, like, gte, lte, sql, isNull, isNotNull } from 'drizzle-orm'
 import { headers } from 'next/headers'
 
 /**
@@ -59,17 +59,51 @@ export async function GET(request: NextRequest) {
     // 构建筛选条件
     const conditions = []
 
-    // 用户角色筛选
+    // 用户角色筛选（基于user表的实时数据）
     if (roleFilter !== 'all') {
-      if (roleFilter === 'regular') {
+      if (roleFilter === 'subscribed') {
+        // 订阅用户：isSubscribed = true 且 subscriptionExpiresAt > NOW()
         conditions.push(
-          or(
-            eq(rejectedImages.userRole, 'regular'),
-            isNull(rejectedImages.userRole)
+          and(
+            isNotNull(rejectedImages.userId),
+            eq(user.isSubscribed, true),
+            sql`${user.subscriptionExpiresAt} > NOW()`
           )
         )
-      } else {
-        conditions.push(eq(rejectedImages.userRole, roleFilter))
+      } else if (roleFilter === 'premium') {
+        // 优质用户：isPremium = true
+        conditions.push(
+          and(
+            isNotNull(rejectedImages.userId),
+            eq(user.isPremium, true)
+          )
+        )
+      } else if (roleFilter === 'oldUser') {
+        // 首批用户：isOldUser = true
+        conditions.push(
+          and(
+            isNotNull(rejectedImages.userId),
+            eq(user.isOldUser, true)
+          )
+        )
+      } else if (roleFilter === 'regular') {
+        // 普通用户：不是管理员、不是订阅用户、不是优质用户、不是首批用户
+        conditions.push(
+          or(
+            isNull(rejectedImages.userId), // 未登录用户
+            and(
+              isNotNull(rejectedImages.userId),
+              eq(user.isAdmin, false),
+              or(
+                eq(user.isSubscribed, false),
+                sql`${user.subscriptionExpiresAt} <= NOW()`,
+                isNull(user.subscriptionExpiresAt)
+              ),
+              eq(user.isPremium, false),
+              eq(user.isOldUser, false)
+            )
+          )
+        )
       }
     }
 
@@ -83,10 +117,13 @@ export async function GET(request: NextRequest) {
       conditions.push(eq(rejectedImages.model, modelFilter.trim()))
     }
 
-    // 搜索筛选（用户昵称）
+    // 搜索筛选（用户昵称）- 使用user表的nickname字段
     if (search.trim()) {
       conditions.push(
-        like(rejectedImages.userNickname, `%${search.trim()}%`)
+        and(
+          isNotNull(rejectedImages.userId), // 只搜索已登录用户
+          like(user.nickname, `%${search.trim()}%`)
+        )
       )
     }
 
@@ -102,7 +139,7 @@ export async function GET(request: NextRequest) {
       conditions.push(lte(rejectedImages.createdAt, end))
     }
 
-    // 查询总数
+    // 查询总数（使用LEFT JOIN）
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
     const totalResult = await db
@@ -110,11 +147,12 @@ export async function GET(request: NextRequest) {
         count: sql<number>`count(*)::int`,
       })
       .from(rejectedImages)
+      .leftJoin(user, eq(rejectedImages.userId, user.id))
       .where(whereClause as any)
 
     const total = totalResult[0]?.count || 0
 
-    // 查询图片列表
+    // 查询图片列表（使用LEFT JOIN获取实时用户信息）
     const images = await db
       .select({
         id: rejectedImages.id,
@@ -123,38 +161,61 @@ export async function GET(request: NextRequest) {
         model: rejectedImages.model,
         width: rejectedImages.width,
         height: rejectedImages.height,
-        userRole: rejectedImages.userRole,
-        userAvatar: rejectedImages.userAvatar,
-        userNickname: rejectedImages.userNickname,
-        avatarFrameId: rejectedImages.avatarFrameId,
         rejectionReason: rejectedImages.rejectionReason,
         createdAt: rejectedImages.createdAt,
         userId: rejectedImages.userId,
         ipAddress: rejectedImages.ipAddress,
+        // 从user表获取实时信息
+        userIsAdmin: user.isAdmin,
+        userIsSubscribed: user.isSubscribed,
+        userSubscriptionExpiresAt: user.subscriptionExpiresAt,
+        userIsPremium: user.isPremium,
+        userIsOldUser: user.isOldUser,
+        userAvatar: user.avatar,
+        userNickname: user.nickname,
+        userAvatarFrameId: user.avatarFrameId,
       })
       .from(rejectedImages)
+      .leftJoin(user, eq(rejectedImages.userId, user.id))
       .where(whereClause as any)
       .orderBy(desc(rejectedImages.createdAt))
       .limit(limit)
       .offset(offset)
 
-    // 格式化返回数据
-    const formattedImages = images.map(img => ({
-      id: img.id,
-      imageUrl: img.imageUrl,
-      prompt: img.prompt,
-      model: img.model,
-      width: img.width,
-      height: img.height,
-      userRole: img.userRole || 'regular',
-      userAvatar: img.userAvatar || '/images/default-avatar.svg',
-      userNickname: img.userNickname || (img.userId ? '未知用户' : '未登录用户'),
-      avatarFrameId: img.avatarFrameId,
-      rejectionReason: img.rejectionReason || 'image',
-      createdAt: img.createdAt?.toISOString() || new Date().toISOString(),
-      userId: img.userId,
-      ipAddress: img.ipAddress,
-    }))
+    // 格式化返回数据（根据实时用户信息计算用户角色）
+    const formattedImages = images.map(img => {
+      // 计算用户角色（基于实时用户数据）
+      let userRole: 'admin' | 'subscribed' | 'premium' | 'oldUser' | 'regular' = 'regular'
+      
+      if (img.userId && img.userIsAdmin) {
+        userRole = 'admin'
+      } else if (img.userId && img.userIsSubscribed && img.userSubscriptionExpiresAt && new Date(img.userSubscriptionExpiresAt) > new Date()) {
+        userRole = 'subscribed'
+      } else if (img.userId && img.userIsPremium) {
+        userRole = 'premium'
+      } else if (img.userId && img.userIsOldUser) {
+        userRole = 'oldUser'
+      } else {
+        userRole = 'regular'
+      }
+
+      return {
+        id: img.id,
+        imageUrl: img.imageUrl,
+        prompt: img.prompt,
+        model: img.model,
+        width: img.width,
+        height: img.height,
+        userRole,
+        userAvatar: img.userAvatar || '/images/default-avatar.svg',
+        userNickname: img.userNickname || (img.userId ? '未知用户' : '未登录用户'),
+        avatarFrameId: img.userAvatarFrameId,
+        rejectionReason: img.rejectionReason || 'image',
+        createdAt: img.createdAt?.toISOString() || new Date().toISOString(),
+        userId: img.userId,
+        ipAddress: img.ipAddress,
+      }
+    })
 
     return NextResponse.json({
       success: true,

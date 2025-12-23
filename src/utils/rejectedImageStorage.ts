@@ -121,45 +121,7 @@ export async function saveRejectedImage(
   // 4. 上传到OSS
   const imageUrl = await uploadToOSS(encodedBuffer, fileName, folderPath)
 
-  // 5. 获取用户信息（如果已登录）
-  let userRole: string | null = null
-  let userAvatar: string | null = null
-  let userNickname: string | null = null
-  let avatarFrameId: number | null = null
-
-  if (metadata.userId) {
-    const userData = await db
-      .select({
-        isSubscribed: user.isSubscribed,
-        subscriptionExpiresAt: user.subscriptionExpiresAt,
-        isPremium: user.isPremium,
-        isOldUser: user.isOldUser,
-        avatar: user.avatar,
-        nickname: user.nickname,
-        avatarFrameId: user.avatarFrameId,
-      })
-      .from(user)
-      .where(eq(user.id, metadata.userId))
-      .limit(1)
-
-    if (userData.length > 0) {
-      const userInfo = userData[0]
-      if (userInfo.isSubscribed && userInfo.subscriptionExpiresAt && new Date(userInfo.subscriptionExpiresAt) > new Date()) {
-        userRole = 'subscribed'
-      } else if (userInfo.isPremium) {
-        userRole = 'premium'
-      } else if (userInfo.isOldUser) {
-        userRole = 'oldUser'
-      } else {
-        userRole = 'regular'
-      }
-      userAvatar = userInfo.avatar || null
-      userNickname = userInfo.nickname || null
-      avatarFrameId = userInfo.avatarFrameId || null
-    }
-  }
-
-  // 6. 保存到数据库
+  // 5. 保存到数据库（不再保存用户信息字段，改为通过user_id关联实时获取）
   const imageId = uuidv4()
   await db.insert(rejectedImages).values({
     id: imageId,
@@ -170,10 +132,6 @@ export async function saveRejectedImage(
     model: metadata.model || null,
     width: metadata.width || null,
     height: metadata.height || null,
-    userRole,
-    userAvatar,
-    userNickname,
-    avatarFrameId,
     rejectionReason: metadata.rejectionReason,
     createdAt: new Date(),
     updatedAt: new Date(),
