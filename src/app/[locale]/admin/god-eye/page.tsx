@@ -1063,10 +1063,10 @@ export default function GodEyePage() {
                 )}
               </div>
             ) : activeTab === 'rejected' ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* 控制栏 */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-                  <div className="flex flex-wrap gap-4 items-center">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
+                  <div className="flex flex-wrap gap-3 items-center">
                     {/* 磨砂玻璃开关 */}
                     <div className="flex items-center gap-2 h-[38px]">
                       <input
@@ -1122,67 +1122,70 @@ export default function GodEyePage() {
 
                   {/* 高级搜索区域（折叠） */}
                   {showAdvancedSearch && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* 用户角色筛选 */}
-                        <div className="flex flex-col gap-2">
-                          <label className="text-sm text-gray-700">用户角色</label>
-                          <select
-                            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                            value={rejectedRoleFilter}
-                            onChange={(e) => {
-                              setRejectedRoleFilter(e.target.value as RoleFilter)
-                              setRejectedPage(1)
-                            }}
-                          >
-                            <option value="all">全部</option>
-                            <option value="subscribed">付费用户</option>
-                            <option value="premium">优质用户</option>
-                            <option value="oldUser">首批用户</option>
-                            <option value="regular">普通用户</option>
-                          </select>
+                    <div className="mt-2.5 pt-2.5 border-t border-gray-200">
+                      <div className="space-y-2.5">
+                        {/* 第一行：三个筛选条件 */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                          {/* 用户角色筛选 */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-sm text-gray-700 whitespace-nowrap w-fit">用户角色</label>
+                            <select
+                              className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 w-full"
+                              value={rejectedRoleFilter}
+                              onChange={(e) => {
+                                setRejectedRoleFilter(e.target.value as RoleFilter)
+                                setRejectedPage(1)
+                              }}
+                            >
+                              <option value="all">全部</option>
+                              <option value="subscribed">付费用户</option>
+                              <option value="premium">优质用户</option>
+                              <option value="oldUser">首批用户</option>
+                              <option value="regular">普通用户</option>
+                            </select>
+                          </div>
+
+                          {/* 拒绝原因筛选 */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-sm text-gray-700 whitespace-nowrap w-fit">拒绝原因</label>
+                            <select
+                              className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 w-full"
+                              value={reasonFilter}
+                              onChange={(e) => {
+                                setReasonFilter(e.target.value as 'all' | 'image' | 'prompt' | 'both')
+                                setRejectedPage(1)
+                              }}
+                            >
+                              <option value="all">全部</option>
+                              <option value="image">图片审核未通过</option>
+                              <option value="prompt">提示词审核未通过</option>
+                              <option value="both">两者都未通过</option>
+                            </select>
+                          </div>
+
+                          {/* 所用模型筛选 */}
+                          <div className="flex flex-col gap-1.5">
+                            <label className="text-sm text-gray-700 whitespace-nowrap w-fit">所用模型</label>
+                            <select
+                              className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 w-full"
+                              value={modelFilter}
+                              onChange={(e) => {
+                                setModelFilter(e.target.value)
+                                setRejectedPage(1)
+                              }}
+                            >
+                              <option value="all">全部</option>
+                              {availableModels.map((model) => (
+                                <option key={model} value={model}>
+                                  {model}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
 
-                        {/* 拒绝原因筛选 */}
-                        <div className="flex flex-col gap-2">
-                          <label className="text-sm text-gray-700">拒绝原因</label>
-                          <select
-                            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                            value={reasonFilter}
-                            onChange={(e) => {
-                              setReasonFilter(e.target.value as 'all' | 'image' | 'prompt' | 'both')
-                              setRejectedPage(1)
-                            }}
-                          >
-                            <option value="all">全部</option>
-                            <option value="image">图片审核未通过</option>
-                            <option value="prompt">提示词审核未通过</option>
-                            <option value="both">两者都未通过</option>
-                          </select>
-                        </div>
-
-                        {/* 所用模型筛选 */}
-                        <div className="flex flex-col gap-2">
-                          <label className="text-sm text-gray-700">所用模型</label>
-                          <select
-                            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                            value={modelFilter}
-                            onChange={(e) => {
-                              setModelFilter(e.target.value)
-                              setRejectedPage(1)
-                            }}
-                          >
-                            <option value="all">全部</option>
-                            {availableModels.map((model) => (
-                              <option key={model} value={model}>
-                                {model}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* 时间范围 */}
-                        <div className="flex flex-col gap-2">
+                        {/* 第二行：时间范围 */}
+                        <div className="flex flex-col gap-1.5">
                           <label className="text-sm text-gray-700">时间范围</label>
                           <div className="flex items-center gap-2">
                             <input
