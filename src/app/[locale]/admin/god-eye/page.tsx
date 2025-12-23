@@ -640,14 +640,6 @@ export default function GodEyePage() {
     }
   }, [activeTab, isAdmin, images, decodedApprovedImages, decodingApprovedImages])
 
-  // 获取通过审核图片的显示URL
-  const getApprovedImageUrl = (imageUrl: string): string => {
-    if (isEncryptedImage(imageUrl)) {
-      return decodedApprovedImages[imageUrl] || imageUrl
-    }
-    return imageUrl
-  }
-
   // 处理参考图点击预览
   const handleReferenceImageClick = async (refUrl: string, e: React.MouseEvent) => {
     e.stopPropagation()
