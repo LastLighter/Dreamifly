@@ -65,6 +65,7 @@ export default function GodEyePage() {
   // 参考图预览相关状态
   const [decodedReferenceImages, setDecodedReferenceImages] = useState<{ [key: string]: string }>({})
   const [decodingReferenceImages, setDecodingReferenceImages] = useState<Set<string>>(new Set())
+  const [viewedReferenceImages, setViewedReferenceImages] = useState<Set<string>>(new Set()) // 已查看过的参考图
   
   // 未通过审核图片相关状态
   const [rejectedImages, setRejectedImages] = useState<ImageItem[]>([])
@@ -651,6 +652,9 @@ export default function GodEyePage() {
   const handleReferenceImageClick = async (refUrl: string, e: React.MouseEvent) => {
     e.stopPropagation()
     
+    // 标记为已查看
+    setViewedReferenceImages(prev => new Set(prev).add(refUrl))
+    
     // 如果是加密图片，确保已解码
     if (isEncryptedImage(refUrl)) {
       if (!decodedReferenceImages[refUrl]) {
@@ -1054,6 +1058,7 @@ export default function GodEyePage() {
                               {image.referenceImages && image.referenceImages.length > 0 && (
                                 <div className="absolute top-2 left-2 flex gap-1.5 z-20">
                                   {image.referenceImages.map((refUrl, index) => {
+                                    const isViewed = viewedReferenceImages.has(refUrl)
                                     const isRefDecoding = isEncryptedImage(refUrl) && !decodedReferenceImages[refUrl] && decodingReferenceImages.has(refUrl)
                                     const refDisplayUrl = isEncryptedImage(refUrl) 
                                       ? (decodedReferenceImages[refUrl] || refUrl)
@@ -1063,32 +1068,47 @@ export default function GodEyePage() {
                                       <button
                                         key={index}
                                         onClick={(e) => handleReferenceImageClick(refUrl, e)}
-                                        className="relative w-10 h-10 rounded-lg overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg hover:bg-white/30 transition-all hover:scale-110 group"
+                                        className={`relative w-10 h-10 rounded-lg overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg hover:bg-white/30 transition-all hover:scale-110 ${
+                                          isViewed ? '' : 'flex items-center justify-center'
+                                        }`}
                                         title={`参考图 ${index + 1}`}
                                       >
-                                        {isRefDecoding ? (
-                                          <div className="absolute inset-0 flex items-center justify-center bg-white/20">
-                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                                          </div>
+                                        {isViewed ? (
+                                          // 已查看过：显示实际图片
+                                          <>
+                                            {isRefDecoding ? (
+                                              <div className="absolute inset-0 flex items-center justify-center bg-white/20">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                              </div>
+                                            ) : (
+                                              <Image
+                                                src={refDisplayUrl}
+                                                alt={`参考图 ${index + 1}`}
+                                                fill
+                                                className="object-cover"
+                                                unoptimized={isEncryptedImage(refUrl)}
+                                                onError={(e) => {
+                                                  const target = e.target as HTMLImageElement
+                                                  target.style.display = 'none'
+                                                }}
+                                              />
+                                            )}
+                                          </>
                                         ) : (
-                                          <Image
-                                            src={refDisplayUrl}
-                                            alt={`参考图 ${index + 1}`}
-                                            fill
-                                            className="object-cover"
-                                            unoptimized={isEncryptedImage(refUrl)}
-                                            onError={(e) => {
-                                              // 如果加载失败，显示占位符
-                                              const target = e.target as HTMLImageElement
-                                              target.style.display = 'none'
-                                            }}
-                                          />
-                                        )}
-                                        {/* 数量标签 - 只在第一张显示 */}
-                                        {index === 0 && image.referenceImages!.length > 1 && (
-                                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-                                            {image.referenceImages.length}
-                                          </div>
+                                          // 未查看：显示图标
+                                          <svg
+                                            className="w-5 h-5 text-white"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={2}
+                                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                            />
+                                          </svg>
                                         )}
                                       </button>
                                     )
@@ -1447,6 +1467,7 @@ export default function GodEyePage() {
                             {image.referenceImages && image.referenceImages.length > 0 && (
                               <div className="absolute top-2 left-2 flex gap-1.5 z-20">
                                 {image.referenceImages.map((refUrl, index) => {
+                                  const isViewed = viewedReferenceImages.has(refUrl)
                                   const isRefDecoding = isEncryptedImage(refUrl) && !decodedReferenceImages[refUrl] && decodingReferenceImages.has(refUrl)
                                   const refDisplayUrl = isEncryptedImage(refUrl) 
                                     ? (decodedReferenceImages[refUrl] || refUrl)
@@ -1456,33 +1477,48 @@ export default function GodEyePage() {
                                     <button
                                       key={index}
                                       onClick={(e) => handleReferenceImageClick(refUrl, e)}
-                                      className="relative w-10 h-10 rounded-lg overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg hover:bg-white/30 transition-all hover:scale-110 group"
+                                      className={`relative w-10 h-10 rounded-lg overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg hover:bg-white/30 transition-all hover:scale-110 ${
+                                        isViewed ? '' : 'flex items-center justify-center'
+                                      }`}
                                       title={`参考图 ${index + 1}`}
                                     >
-                                      {isRefDecoding ? (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-white/20">
-                                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                                        </div>
+                                      {isViewed ? (
+                                        // 已查看过：显示实际图片
+                                        <>
+                                          {isRefDecoding ? (
+                                            <div className="absolute inset-0 flex items-center justify-center bg-white/20">
+                                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                            </div>
+                                          ) : (
+                                            <Image
+                                              src={refDisplayUrl}
+                                              alt={`参考图 ${index + 1}`}
+                                              fill
+                                              className="object-cover"
+                                              unoptimized={isEncryptedImage(refUrl)}
+                                              onError={(e) => {
+                                                const target = e.target as HTMLImageElement
+                                                target.style.display = 'none'
+                                              }}
+                                            />
+                                          )}
+                                        </>
                                       ) : (
-                                        <Image
-                                          src={refDisplayUrl}
-                                          alt={`参考图 ${index + 1}`}
-                                          fill
-                                          className="object-cover"
-                                          unoptimized={isEncryptedImage(refUrl)}
-                                          onError={(e) => {
-                                            // 如果加载失败，显示占位符
-                                            const target = e.target as HTMLImageElement
-                                            target.style.display = 'none'
-                                          }}
-                                        />
-                                      )}
-                                      {/* 数量标签 - 只在第一张显示 */}
-                                      {index === 0 && image.referenceImages!.length > 1 && (
-                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-                                          {image.referenceImages.length}
-                                        </div>
-                                      )}
+                                        // 未查看：显示图标
+                                        <svg
+                                          className="w-5 h-5 text-white"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                          />
+                                        </svg>
+                                        )}
                                     </button>
                                   )
                                 })}
