@@ -11,6 +11,7 @@ import { useAvatar } from '@/contexts/AvatarContext'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
 import { getThumbnailUrl } from '@/utils/oss'
+import { isEncryptedImage, getImageDisplayUrl } from '@/utils/imageDisplay'
 
 type TabType = 'approved' | 'rejected' | 'profanity'
 type RoleFilter = 'all' | 'subscribed' | 'premium' | 'oldUser' | 'regular'
@@ -76,7 +77,9 @@ export default function GodEyePage() {
   const [availableModels, setAvailableModels] = useState<string[]>([])
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false) // 高级搜索折叠状态
   const [unmaskedImages, setUnmaskedImages] = useState<Set<string>>(new Set()) // 已移除遮罩的图片ID集合
-  const [decodedImages, setDecodedImages] = useState<{ [key: string]: string }>({})
+  const [decodedImages, setDecodedImages] = useState<{ [key: string]: string }>({}) // 未通过审核图片的解码缓存
+  const [decodedApprovedImages, setDecodedApprovedImages] = useState<{ [key: string]: string }>({}) // 通过审核图片的解码缓存
+  const [decodingApprovedImages, setDecodingApprovedImages] = useState<Set<string>>(new Set()) // 正在解码的通过审核图片
 
   // 违禁词管理相关状态
   interface ProfanityWord {
@@ -603,10 +606,92 @@ export default function GodEyePage() {
     setPage(1)
   }
 
+  // 解码通过审核的图片（批量处理）
+  useEffect(() => {
+    if (activeTab !== 'approved' || !isAdmin) return
+    if (!images.length) return
+
+    const encryptedImages = images.filter(
+      img => isEncryptedImage(img.imageUrl) && !decodedApprovedImages[img.imageUrl] && !decodingApprovedImages.has(img.imageUrl)
+    )
+
+    if (encryptedImages.length === 0) return
+
+    let cancelled = false
+    const concurrency = 4
+    const queue = [...encryptedImages]
+
+    const runWorker = async () => {
+      while (queue.length && !cancelled) {
+        const image = queue.shift()
+        if (!image) continue
+
+        setDecodingApprovedImages(prev => new Set(prev).add(image.imageUrl))
+
+        try {
+          const decodedUrl = await getImageDisplayUrl(image.imageUrl, decodedApprovedImages)
+          if (!cancelled) {
+            setDecodedApprovedImages(prev => ({
+              ...prev,
+              [image.imageUrl]: decodedUrl
+            }))
+          }
+        } catch (error) {
+          console.error('解码图片失败:', error)
+        } finally {
+          setDecodingApprovedImages(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(image.imageUrl)
+            return newSet
+          })
+        }
+      }
+    }
+
+    const workers = Array.from({ length: Math.min(concurrency, queue.length) }, runWorker)
+    Promise.all(workers).catch(err => {
+      console.error('批量解码图片失败:', err)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab, isAdmin, images, decodedApprovedImages, decodingApprovedImages])
+
+  // 获取通过审核图片的显示URL
+  const getApprovedImageUrl = (imageUrl: string): string => {
+    if (isEncryptedImage(imageUrl)) {
+      return decodedApprovedImages[imageUrl] || imageUrl
+    }
+    return imageUrl
+  }
+
   // 处理图片点击预览
-  const handleImageClick = (imageUrl: string, e: React.MouseEvent) => {
+  const handleImageClick = async (imageUrl: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setZoomedImage(imageUrl)
+    
+    // 如果是加密图片，确保已解码
+    if (isEncryptedImage(imageUrl)) {
+      if (activeTab === 'approved') {
+        if (!decodedApprovedImages[imageUrl]) {
+          try {
+            const decodedUrl = await getImageDisplayUrl(imageUrl, decodedApprovedImages)
+            setDecodedApprovedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
+            setZoomedImage(decodedUrl)
+          } catch (error) {
+            console.error('解码图片失败:', error)
+            setZoomedImage(imageUrl)
+          }
+        } else {
+          setZoomedImage(decodedApprovedImages[imageUrl])
+        }
+      } else {
+        // 未通过审核的图片使用 decodedImages
+        setZoomedImage(decodedImages[imageUrl] || imageUrl)
+      }
+    } else {
+      setZoomedImage(imageUrl)
+    }
   }
 
   // 处理复制提示词
@@ -915,21 +1000,33 @@ export default function GodEyePage() {
                 ) : (
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {images.map((image) => (
-                        <div
-                          key={image.id}
-                          className="group relative rounded-xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-all"
-                        >
-                          <div className="aspect-square relative overflow-hidden bg-gray-100">
-                            <Image
-                              src={getThumbnailUrl(image.imageUrl, 400, 400, 75)}
-                              alt={image.prompt || '生成的图片'}
-                              fill
-                              className="object-cover cursor-zoom-in"
-                              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                              onClick={(e) => handleImageClick(image.imageUrl, e)}
-                              unoptimized={image.imageUrl.startsWith('http')}
-                            />
+                      {images.map((image) => {
+                        const displayUrl = getApprovedImageUrl(image.imageUrl)
+                        const isDecoding = isEncryptedImage(image.imageUrl) && !decodedApprovedImages[image.imageUrl]
+                        const thumbnailUrl = isEncryptedImage(image.imageUrl) 
+                          ? (decodedApprovedImages[image.imageUrl] || image.imageUrl)
+                          : getThumbnailUrl(image.imageUrl, 400, 400, 75)
+
+                        return (
+                          <div
+                            key={image.id}
+                            className="group relative rounded-xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-all"
+                          >
+                            <div className="aspect-square relative overflow-hidden bg-gray-100">
+                              {isDecoding && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                                </div>
+                              )}
+                              <Image
+                                src={thumbnailUrl}
+                                alt={image.prompt || '生成的图片'}
+                                fill
+                                className="object-cover cursor-zoom-in"
+                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                onClick={(e) => handleImageClick(image.imageUrl, e)}
+                                unoptimized={isEncryptedImage(image.imageUrl) || image.imageUrl.startsWith('http')}
+                              />
 
                             {/* 用户信息覆盖层 */}
                             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 via-black/50 to-transparent backdrop-blur-sm">
@@ -1024,7 +1121,8 @@ export default function GodEyePage() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
 
                     {/* 分页 */}

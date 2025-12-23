@@ -8,6 +8,7 @@ import { useParams } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import Link from 'next/link'
 import Image from 'next/image'
+import { isEncryptedImage, getImageDisplayUrl } from '@/utils/imageDisplay'
 
 interface UserImage {
   id: string
@@ -45,6 +46,8 @@ export default function MyWorksPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [showHeaderSpacer, setShowHeaderSpacer] = useState(false)
+  const [decodedImages, setDecodedImages] = useState<{ [key: string]: string }>({})
+  const [decodingImages, setDecodingImages] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (isPending) return
@@ -108,6 +111,65 @@ export default function MyWorksPage() {
       observer.disconnect()
     }
   }, [])
+
+  // 解码加密图片（批量处理）
+  useEffect(() => {
+    if (!images.length) return
+
+    const encryptedImages = images.filter(
+      img => isEncryptedImage(img.imageUrl) && !decodedImages[img.imageUrl] && !decodingImages.has(img.imageUrl)
+    )
+
+    if (encryptedImages.length === 0) return
+
+    let cancelled = false
+    const concurrency = 4
+    const queue = [...encryptedImages]
+
+    const runWorker = async () => {
+      while (queue.length && !cancelled) {
+        const image = queue.shift()
+        if (!image) continue
+
+        setDecodingImages(prev => new Set(prev).add(image.imageUrl))
+
+        try {
+          const decodedUrl = await getImageDisplayUrl(image.imageUrl, decodedImages)
+          if (!cancelled) {
+            setDecodedImages(prev => ({
+              ...prev,
+              [image.imageUrl]: decodedUrl
+            }))
+          }
+        } catch (error) {
+          console.error('解码图片失败:', error)
+        } finally {
+          setDecodingImages(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(image.imageUrl)
+            return newSet
+          })
+        }
+      }
+    }
+
+    const workers = Array.from({ length: Math.min(concurrency, queue.length) }, runWorker)
+    Promise.all(workers).catch(err => {
+      console.error('批量解码图片失败:', err)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [images, decodedImages, decodingImages])
+
+  // 获取图片显示URL
+  const getDisplayUrl = (imageUrl: string): string => {
+    if (isEncryptedImage(imageUrl)) {
+      return decodedImages[imageUrl] || imageUrl // 如果还在解码中，显示原URL（会有加载状态）
+    }
+    return imageUrl
+  }
 
   const fetchImages = async () => {
     try {
@@ -174,23 +236,54 @@ export default function MyWorksPage() {
     setDeleteError(null)
   }
 
-  const handleDownload = (imageUrl: string, e: React.MouseEvent) => {
+  const handleDownload = async (imageUrl: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    const link = document.createElement('a')
-    link.href = imageUrl
-    link.download = `image-${Date.now()}.png`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    try {
+      // 如果是加密图片，需要先解码
+      const displayUrl = getDisplayUrl(imageUrl)
+      // 如果还在解码中，等待解码完成
+      if (isEncryptedImage(imageUrl) && !decodedImages[imageUrl]) {
+        const decodedUrl = await getImageDisplayUrl(imageUrl, decodedImages)
+        setDecodedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
+        const link = document.createElement('a')
+        link.href = decodedUrl
+        link.download = `image-${Date.now()}.png`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } else {
+        const link = document.createElement('a')
+        link.href = displayUrl
+        link.download = `image-${Date.now()}.png`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
+    } catch (error) {
+      console.error('下载图片失败:', error)
+    }
   }
 
-  const handleImageClick = (imageUrl: string, e: React.MouseEvent) => {
+  const handleImageClick = async (imageUrl: string, e: React.MouseEvent) => {
     // 如果点击的是按钮区域，不触发预览
     const target = e.target as HTMLElement
     if (target.closest('button') || target.closest('[data-action-button]')) {
       return
     }
-    setZoomedImage(imageUrl)
+    
+    // 如果是加密图片，确保已解码
+    if (isEncryptedImage(imageUrl) && !decodedImages[imageUrl]) {
+      try {
+        const decodedUrl = await getImageDisplayUrl(imageUrl, decodedImages)
+        setDecodedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
+        setZoomedImage(decodedUrl)
+      } catch (error) {
+        console.error('解码图片失败:', error)
+        setZoomedImage(imageUrl) // 失败时使用原URL
+      }
+    } else {
+      setZoomedImage(getDisplayUrl(imageUrl))
+    }
   }
 
   const handleCopyPrompt = async (prompt: string, imageId: string, e: React.MouseEvent) => {
@@ -315,17 +408,27 @@ export default function MyWorksPage() {
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {images.map((image) => (
-                <div key={image.id} className="group relative rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-xl transition-all">
-                  <div className="aspect-square relative overflow-hidden bg-gray-100">
-                    <Image
-                      src={image.imageUrl}
-                      alt={image.prompt || '生成的图片'}
-                      fill
-                      className="object-cover cursor-zoom-in"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                      onClick={(e) => handleImageClick(image.imageUrl, e as any)}
-                    />
+              {images.map((image) => {
+                const displayUrl = getDisplayUrl(image.imageUrl)
+                const isDecoding = isEncryptedImage(image.imageUrl) && !decodedImages[image.imageUrl]
+
+                return (
+                  <div key={image.id} className="group relative rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-xl transition-all">
+                    <div className="aspect-square relative overflow-hidden bg-gray-100">
+                      {isDecoding && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                        </div>
+                      )}
+                      <Image
+                        src={displayUrl}
+                        alt={image.prompt || '生成的图片'}
+                        fill
+                        className="object-cover cursor-zoom-in"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        onClick={(e) => handleImageClick(image.imageUrl, e as any)}
+                        unoptimized={isEncryptedImage(image.imageUrl)}
+                      />
                     
                     {/* 左上角删除按钮 - 灰色磨砂玻璃底 */}
                     <button
@@ -398,7 +501,8 @@ export default function MyWorksPage() {
                     </div>
                   )}
                 </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* 图片放大预览模态框 */}

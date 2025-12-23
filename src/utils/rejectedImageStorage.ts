@@ -8,7 +8,7 @@ import crypto from 'crypto'
  * 将图片Buffer编码为文本文件（避免OSS审核）
  * 使用base64编码，但改变文件扩展名为.dat，并添加混淆
  */
-function encodeImageForStorage(buffer: Buffer): Buffer {
+export function encodeImageForStorage(buffer: Buffer): Buffer {
   // 1. 转换为base64
   const base64 = buffer.toString('base64')
   
@@ -37,7 +37,7 @@ function encodeImageForStorage(buffer: Buffer): Buffer {
 /**
  * 解码存储的图片数据
  */
-function decodeImageFromStorage(encodedBuffer: Buffer): Buffer {
+export function decodeImageFromStorage(encodedBuffer: Buffer): Buffer {
   // 1. 读取文本内容
   const obfuscated = encodedBuffer.toString('utf-8')
   

@@ -1,4 +1,4 @@
-import { pgTable, timestamp, integer, text, boolean, real, serial } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, integer, text, boolean, real, serial, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const siteStats = pgTable('site_stats', {
@@ -266,6 +266,7 @@ export const userGeneratedImages = pgTable("user_generated_images", {
   userAvatar: text("user_avatar"), // 用户头像URL
   userNickname: text("user_nickname"), // 用户昵称
   avatarFrameId: integer("avatar_frame_id"), // 头像框ID
+  referenceImages: jsonb("reference_images").$type<string[]>().default([]), // 参考图片URL数组（加密存储）
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -281,6 +282,7 @@ export const rejectedImages = pgTable("rejected_images", {
   width: integer("width"), // 图片宽度
   height: integer("height"), // 图片高度
   rejectionReason: text("rejection_reason"), // 拒绝原因：'image' | 'prompt' | 'both'
+  referenceImages: jsonb("reference_images").$type<string[]>().default([]), // 参考图片URL数组（加密存储）
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

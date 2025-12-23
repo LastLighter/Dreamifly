@@ -4,6 +4,7 @@ import { eq, asc, desc, sql, and } from 'drizzle-orm'
 import { uploadToOSS, deleteFromOSS } from './oss'
 import { moderateGeneratedImage } from './imageModeration'
 import { getImageStorageConfig } from './points'
+import { encodeImageForStorage } from './rejectedImageStorage'
 
 /**
  * 检查用户是否为订阅用户（实时检查）
@@ -111,6 +112,9 @@ export async function saveUserGeneratedImage(
   const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '')
   const buffer = Buffer.from(base64Data, 'base64')
   
+  // 4.5 编码图片（统一使用加密存储，避免OSS审核）
+  const encodedBuffer = encodeImageForStorage(buffer)
+  
   // 5. 审核（图片和提示词都需要通过）
   const moderationBaseUrl = process.env.AVATAR_MODERATION_BASE_URL
   const moderationApiKey = process.env.AVATAR_MODERATION_API_KEY || ''
@@ -186,9 +190,9 @@ export async function saveUserGeneratedImage(
     // 这里不需要额外处理，因为如果图片审核失败，已经在上面的 if 中 throw 了
   }
   
-  // 6. 上传到OSS（使用新目录 user-generated-images，按日期分文件夹存储）
+  // 6. 上传到OSS（使用加密存储，.dat扩展名）
   const { v4: uuidv4 } = await import('uuid')
-  const fileName = `${uuidv4()}.png`
+  const fileName = `${uuidv4()}.dat` // 改为.dat扩展名，统一使用加密存储
   
   // 按日期生成文件夹路径：YYYY/MM/DD
   const now = new Date()
@@ -199,7 +203,7 @@ export async function saveUserGeneratedImage(
   
   // 构建完整路径：user-generated-images/YYYY/MM/DD
   const folderPath = `user-generated-images/${dateFolder}`
-  const imageUrl = await uploadToOSS(buffer, fileName, folderPath)
+  const imageUrl = await uploadToOSS(encodedBuffer, fileName, folderPath) // 使用加密后的buffer
   
   // 7. 获取用户信息（角色、头像、昵称、头像框）- 仅登录用户
   let userData: Array<{
