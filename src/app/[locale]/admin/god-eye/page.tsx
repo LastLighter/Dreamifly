@@ -1036,7 +1036,6 @@ export default function GodEyePage() {
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {images.map((image) => {
-                        const displayUrl = getApprovedImageUrl(image.imageUrl)
                         const isDecoding = isEncryptedImage(image.imageUrl) && !decodedApprovedImages[image.imageUrl]
                         const thumbnailUrl = isEncryptedImage(image.imageUrl) 
                           ? (decodedApprovedImages[image.imageUrl] || image.imageUrl)
