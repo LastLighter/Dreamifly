@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
-import { modelUsageStats, user } from '@/db/schema'
-import { eq, sql, and, isNotNull, gte, lt } from 'drizzle-orm'
+import { modelUsageStats, user, paymentOrder, pointsPackage, subscriptionPlan } from '@/db/schema'
+import { eq, sql, and, isNotNull, gte, lt, inArray } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
@@ -102,6 +102,16 @@ export async function GET(request: Request) {
     let timeDistribution: Array<{ date: string; hour: number; count: number }> = []
     let modelDistribution: Array<{ modelName: string; count: number }> = []
     let ipUsers: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; callCount: number }> = []
+    let paidOrders: Array<{
+      id: string
+      orderType: string
+      productName: string
+      amount: number
+      pointsAmount: number | null
+      paymentMethod: string | null
+      paidAt: Date | null
+      createdAt: Date
+    }> = []
     const dailyDistribution: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
     const dailyHourlyDistribution: Array<{ date: string; hour: number; total: number; authenticated?: number; unauthenticated?: number }> = []
 
@@ -235,6 +245,89 @@ export async function GET(request: Request) {
           }
         }
       }
+
+      // 查询用户已完成的付费订单
+      const orders = await db
+        .select({
+          id: paymentOrder.id,
+          orderType: paymentOrder.orderType,
+          productId: paymentOrder.productId,
+          amount: paymentOrder.amount,
+          pointsAmount: paymentOrder.pointsAmount,
+          paymentMethod: paymentOrder.paymentMethod,
+          paidAt: paymentOrder.paidAt,
+          createdAt: paymentOrder.createdAt,
+        })
+        .from(paymentOrder)
+        .where(
+          and(
+            eq(paymentOrder.userId, identifier),
+            eq(paymentOrder.status, 'paid')
+          )
+        )
+        .orderBy(sql`${paymentOrder.paidAt} DESC NULLS LAST, ${paymentOrder.createdAt} DESC`)
+        .limit(100)
+
+      // 获取所有相关的产品ID
+      const pointsProductIds = orders
+        .filter(o => o.orderType === 'points')
+        .map(o => parseInt(o.productId, 10))
+        .filter(id => !isNaN(id))
+      
+      const subscriptionProductIds = orders
+        .filter(o => o.orderType === 'subscription')
+        .map(o => parseInt(o.productId, 10))
+        .filter(id => !isNaN(id))
+
+      // 查询积分套餐信息
+      const pointsPackages = pointsProductIds.length > 0
+        ? await db
+            .select({
+              id: pointsPackage.id,
+              name: pointsPackage.name,
+            })
+            .from(pointsPackage)
+            .where(inArray(pointsPackage.id, pointsProductIds))
+        : []
+
+      // 查询订阅套餐信息
+      const subscriptionPlans = subscriptionProductIds.length > 0
+        ? await db
+            .select({
+              id: subscriptionPlan.id,
+              name: subscriptionPlan.name,
+            })
+            .from(subscriptionPlan)
+            .where(inArray(subscriptionPlan.id, subscriptionProductIds))
+        : []
+
+      // 创建产品名称映射
+      const productNameMap = new Map<number, string>()
+      pointsPackages.forEach(pkg => {
+        productNameMap.set(pkg.id, pkg.name)
+      })
+      subscriptionPlans.forEach(plan => {
+        productNameMap.set(plan.id, plan.name)
+      })
+
+      // 构建订单列表
+      paidOrders = orders.map(order => {
+        const productId = parseInt(order.productId, 10)
+        const productName = !isNaN(productId) && productNameMap.has(productId)
+          ? productNameMap.get(productId)!
+          : order.productId
+
+        return {
+          id: order.id,
+          orderType: order.orderType,
+          productName,
+          amount: Number(order.amount),
+          pointsAmount: order.pointsAmount ? Number(order.pointsAmount) : null,
+          paymentMethod: order.paymentMethod,
+          paidAt: order.paidAt,
+          createdAt: order.createdAt,
+        }
+      })
     } else if (type === 'ip') {
       // IP详情：按小时统计调用时间分布，按模型统计调用分布
       // 对于hour范围，按分钟统计；其他范围按小时统计
@@ -319,12 +412,17 @@ export async function GET(request: Request) {
           userName: user.name,
           userEmail: user.email,
           userNickname: user.nickname,
+          isActive: user.isActive,
+          isAdmin: user.isAdmin,
+          isPremium: user.isPremium,
+          isOldUser: user.isOldUser,
+          isSubscribed: user.isSubscribed,
           callCount: sql<number>`count(*)::int`,
         })
         .from(modelUsageStats)
         .innerJoin(user, eq(modelUsageStats.userId, user.id))
         .where(and(...ipUserWhereConditions))
-        .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname)
+        .groupBy(modelUsageStats.userId, user.name, user.email, user.nickname, user.isActive, user.isAdmin, user.isPremium, user.isOldUser, user.isSubscribed)
         .orderBy(sql`count(*) DESC`)
 
       ipUsers = ipUserStats
@@ -334,6 +432,11 @@ export async function GET(request: Request) {
           userName: stat.userName,
           userEmail: stat.userEmail,
           userNickname: stat.userNickname,
+          isActive: stat.isActive !== undefined ? stat.isActive : true,
+          isAdmin: stat.isAdmin || false,
+          isPremium: stat.isPremium || false,
+          isOldUser: stat.isOldUser || false,
+          isSubscribed: stat.isSubscribed || false,
           callCount: Number(stat.callCount),
         }))
 
@@ -502,6 +605,7 @@ export async function GET(request: Request) {
         timeDistribution,
         modelDistribution,
         ipUsers: type === 'ip' ? ipUsers : undefined,
+        paidOrders: type === 'user' ? paidOrders : undefined,
         dailyDistribution: timeRange === 'week' ? dailyDistribution : undefined,
         dailyHourlyDistribution: timeRange === 'week' ? dailyHourlyDistribution : undefined,
       },

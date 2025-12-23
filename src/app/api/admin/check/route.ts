@@ -79,9 +79,6 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log('Session user ID:', session.user.id);
-    console.log('Session user email:', session.user.email);
-
     // 3. 从数据库查询用户的 isAdmin 和 isPremium 状态
     const currentUser = await db.select()
       .from(user)
@@ -89,18 +86,11 @@ export async function GET(request: Request) {
       .limit(1);
 
     if (currentUser.length === 0) {
-      console.log('User not found in database');
       return NextResponse.json(
         { isAdmin: false, isPremium: false },
         { status: 200 }
       );
     }
-
-    // 调试：输出查询到的用户数据
-    console.log('Current user data:', JSON.stringify(currentUser[0], null, 2));
-    console.log('isAdmin value:', currentUser[0].isAdmin);
-    console.log('isAdmin type:', typeof currentUser[0].isAdmin);
-    console.log('Raw user object keys:', Object.keys(currentUser[0]));
 
     // 确保正确处理 isAdmin 字段
     // 检查两种可能的字段名（isAdmin 或 is_admin）
@@ -114,10 +104,6 @@ export async function GET(request: Request) {
 
     // 获取 isPremium 状态
     const premiumStatus = Boolean(userData.isPremium);
-
-    // 4. 返回用户状态（允许所有登录用户查询自己的状态）
-    console.log('Final adminStatus:', adminStatus);
-    console.log('Final premiumStatus:', premiumStatus);
 
     return NextResponse.json({
       isAdmin: adminStatus,

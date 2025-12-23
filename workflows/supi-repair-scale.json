@@ -1,0 +1,65 @@
+{
+  "1": {
+    "inputs": {
+      "supir_model": "SUPIR-v0Q.ckpt",
+      "sdxl_model": "sd_xl_base_1.0_0.9vae.safetensors",
+      "seed": 608078894450978,
+      "resize_method": "lanczos",
+      "scale_by": 1,
+      "steps": 30,
+      "restoration_scale": 2,
+      "cfg_scale": 7.5,
+      "a_prompt": "",
+      "n_prompt": "bad quality, blurry, messy",
+      "s_churn": 5,
+      "s_noise": 1.003,
+      "control_scale": 1,
+      "cfg_scale_start": 0,
+      "control_scale_start": 0,
+      "color_fix_type": "Wavelet",
+      "keep_model_loaded": true,
+      "use_tiled_vae": true,
+      "encoder_tile_size_pixels": 512,
+      "decoder_tile_size_latent": 544,
+      "diffusion_dtype": "auto",
+      "encoder_dtype": "auto",
+      "batch_size": 1,
+      "use_tiled_sampling": false,
+      "sampler_tile_size": 512,
+      "sampler_tile_stride": 512,
+      "fp8_unet": false,
+      "fp8_vae": false,
+      "sampler": "RestoreEDMSampler",
+      "image": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "SUPIR_Upscale",
+    "_meta": {
+      "title": "SUPIR Upscale (Legacy)"
+    }
+  },
+  "2": {
+    "inputs": {
+      "image": "banner.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "10": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  }
+}

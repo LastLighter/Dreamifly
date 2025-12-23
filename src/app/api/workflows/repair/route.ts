@@ -90,22 +90,6 @@ export async function POST(request: Request) {
     const userData = currentUser[0]
     const isAdmin = userData.isAdmin || false
 
-    // 管理员不扣积分，普通用户和优质用户需要检查并扣除积分
-    if (!isAdmin) {
-      // 获取积分配置
-      const config = await getPointsConfig()
-      const cost = config.repairWorkflowCost
-
-      // 检查积分是否足够
-      const hasEnoughPoints = await checkPointsSufficient(session.user.id, cost)
-      if (!hasEnoughPoints) {
-        return NextResponse.json(
-          { error: `积分不足，需要 ${cost} 积分才能使用此功能` },
-          { status: 403 }
-        )
-      }
-    }
-
     // 4. 处理请求
     const body = await request.json()
     const { image, positivePrompt, negativePrompt, steps, seed } = body || {}
@@ -119,13 +103,17 @@ export async function POST(request: Request) {
       : image
 
     // 5. 验证图片格式与尺寸
+    let width = 0
+    let height = 0
     try {
       // 将 base64 转换为 Buffer 并获取图片尺寸
       const imageBuffer = Buffer.from(sanitizedImage, 'base64')
 
       // 验证文件类型（仅允许 PNG/JPG/JPEG）
+      // PNG 文件头：89 50 4E 47
       const isPng = imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x4E && imageBuffer[3] === 0x47
-      const isJpeg = imageBuffer[0] === 0xFF && imageBuffer[1] === 0xD8 && imageBuffer[2] === 0xFF
+      // JPEG 文件头：FF D8（第三个字节可能是 FF 或其他值，取决于 JPEG 类型）
+      const isJpeg = imageBuffer[0] === 0xFF && imageBuffer[1] === 0xD8
 
       if (!isPng && !isJpeg) {
         return NextResponse.json(
@@ -135,8 +123,6 @@ export async function POST(request: Request) {
       }
 
       // 使用简单的图片头解析获取尺寸（支持 PNG 和 JPEG）
-      let width = 0
-      let height = 0
       
       // PNG 格式：前8字节是签名，然后8字节是IHDR，接下来4字节是宽度，4字节是高度
       if (imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x4E && imageBuffer[3] === 0x47) {
@@ -170,10 +156,20 @@ export async function POST(request: Request) {
         )
       }
       
-      // 验证尺寸范围：宽高需小于 2000 像素
-      if (width > 2000 || height > 2000) {
+      // 验证尺寸范围：宽高需不小于 500 像素
+      if (width < 500 || height < 500) {
         return NextResponse.json(
-          { error: '图片宽高需小于 2000 像素' },
+          { error: '图片宽高需不小于 500 像素' },
+          { status: 400 }
+        )
+      }
+      
+      // 检查是否超过2K（总像素数 >= 2560x1440 = 3,686,400）
+      const totalPixels = width * height
+      const pixels2K = 2560 * 1440 // 3,686,400
+      if (totalPixels >= pixels2K) {
+        return NextResponse.json(
+          { error: '图片分辨率不能超过 2K（2560x1440）' },
           { status: 400 }
         )
       }
@@ -186,7 +182,47 @@ export async function POST(request: Request) {
       )
     }
 
-    // 执行修复工作流
+    // 6. 根据图片分辨率计算积分费用
+    // 判断分辨率：通过总像素数（宽×高）来判断
+    // 1K标准：1920x1080 = 2,073,600 像素
+    // 2K标准：2560x1440 = 3,686,400 像素
+    const totalPixels = width * height
+    const pixels1K = 1920 * 1080 // 2,073,600
+    const pixels2K = 2560 * 1440 // 3,686,400
+    
+    const is1K = totalPixels < pixels1K // 小于1K（1920x1080）
+    const is2K = totalPixels >= pixels1K && totalPixels < pixels2K // 大于等于1K且小于2K
+    
+    // 获取基础积分配置（数据库值，默认5）
+    const config = await getPointsConfig()
+    const baseCost = config.repairWorkflowCost ?? 5 // 如果数据库没有值，默认5
+    
+    // 根据分辨率计算费用
+    let cost: number
+    if (is1K) {
+      // 小于等于1K：使用基础费用（数据库值，默认5）
+      cost = baseCost
+    } else if (is2K) {
+      // 大于1K且小于等于2K：基础费用的两倍（默认10）
+      cost = baseCost * 2
+    } else {
+      // 超过2K的情况（虽然验证已经限制在2000以内，但这里作为兜底）
+      cost = baseCost * 2
+    }
+
+    // 管理员不扣积分，普通用户和优质用户需要检查并扣除积分
+    if (!isAdmin) {
+      // 检查积分是否足够
+      const hasEnoughPoints = await checkPointsSufficient(session.user.id, cost)
+      if (!hasEnoughPoints) {
+        return NextResponse.json(
+          { error: `积分不足，需要 ${cost} 积分才能使用此功能` },
+          { status: 403 }
+        )
+      }
+    }
+
+    // 7. 执行修复工作流
     let repairedImage: string
     try {
       repairedImage = await runSupirRepairWorkflow(sanitizedImage, {
@@ -197,10 +233,9 @@ export async function POST(request: Request) {
       })
 
       // 修复成功后扣除积分（管理员不扣）
+      // 注意：cost 已经在前面根据分辨率计算好了
       let newBalance = null
       if (!isAdmin) {
-        const config = await getPointsConfig()
-        const cost = config.repairWorkflowCost
         const deducted = await deductPoints(session.user.id, cost, '工作流修复消费')
         if (!deducted) {
           // 如果扣除失败（理论上不应该发生，因为前面已经检查过），记录错误但不影响结果

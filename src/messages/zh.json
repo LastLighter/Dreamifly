@@ -282,9 +282,16 @@
     },
     "stats": {
       "title": "网站统计",
-      "uptime": "运行时间",
-      "totalGenerations": "总生成数量",
-      "dailyGenerations": "今日生成数量",
+      "uptime": "陪伴时间",
+      "totalGenerations": "总计创造",
+      "dailyGenerations": "今日创造",
+      "loadFailed": "数据加载失败，请稍后刷新",
+      "joinGroup": {
+        "title": "加入官方QQ群",
+        "subtitle": "获取最新模型动态、问题反馈与灵感交流，一起愉快地交流AI绘画吧！",
+        "qrAlt": "Dreamifly QQ群二维码",
+        "cta": "扫码加入"
+      },
       "intro": {
         "prefix": "自",
         "suffix": "上线以来",
@@ -313,12 +320,14 @@
     "home": "首页",
     "faq": "常见问题",
     "community": "社区",
-
     "quickGenerate": "快速生成",
     "siteName": "Dreamifly",
     "switchLanguage": "切换语言",
     "friends": "友链",
-    "workflows": "工作流"
+    "workflows": "工作流",
+    "pricing": "会员订阅",
+    "myWorks": "我的作品",
+    "aiPlaza": "AI广场"
   },
   "footer": {
     "copyright": "Dreamifly 版权所有"
@@ -367,6 +376,7 @@
       "login": "登录成功",
       "register": "注册成功",
       "registerCheckEmail": "注册成功！请查看邮箱完成验证",
+      "registerCheckEmailWithLimit": "注册成功！请查看邮箱完成验证。注意：24小时内每个IP最多只能注册2次",
       "logout": "已退出登录",
       "profileUpdated": "资料更新成功",
       "passwordChanged": "密码修改成功",
@@ -391,12 +401,116 @@
       "invalidFileType": "只支持 JPG、PNG、GIF 格式的图片",
       "emailNotVerified": "请先验证你的邮箱地址",
       "resendFailed": "发送失败，请稍后重试",
-      "emailDomainNotAllowed": "不支持该邮箱类型注册"
+      "emailQuotaExceeded": "邮件发送失败：已达每日限制验证人数上限，建议加入官方群联系管理员处理",
+      "emailDomainNotAllowed": "不支持该邮箱类型注册",
+      "emailSendFailed": "注册成功，但验证邮件发送失败，建议加入官方群联系管理员处理",
+      "unauthorized": "未授权，请刷新页面后重试",
+      "ipRegistrationLimitExceeded": "24小时内最多只能注册2次，请稍后再试",
+      "termsRequired": "请先同意用户协议与隐私政策"
     },
     "validation": {
       "minLength": "至少需要 {min} 个字符",
       "maxLength": "最多 {max} 个字符",
       "emailFormat": "请输入有效的邮箱地址"
+    },
+    "agreeToTerms": "我已阅读并同意",
+    "termsAndPrivacy": "《用户协议与隐私政策》",
+    "terms": {
+      "title": "Dreamifly 用户协议与隐私政策",
+      "effectiveDate": "生效日期：2025年12月19日",
+      "close": "我已阅读",
+      "section1": {
+        "title": "一、引言",
+        "content": "欢迎使用 Dreamifly（以下简称「本平台」）。本协议由 Dreamifly 运营方（以下简称「我们」）与您（用户）共同签署。使用本平台即表示您同意：(1) 遵守本协议全部条款；(2) 授权我们按本政策收集、使用您的数据；(3) 接受我们对违规行为的处理措施。",
+        "note": "若您不同意，请立即停止使用。"
+      },
+      "section2": {
+        "title": "二、用户行为规范",
+        "intro": "您承诺在使用本平台时：",
+        "subsection1": {
+          "title": "2.1 禁止生成以下内容",
+          "item1": "违反法律法规或公序良俗的内容（如暴力、色情、仇恨言论、侵犯他人权益）",
+          "item2": "侵犯知识产权的内容（如未授权的名人肖像、受版权保护的艺术风格）",
+          "item3": "虚假信息或可能造成社会危害的内容（如深度伪造、政治敏感内容）",
+          "item4": "其他违反本平台《内容安全准则》的内容（详见[链接]）"
+        },
+        "subsection2": {
+          "title": "2.2 违规处理措施",
+          "intro": "若用户生成违规内容，我们有权：",
+          "item1": "立即封禁账号（包括临时或永久封禁）",
+          "item2": "删除违规内容及关联数据",
+          "item3": "向监管部门报告（如涉及违法）",
+          "item4": "追究法律责任（如造成损失）",
+          "note": "封禁决定为最终决定，不接受申诉（重大误判除外）。"
+        }
+      },
+      "section3": {
+        "title": "三、数据收集与使用",
+        "subsection1": {
+          "title": "3.1 我们收集的数据类型",
+          "table": {
+            "header1": "数据类型",
+            "header2": "用途说明",
+            "row1": {
+              "col1": "账户信息",
+              "col2": "邮箱/手机号、用户名（用于登录及通知）"
+            },
+            "row2": {
+              "col1": "生成内容数据",
+              "col2": "输入提示词（Prompt）、生成的图片、操作日志（用于内容审核与模型优化）"
+            },
+            "row3": {
+              "col1": "设备与行为数据",
+              "col2": "IP地址、设备型号、使用频率、功能点击流（用于安全防护与产品改进）"
+            },
+            "row4": {
+              "col1": "反馈数据",
+              "col2": "用户投诉、举报内容（用于违规处理与模型调优）"
+            }
+          }
+        },
+        "subsection2": {
+          "title": "3.2 数据使用目的",
+          "item1": "核心目的：提供AI生成服务、内容安全审核、账户管理",
+          "item2": "优化目的：改进AI模型效果、开发新功能、提升用户体验",
+          "item3": "合规目的：履行法律义务、配合监管调查、处理用户纠纷"
+        },
+        "subsection3": {
+          "title": "3.3 用户授权",
+          "intro": "您明确授权我们：",
+          "item1": "对您提交的提示词（Prompt）及生成图片进行自动化分析（包括AI识别、人工抽检），用于：(a) 实时检测违规内容；(b) 训练/优化Dreamifly AI模型（注：生成图片用于训练需经脱敏处理，且不包含可识别个人身份的信息）；(c) 平台安全防护（如识别恶意攻击、滥用行为）"
+        },
+        "subsection4": {
+          "title": "3.4 数据共享与披露",
+          "intro": "不共享：除以下情况外，绝不向第三方出售或共享您的数据；",
+          "item1": "必要共享：云服务商、内容审核服务商（签订保密协议）",
+          "item2": "司法机关依法要求时",
+          "item3": "企业并购等控制权变更场景（需保障数据安全）"
+        }
+      },
+      "section4": {
+        "title": "四、隐私保护措施",
+        "item1": "技术保障：数据传输加密（TLS）、存储加密、访问权限控制",
+        "item2": "存储期限：账户数据保留至账号注销后1年；生成内容保留至违规风险解除（通常≤6个月）",
+        "item3": "您的权利：可随时在账户设置中 导出/删除个人数据（法律要求保留的数据除外）"
+      },
+      "section5": {
+        "title": "五、免责声明",
+        "item1": "AI生成内容可能存在偏差，平台不保证内容准确性或合法性",
+        "item2": "因用户输入违规Prompt导致的法律责任由用户自行承担",
+        "item3": "不可抗力（如黑客攻击、政策变更）导致的数据泄露，我们将及时通知但不承担赔偿责任"
+      },
+      "section6": {
+        "title": "六、协议更新",
+        "content": "我们可能根据法律或业务调整更新本协议。更新后将通过：",
+        "item1": "平台公告",
+        "item2": "邮件通知（注册邮箱）",
+        "note": "继续使用即视为接受新条款。"
+      },
+      "section7": {
+        "title": "七、联系我们",
+        "content": "隐私问题/账号申诉"
+      }
     }
   },
   "friends": {
@@ -418,6 +532,171 @@
       "title": "即将推出",
       "subtitle": "更多友链",
       "description": "更多精彩的AI工具平台即将加入"
+    }
+  },
+  "pricing": {
+    "title": "定价方案",
+    "subtitle": "选择最适合您的方案，开启AI创作之旅",
+    "heroLabel": "会员订阅",
+    "heroTitle": "创作力升级",
+    "heroSubtitle": "精心打磨的设计级体验，稳定生成、高品质呈现，让灵感与效率并行。",
+    "heroCtaSubscribe": "开通会员",
+    "heroCtaPoints": "购买积分",
+    "highlights": {
+      "instant": "即刻启用",
+      "instantDesc": "开通后立即享受优先算力与权益",
+      "flexible": "自由切换",
+      "flexibleDesc": "订阅与积分组合，按需灵活",
+      "aesthetic": "美学友好",
+      "aestheticDesc": "精选模型与细腻预设，减少反复调参",
+      "commercialSafe": "商用无忧",
+      "commercialSafeDesc": "生成内容可商用，授权合规更安心"
+    },
+    "stats": {
+      "value1": { "value": "3×", "label": "高峰期优先队列" },
+      "value2": { "value": "3000+", "label": "开通即得积分" },
+      "value3": { "value": "24/7", "label": "全程稳定服务" }
+    },
+    "viewBenefits": "查看详细权益对比",
+    "subscriptionTab": "订阅会员",
+    "pointsTab": "购买积分",
+    "recommended": "推荐",
+    "popular": "热门",
+    "perMonth": "/月",
+    "perYear": "/年",
+    "perQuarter": "/季度",
+    "bonusPoints": "立即获得 {points} 积分",
+    "totalPoints": "，总计获得 {total} 积分",
+    "dailyMultiplier": "每日签到{multiplier}积分",
+    "multiplierFive": "五倍",
+    "multiplierDouble": "双倍",
+    "multiplierN": "{n}倍",
+    "dailyDouble": "每日签到双倍积分",
+    "subscribe": "立即订阅",
+    "buy": "立即购买",
+    "pointsExchange": "积分兑换比例：",
+    "points": "积分",
+    "subscriptionEmptyTitle": "还没有订阅方案",
+    "subscriptionEmptyDesc": "我们正在准备更好的会员权益，敬请期待。",
+    "pointsEmptyTitle": "暂无积分包",
+    "pointsEmptyDesc": "请稍后再试或联系支持团队。",
+    "loginRequired": "请先登录后再购买",
+    "paymentComingSoon": "支付功能即将上线，敬请期待！",
+    "notice": "所有套餐均为虚拟商品，购买后不支持退款。如有疑问请联系客服。",
+    "comparison": {
+      "title": "权益对比",
+      "subtitle": "了解不同用户类型的权益差异",
+      "feature": "权益",
+      "member": "订阅会员",
+      "registered": "注册用户",
+      "guest": "未登录用户",
+      "features": {
+        "bonusPoints": {
+          "name": "订阅赠送积分",
+          "member": "立即获得3000积分",
+          "registered": "-",
+          "guest": "-"
+        },
+        "dailyPoints": {
+          "name": "每日签到积分",
+          "member": "40积分/天（双倍）",
+          "registered": "20积分/天",
+          "guest": "不可签到"
+        },
+        "watermark": {
+          "name": "生成水印",
+          "member": "无水印",
+          "registered": "无水印",
+          "guest": "携带网站水印"
+        },
+        "adFree": {
+          "name": "广告体验",
+          "member": "无广告",
+          "registered": "无广告",
+          "guest": "有广告"
+        },
+        "speed": {
+          "name": "生成速度",
+          "member": "急速生成",
+          "registered": "高峰期较慢",
+          "guest": "需要排队"
+        },
+        "privacy": {
+          "name": "隐私安全",
+          "member": "生成内容不公开",
+          "registered": "生成内容可能公开展示",
+          "guest": "生成内容可能公开展示"
+        }
+      }
+    }
+  },
+  "membership": {
+    "title": "会员权益",
+    "subtitle": "解锁专属权益，享受更多创作福利",
+    "currentMember": "您已是会员",
+    "expiresAt": "会员到期时间：{date}",
+    "renew": "续费会员",
+    "regularUser": "普通用户",
+    "upgradeTip": "升级会员享受更多权益",
+    "upgrade": "升级会员",
+    "regularUserTitle": "普通用户",
+    "subscribedUserTitle": "订阅会员",
+    "free": "免费",
+    "startFrom": "¥39.9起",
+    "viewPricing": "查看订阅方案",
+    "benefits": {
+      "title": "权益对比",
+      "dailyPoints": {
+        "name": "每日签到积分",
+        "description": "每天登录签到可获得积分奖励",
+        "regular": "20积分/天",
+        "subscribed": "40积分/天（双倍）"
+      },
+      "bonusPoints": {
+        "name": "订阅赠送积分",
+        "description": "订阅后立即获得大量积分",
+        "regular": "无",
+        "subscribed": "3000积分起"
+      },
+      "memberBadge": {
+        "name": "专属会员标识",
+        "description": "彰显您的会员身份"
+      },
+      "prioritySupport": {
+        "name": "优先客服支持",
+        "description": "专属客服通道，快速响应"
+      },
+      "exclusiveFrame": {
+        "name": "商用无忧",
+        "description": "输出可商用，授权合规更安心"
+      },
+      "fastGeneration": {
+        "name": "极速生成",
+        "description": "享受高优先级算力队列，生成更快"
+      },
+      "adFree": {
+        "name": "无广告体验",
+        "description": "享受纯净无广告的创作环境"
+      },
+      "privacy": {
+        "name": "隐私安全",
+        "description": "生成内容将不被公开"
+      }
+    }
+  },
+  "myWorks": {
+    "title": "我的作品",
+    "saved": "已保存",
+    "member": "会员",
+    "regular": "普通用户",
+    "subscribe": "订阅会员",
+    "expiresAt": "会员到期时间",
+    "delete": "删除",
+    "deleting": "删除中...",
+    "empty": {
+      "title": "还没有保存任何作品",
+      "description": "生成图片后会自动保存到这里",
+      "button": "开始生成图片"
     }
   }
 }

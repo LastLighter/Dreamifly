@@ -1,9 +1,10 @@
 /**
  * 调用LLM接口优化提示词
  * @param prompt 用户输入的原始提示词
+ * @param modelId 当前选中的模型ID（可选）
  * @returns 优化后的提示词
  */
-export async function optimizePrompt(prompt: string): Promise<string> {
+export async function optimizePrompt(prompt: string, modelId?: string): Promise<string> {
   try {
     console.log('Calling local API to optimize prompt...');
     
@@ -13,7 +14,7 @@ export async function optimizePrompt(prompt: string): Promise<string> {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({ prompt, modelId })
     });
 
     if (!response.ok) {

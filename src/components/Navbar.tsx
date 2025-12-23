@@ -30,6 +30,8 @@ export default function Navbar() {
   const [isAdmin, setIsAdmin] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
+  const pricingPath = transferUrl('/pricing', locale)
+  const isPricingActive = pathname === pricingPath || pathname?.startsWith(`${pricingPath}/`)
 
   // 检查管理员和优质用户状态
   useEffect(() => {
@@ -248,6 +250,17 @@ export default function Navbar() {
 
           {/* 导航菜单 */}
           <nav className="flex-1 flex flex-col items-center space-y-8 w-full px-4">
+            {/* AI广场菜单 - 最上方 */}
+            <button
+              onClick={() => handleNavItemClick('ai-plaza')}
+              className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
+            >
+              <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('aiPlaza')}</span>
+            </button>
+
             <button
               onClick={handleQuickGenerateClick}
               className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
@@ -258,17 +271,44 @@ export default function Navbar() {
               <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('quickGenerate')}</span>
             </button>
 
-            {/* 工作流菜单 - 所有用户可见 */}
+            {/* 价格/会员菜单 */}
             <Link
-              href={transferUrl('/workflows', locale)}
+              href={transferUrl('/pricing', locale)}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
+              className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 border ${
+                isPricingActive
+                  ? 'bg-gradient-to-r from-orange-100/70 to-amber-100/70 border-orange-200/60 shadow-md'
+                  : 'bg-gray-200/50 hover:bg-gray-300/50 border-transparent'
+              }`}
             >
-              <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 12h10m-6 5h6" />
+              <svg
+                className={`w-6 h-6 flex-shrink-0 ${isPricingActive ? 'text-orange-600' : 'text-gray-700 group-hover:text-gray-900'}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('workflows')}</span>
+              <span
+                className={`text-sm font-medium ${isPricingActive ? 'text-orange-700' : 'text-gray-900 group-hover:text-gray-800'}`}
+              >
+                {t('pricing')}
+              </span>
             </Link>
+
+            {/* 我的作品 - 仅登录用户可见 */}
+            {session?.user && (
+              <Link
+                href={transferUrl('/my-works', locale)}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
+              >
+                <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('myWorks')}</span>
+              </Link>
+            )}
 
             <button
               onClick={() => handleNavItemClick('community-showcase')}
@@ -279,23 +319,11 @@ export default function Navbar() {
               </svg>
               <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('community')}</span>
             </button>
-            <button
-              onClick={() => handleNavItemClick('friends-section')}
-              className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gray-200/50 hover:bg-gray-300/50 transition-all duration-300"
-            >
-              <svg className="w-6 h-6 text-gray-700 group-hover:text-gray-900 flex-shrink-0" fill="currentColor" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-                <path d="M546.9184 665.4976a187.9552 187.9552 0 0 1-133.3248-55.1424 25.6 25.6 0 0 1 36.1984-36.1984 137.472 137.472 0 0 0 194.2016 0l186.1632-186.1632c53.5552-53.5552 53.5552-140.6464 0-194.2016s-140.6464-53.5552-194.2016 0L478.8736 350.8736a25.6 25.6 0 0 1-36.1984-36.1984l157.0816-157.0816c73.5232-73.5232 193.1264-73.5232 266.5984 0s73.5232 193.1264 0 266.5984l-186.1632 186.1632a187.9552 187.9552 0 0 1-133.3248 55.1424z" />
-                <path d="M239.7184 972.6976a187.9552 187.9552 0 0 1-133.3248-55.1424 188.672 188.672 0 0 1 0-266.5984l186.1632-186.1632a188.672 188.672 0 0 1 266.5984 0 25.6 25.6 0 0 1-36.1984 36.1984 137.472 137.472 0 0 0-194.2016 0l-186.1632 186.1632c-53.5552 53.5552-53.5552 140.6464 0 194.2016s140.6464 53.5552 194.2016 0l157.0816-157.0816a25.6 25.6 0 0 1 36.1984 36.1984l-157.0816 157.0816a187.9552 187.9552 0 0 1-133.3248 55.1424z" />
-              </svg>
-              <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('friends')}</span>
-            </button>
 
             {/* 管理员菜单 - 仅管理员可见 */}
             {session?.user && isAdmin && (
               <Link
                 href={transferUrl('/admin', locale)}
-                target="_blank"
-                rel="noopener noreferrer"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-orange-400/20 to-amber-400/20 hover:from-orange-400/30 hover:to-amber-400/30 border border-orange-400/40 transition-all duration-300"
               >

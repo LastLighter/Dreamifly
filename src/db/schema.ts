@@ -1,4 +1,4 @@
-import { pgTable, timestamp, integer, text, boolean, real, serial } from 'drizzle-orm/pg-core';
+import { pgTable, timestamp, integer, text, boolean, real, serial, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 export const siteStats = pgTable('site_stats', {
@@ -27,9 +27,15 @@ export const user = pgTable("user", {
   lastLoginAt: timestamp("last_login_at"), // 数据库字段名: last_login_at，存储时间戳
   isAdmin: boolean("is_admin").default(false), // 数据库字段名: is_admin
   isPremium: boolean("is_premium").default(false), // 数据库字段名: is_premium，标记是否为优质用户
+  isOldUser: boolean("is_old_user").default(false), // 数据库字段名: is_old_user，标记是否为老用户
   dailyRequestCount: integer("daily_request_count").default(0), // 数据库字段名: daily_request_count，当日请求次数
   lastRequestResetDate: timestamp("last_request_reset_date").defaultNow(), // 数据库字段名: last_request_reset_date，上次重置请求次数的日期（类型为 timestamptz）
   avatarFrameId: integer("avatar_frame_id"), // 数据库字段名: avatar_frame_id，头像框ID，为null时使用默认头像框
+  availableAvatarFrameIds: text("available_avatar_frame_ids"), // 数据库字段名: available_avatar_frame_ids，可用头像框ID列表，用逗号分隔
+  isSubscribed: boolean("is_subscribed").default(false), // 是否为订阅用户
+  subscriptionExpiresAt: timestamp("subscription_expires_at"), // 订阅过期时间
+  lastDailyAwardDate: timestamp("last_daily_award_date"), // 数据库字段名: last_daily_award_date，最后签到日期（东八区凌晨4点刷新）
+  banReason: text("ban_reason"), // 数据库字段名: ban_reason，封禁原因
 });
 
 export const session = pgTable("session", {
@@ -88,6 +94,10 @@ export const userLimitConfig = pgTable("user_limit_config", {
   id: integer("id").primaryKey().default(1), // 单例配置，id固定为1
   regularUserDailyLimit: integer("regular_user_daily_limit"), // 普通用户每日限额，null表示使用环境变量
   premiumUserDailyLimit: integer("premium_user_daily_limit"), // 优质用户每日限额，null表示使用环境变量
+  newUserDailyLimit: integer("new_user_daily_limit"), // 新用户每日限额，null表示使用环境变量
+  unauthenticatedIpDailyLimit: integer("unauthenticated_ip_daily_limit"), // 未登录用户IP每日限额，null表示使用环境变量
+  regularUserMaxImages: integer("regular_user_max_images"), // 普通用户最大图片数，null表示使用环境变量
+  subscribedUserMaxImages: integer("subscribed_user_max_images"), // 订阅用户最大图片数，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -109,6 +119,25 @@ export const ipBlacklist = pgTable("ip_blacklist", {
   createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
   updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
   createdBy: text("created_by"), // 创建者（管理员ID）
+});
+
+// IP注册限制表
+export const ipRegistrationLimit = pgTable("ip_registration_limit", {
+  ipAddress: text("ip_address").primaryKey(), // IP地址作为主键
+  registrationCount: integer("registration_count").default(0).notNull(), // 注册次数
+  firstRegistrationAt: timestamp("first_registration_at"), // 第一次注册时间，用于计算24小时窗口
+  lastRegistrationAt: timestamp("last_registration_at"), // 最后一次注册时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+});
+
+// 未登录用户IP每日调用记录表
+export const ipDailyUsage = pgTable("ip_daily_usage", {
+  ipAddress: text("ip_address").primaryKey(), // IP地址作为主键
+  dailyRequestCount: integer("daily_request_count").default(0).notNull(), // 当日请求次数
+  lastRequestResetDate: timestamp("last_request_reset_date").defaultNow().notNull(), // 上次重置请求次数的日期（类型为 timestamptz）
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
 });
 
 // 头像框表
@@ -150,8 +179,121 @@ export const pointsConfig = pgTable("points_config", {
   premiumUserDailyPoints: integer("premium_user_daily_points"), // 优质用户每日积分
   pointsExpiryDays: integer("points_expiry_days"), // 积分过期天数
   repairWorkflowCost: integer("repair_workflow_cost"), // 工作流修复消耗
+  upscaleWorkflowCost: integer("upscale_workflow_cost"), // 工作流放大消耗
+  zImageTurboCost: integer("z_image_turbo_cost"), // Z-Image-Turbo模型积分消耗，null表示使用环境变量
+  qwenImageEditCost: integer("qwen_image_edit_cost"), // Qwen-Image-Edit模型积分消耗，null表示使用环境变量
+  waiSdxlV150Cost: integer("wai_sdxl_v150_cost"), // Wai-SDXL-V150模型积分消耗，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 用户订阅表
+export const userSubscription = pgTable("user_subscription", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  planType: text("plan_type").notNull().default('monthly'), // 'monthly', 'quarterly', 'yearly'
+  status: text("status").notNull().default('active'), // 'active', 'expired', 'cancelled'
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 积分套餐表
+export const pointsPackage = pgTable("points_package", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  points: integer("points").notNull(),
+  price: real("price").notNull(), // 价格（人民币）
+  originalPrice: real("original_price"), // 原价（用于显示折扣）
+  isPopular: boolean("is_popular").default(false), // 是否热门
+  isActive: boolean("is_active").default(true), // 是否上架
+  sortOrder: integer("sort_order").default(0), // 排序
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 订阅套餐表
+export const subscriptionPlan = pgTable("subscription_plan", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull().default('monthly'), // 'monthly', 'quarterly', 'yearly'
+  price: real("price").notNull(),
+  originalPrice: real("original_price"),
+  bonusPoints: integer("bonus_points").notNull().default(3000), // 订阅赠送积分
+  dailyPointsMultiplier: real("daily_points_multiplier").notNull().default(2.0), // 每日签到积分倍率
+  description: text("description"),
+  features: text("features"), // JSON格式的功能列表
+  isPopular: boolean("is_popular").default(false), // 是否热门
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 订单表
+export const paymentOrder = pgTable("payment_order", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  orderType: text("order_type").notNull(), // 'subscription', 'points'
+  productId: text("product_id").notNull(), // 关联的套餐ID
+  amount: real("amount").notNull(), // 支付金额
+  pointsAmount: integer("points_amount"), // 积分数量（仅积分订单）
+  status: text("status").notNull().default('pending'), // 'pending', 'paid', 'failed', 'refunded'
+  paymentMethod: text("payment_method"), // 'alipay', 'wechat'
+  paymentId: text("payment_id"), // 第三方支付订单号
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  paidAt: timestamp("paid_at"),
+});
+
+// 用户生成图片表
+export const userGeneratedImages = pgTable("user_generated_images", {
+  id: text("id").primaryKey(), // UUID
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  imageUrl: text("image_url").notNull(), // OSS中的图片URL
+  prompt: text("prompt"), // 生成时的提示词
+  model: text("model"), // 使用的模型
+  width: integer("width"), // 图片宽度
+  height: integer("height"), // 图片高度
+  userRole: text("user_role"), // 用户角色：admin, subscribed, premium, oldUser, regular
+  userAvatar: text("user_avatar"), // 用户头像URL
+  userNickname: text("user_nickname"), // 用户昵称
+  avatarFrameId: integer("avatar_frame_id"), // 头像框ID
+  referenceImages: jsonb("reference_images").$type<string[]>().default([]), // 参考图片URL数组（加密存储）
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 未通过审核图片表
+export const rejectedImages = pgTable("rejected_images", {
+  id: text("id").primaryKey(), // UUID
+  userId: text("user_id"), // 可为NULL（未登录用户），通过此字段关联user表获取实时用户信息
+  ipAddress: text("ip_address"), // 未登录用户的IP地址
+  imageUrl: text("image_url").notNull(), // OSS中的加密图片URL
+  prompt: text("prompt"), // 生成时的提示词
+  model: text("model"), // 使用的模型
+  width: integer("width"), // 图片宽度
+  height: integer("height"), // 图片高度
+  rejectionReason: text("rejection_reason"), // 拒绝原因：'image' | 'prompt' | 'both'
+  referenceImages: jsonb("reference_images").$type<string[]>().default([]), // 参考图片URL数组（加密存储）
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 违禁词表
+export const profanityWord = pgTable("profanity_word", {
+  id: serial("id").primaryKey(), // 自增ID
+  word: text("word").notNull().unique(), // 违禁词内容，唯一
+  isEnabled: boolean("is_enabled").default(true).notNull(), // 是否启用
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
 });
 
 // 用户与头像框的关系

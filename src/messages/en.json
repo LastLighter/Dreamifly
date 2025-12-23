@@ -277,9 +277,16 @@
     },
     "stats": {
       "title": "Site Statistics",
-      "uptime": "Uptime",
-      "totalGenerations": "Total Generations",
-      "dailyGenerations": "Today's Generations",
+      "uptime": "Time with you",
+      "totalGenerations": "Total creations",
+      "dailyGenerations": "Today's creations",
+      "loadFailed": "Failed to load data, please refresh later",
+      "joinGroup": {
+        "title": "Join QQ group",
+        "subtitle": "Get model updates, report issues, and exchange inspiration — let’s chat about AI art together!",
+        "qrAlt": "Dreamifly QQ group QR code",
+        "cta": "Scan to join"
+      },
       "intro": {
         "prefix": "Since",
         "suffix": "launch",
@@ -308,12 +315,14 @@
     "home": "Home",
     "faq": "FAQ",
     "community": "Community",
-
     "quickGenerate": "Quick Generate",
     "siteName": "Dreamifly",
     "switchLanguage": "Switch Language",
     "friends": "Friends",
-    "workflows": "Workflows"
+    "workflows": "Workflows",
+    "pricing": "Subscription",
+    "myWorks": "My Works",
+    "aiPlaza": "AI Plaza"
   },
   "friends": {
     "title": "Friends",
@@ -383,6 +392,7 @@
       "login": "Login successful",
       "register": "Registration successful",
       "registerCheckEmail": "Registration successful! Please check your email to verify",
+      "registerCheckEmailWithLimit": "Registration successful! Please check your email to verify. Note: Each IP can only register up to 2 times within 24 hours",
       "logout": "Logged out successfully",
       "profileUpdated": "Profile updated successfully",
       "passwordChanged": "Password changed successfully",
@@ -407,12 +417,281 @@
       "invalidFileType": "Only JPG, PNG, GIF formats are supported",
       "emailNotVerified": "Please verify your email address first",
       "resendFailed": "Failed to send, please try again later",
-      "emailDomainNotAllowed": "This email domain is not allowed for registration"
+      "emailQuotaExceeded": "Email sending failed: Daily sending quota limit reached. Please join the official group and contact the administrator",
+      "emailDomainNotAllowed": "This email domain is not allowed for registration",
+      "emailSendFailed": "Registration successful, but verification email failed to send. Please join the official group and contact the administrator",
+      "unauthorized": "Unauthorized, please refresh the page and try again",
+      "ipRegistrationLimitExceeded": "You can only register up to 2 times within 24 hours. Please try again later",
+      "termsRequired": "Please agree to the Terms of Service and Privacy Policy first"
     },
     "validation": {
       "minLength": "Must be at least {min} characters",
       "maxLength": "Must be at most {max} characters",
       "emailFormat": "Please enter a valid email address"
+    },
+    "agreeToTerms": "I have read and agree to the",
+    "termsAndPrivacy": "Terms of Service and Privacy Policy",
+    "terms": {
+      "title": "Dreamifly Terms of Service and Privacy Policy",
+      "effectiveDate": "Effective Date: December 19, 2025",
+      "close": "I have read",
+      "section1": {
+        "title": "I. Introduction",
+        "content": "Welcome to Dreamifly (hereinafter referred to as \"this platform\"). This agreement is entered into between Dreamifly operators (hereinafter referred to as \"we\") and you (the user). By using this platform, you agree to: (1) comply with all terms of this agreement; (2) authorize us to collect and use your data in accordance with this policy; (3) accept our handling measures for violations.",
+        "note": "If you do not agree, please stop using immediately."
+      },
+      "section2": {
+        "title": "II. User Conduct Standards",
+        "intro": "You promise that when using this platform:",
+        "subsection1": {
+          "title": "2.1 Prohibited Content",
+          "item1": "Content that violates laws, regulations, or public order and morals (such as violence, pornography, hate speech, infringement of others' rights)",
+          "item2": "Content that infringes intellectual property rights (such as unauthorized celebrity portraits, copyrighted art styles)",
+          "item3": "False information or content that may cause social harm (such as deepfakes, politically sensitive content)",
+          "item4": "Other content that violates this platform's Content Safety Guidelines (see [link])"
+        },
+        "subsection2": {
+          "title": "2.2 Violation Handling Measures",
+          "intro": "If users generate prohibited content, we have the right to:",
+          "item1": "Immediately ban accounts (including temporary or permanent bans)",
+          "item2": "Delete prohibited content and associated data",
+          "item3": "Report to regulatory authorities (if involving illegal activities)",
+          "item4": "Pursue legal liability (if causing losses)",
+          "note": "Ban decisions are final and not subject to appeal (except for major misjudgments)."
+        }
+      },
+      "section3": {
+        "title": "III. Data Collection and Use",
+        "subsection1": {
+          "title": "3.1 Types of Data We Collect",
+          "table": {
+            "header1": "Data Type",
+            "header2": "Purpose",
+            "row1": {
+              "col1": "Account Information",
+              "col2": "Email/phone number, username (for login and notifications)"
+            },
+            "row2": {
+              "col1": "Generated Content Data",
+              "col2": "Input prompts, generated images, operation logs (for content moderation and model optimization)"
+            },
+            "row3": {
+              "col1": "Device and Behavior Data",
+              "col2": "IP address, device model, usage frequency, feature clickstream (for security and product improvement)"
+            },
+            "row4": {
+              "col1": "Feedback Data",
+              "col2": "User complaints, report content (for violation handling and model tuning)"
+            }
+          }
+        },
+        "subsection2": {
+          "title": "3.2 Data Use Purposes",
+          "item1": "Core purposes: Provide AI generation services, content safety review, account management",
+          "item2": "Optimization purposes: Improve AI model performance, develop new features, enhance user experience",
+          "item3": "Compliance purposes: Fulfill legal obligations, cooperate with regulatory investigations, handle user disputes"
+        },
+        "subsection3": {
+          "title": "3.3 User Authorization",
+          "intro": "You explicitly authorize us to:",
+          "item1": "Automatically analyze your submitted prompts and generated images (including AI recognition and manual sampling) for: (a) real-time detection of prohibited content; (b) training/optimizing Dreamifly AI models (Note: Generated images used for training undergo desensitization and do not contain personally identifiable information); (c) platform security protection (such as identifying malicious attacks and abuse)"
+        },
+        "subsection4": {
+          "title": "3.4 Data Sharing and Disclosure",
+          "intro": "No sharing: Except for the following situations, we will never sell or share your data with third parties;",
+          "item1": "Necessary sharing: Cloud service providers, content moderation service providers (with confidentiality agreements)",
+          "item2": "When required by judicial authorities in accordance with the law",
+          "item3": "Control change scenarios such as corporate mergers (data security must be guaranteed)"
+        }
+      },
+      "section4": {
+        "title": "IV. Privacy Protection Measures",
+        "item1": "Technical safeguards: Data transmission encryption (TLS), storage encryption, access control",
+        "item2": "Retention period: Account data retained for 1 year after account deletion; Generated content retained until violation risk is removed (usually ≤6 months)",
+        "item3": "Your rights: You can export/delete personal data in account settings at any time (except data required to be retained by law)"
+      },
+      "section5": {
+        "title": "V. Disclaimer",
+        "item1": "AI-generated content may have deviations, and the platform does not guarantee content accuracy or legality",
+        "item2": "Users are solely responsible for legal liability arising from inputting prohibited prompts",
+        "item3": "For data breaches caused by force majeure (such as hacker attacks, policy changes), we will notify promptly but do not assume compensation liability"
+      },
+      "section6": {
+        "title": "VI. Agreement Updates",
+        "content": "We may update this agreement based on legal or business adjustments. After updates, we will notify through:",
+        "item1": "Platform announcements",
+        "item2": "Email notifications (registered email)",
+        "note": "Continued use is deemed acceptance of new terms."
+      },
+      "section7": {
+        "title": "VII. Contact Us",
+        "content": "Privacy issues/Account appeals"
+      }
+    }
+  },
+  "pricing": {
+    "title": "Pricing",
+    "subtitle": "Choose the plan that's right for you and start your AI creative journey",
+    "heroLabel": "Membership",
+    "heroTitle": "Designer-grade creative power",
+    "heroSubtitle": "Aesthetics-first experience with stable performance and polished outputs, so ideas and efficiency stay in sync.",
+    "heroCtaSubscribe": "Start Membership",
+    "heroCtaPoints": "Buy credits only",
+    "highlights": {
+      "instant": "Instant activation",
+      "instantDesc": "Priority compute and perks the moment you subscribe",
+      "flexible": "Flexible mix",
+      "flexibleDesc": "Blend subscription with on-demand credits as you need",
+      "aesthetic": "Aesthetic-friendly",
+      "aestheticDesc": "Curated models and refined presets to reduce rework",
+      "commercialSafe": "Commercial-safe",
+      "commercialSafeDesc": "Use outputs commercially with peace of mind"
+    },
+    "stats": {
+      "value1": { "value": "3×", "label": "Priority at peak hours" },
+      "value2": { "value": "3000+", "label": "Credits on activation" },
+      "value3": { "value": "24/7", "label": "Always-on stability" }
+    },
+    "viewBenefits": "View detailed benefits comparison",
+    "subscriptionTab": "Subscription",
+    "pointsTab": "Buy Credits",
+    "recommended": "Recommended",
+    "popular": "Popular",
+    "perMonth": "/month",
+    "perYear": "/year",
+    "perQuarter": "/quarter",
+    "bonusPoints": "Get {points} credits instantly",
+    "totalPoints": ", total {total} credits",
+    "dailyMultiplier": "{multiplier} daily check-in credits",
+    "multiplierFive": "5x",
+    "multiplierDouble": "2x",
+    "multiplierN": "{n}x",
+    "dailyDouble": "Double daily check-in credits",
+    "subscribe": "Subscribe Now",
+    "buy": "Buy Now",
+    "pointsExchange": "Credits exchange rate:",
+    "points": "credits",
+    "subscriptionEmptyTitle": "No subscription plans yet",
+    "subscriptionEmptyDesc": "We are crafting better member benefits. Stay tuned.",
+    "pointsEmptyTitle": "No credit bundles now",
+    "pointsEmptyDesc": "Please try again later or reach out to support.",
+    "loginRequired": "Please login first to purchase",
+    "paymentComingSoon": "Payment feature coming soon!",
+    "notice": "All plans are virtual products and non-refundable after purchase. Please contact support if you have any questions.",
+    "comparison": {
+      "title": "Benefits Comparison",
+      "subtitle": "Compare benefits across different user types",
+      "feature": "Feature",
+      "member": "Subscriber",
+      "registered": "Registered User",
+      "guest": "Guest",
+      "features": {
+        "bonusPoints": {
+          "name": "Subscription Bonus Credits",
+          "member": "Get 3000 credits instantly",
+          "registered": "-",
+          "guest": "-"
+        },
+        "dailyPoints": {
+          "name": "Daily Check-in Credits",
+          "member": "40 credits/day (2x)",
+          "registered": "20 credits/day",
+          "guest": "No check-in"
+        },
+        "watermark": {
+          "name": "Watermark",
+          "member": "No watermark",
+          "registered": "No watermark",
+          "guest": "With watermark"
+        },
+        "adFree": {
+          "name": "Ad Experience",
+          "member": "Ad-free",
+          "registered": "Ad-free",
+          "guest": "With ads"
+        },
+        "speed": {
+          "name": "Generation Speed",
+          "member": "Priority speed",
+          "registered": "Slower at peak times",
+          "guest": "Queue required"
+        },
+        "privacy": {
+          "name": "Privacy & Safety",
+          "member": "Generations stay private",
+          "registered": "May appear in public feed",
+          "guest": "May appear in public feed"
+        }
+      }
+    }
+  },
+  "membership": {
+    "title": "Membership Benefits",
+    "subtitle": "Unlock exclusive benefits and enjoy more creative perks",
+    "currentMember": "You are a Member",
+    "expiresAt": "Membership expires: {date}",
+    "renew": "Renew Membership",
+    "regularUser": "Regular User",
+    "upgradeTip": "Upgrade to enjoy more benefits",
+    "upgrade": "Upgrade Now",
+    "regularUserTitle": "Regular User",
+    "subscribedUserTitle": "Subscriber",
+    "free": "Free",
+    "startFrom": "From $5.99",
+    "viewPricing": "View Pricing Plans",
+    "benefits": {
+      "title": "Benefits Comparison",
+      "dailyPoints": {
+        "name": "Daily Check-in Credits",
+        "description": "Get credit rewards by checking in daily",
+        "regular": "20 credits/day",
+        "subscribed": "40 credits/day (2x)"
+      },
+      "bonusPoints": {
+        "name": "Subscription Bonus Credits",
+        "description": "Get a large amount of credits immediately upon subscription",
+        "regular": "None",
+        "subscribed": "3000+ credits"
+      },
+      "memberBadge": {
+        "name": "Exclusive Member Badge",
+        "description": "Show off your membership status"
+      },
+      "prioritySupport": {
+        "name": "Priority Support",
+        "description": "Dedicated support channel with fast response"
+      },
+      "exclusiveFrame": {
+        "name": "Commercial-safe",
+        "description": "Outputs cleared for commercial use"
+      },
+      "fastGeneration": {
+        "name": "Fast generation",
+        "description": "Access higher-priority queues for quicker results"
+      },
+      "adFree": {
+        "name": "Ad-Free Experience",
+        "description": "Enjoy a pure, ad-free creative environment"
+      },
+      "privacy": {
+        "name": "Privacy & Safety",
+        "description": "Your generated content will stay private"
+      }
+    }
+  },
+  "myWorks": {
+    "title": "My Works",
+    "saved": "Saved",
+    "member": "Member",
+    "regular": "Regular User",
+    "subscribe": "Subscribe",
+    "expiresAt": "Membership Expires At",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "empty": {
+      "title": "No works saved yet",
+      "description": "Generated images will be automatically saved here",
+      "button": "Start Generating"
     }
   }
 } 

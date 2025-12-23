@@ -56,12 +56,32 @@ export const auth = betterAuth({
       console.log('提示: 如果QQ邮箱拦截localhost链接，请直接复制上面的链接到浏览器');
       console.log('='.repeat(80) + '\n');
       
-      // 发送邮箱验证邮件
-      await sendEmail({
-        to: user.email,
-        subject: "验证你的 Dreamifly 邮箱",
-        html: createVerificationEmailHTML(url, user.name),
-      });
+      try {
+        // 发送邮箱验证邮件
+        await sendEmail({
+          to: user.email,
+          subject: "验证你的 Dreamifly 邮箱",
+          html: createVerificationEmailHTML(url, user.name),
+        });
+      } catch (error: any) {
+        // 捕获错误并检查是否是配额限制错误
+        const errorMessage = (error?.message || '').toLowerCase();
+        const isQuotaError = 
+          errorMessage.includes('配额') ||
+          errorMessage.includes('quota') ||
+          errorMessage.includes('daily email sending quota') ||
+          errorMessage.includes('已达到每日发送配额');
+        
+        // 如果是配额限制错误，抛出带有错误码的自定义错误
+        if (isQuotaError) {
+          const quotaError: any = new Error('邮件发送失败：已达每日限制验证人数上限');
+          quotaError.code = 'daily_quota_exceeded';
+          throw quotaError;
+        }
+        
+        // 其他错误直接抛出
+        throw error;
+      }
     },
   },
   user: {
@@ -70,7 +90,7 @@ export const auth = betterAuth({
         type: "number",
         required: false,
         unique: true,
-        // uid 将在注册后通过 signup-handler API 自动生成
+        // uid 将在注册时自动生成（在注册路由中处理）
       },
       avatar: {
         type: "string",
@@ -80,7 +100,7 @@ export const auth = betterAuth({
       nickname: {
         type: "string",
         required: false,
-        // 昵称将在注册后设置为 Dreamer-{uid}
+        // 昵称将在注册时设置为用户输入的 name（在注册路由中处理）
       },
       signature: {
         type: "string",
@@ -105,6 +125,11 @@ export const auth = betterAuth({
         required: false,
         defaultValue: false,
       },
+      isOldUser: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+      },
       dailyRequestCount: {
         type: "number",
         required: false,
@@ -116,6 +141,10 @@ export const auth = betterAuth({
       },
       avatarFrameId: {
         type: "number",
+        required: false,
+      },
+      availableAvatarFrameIds: {
+        type: "string",
         required: false,
       },
     },

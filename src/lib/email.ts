@@ -20,7 +20,29 @@ export async function sendEmail({ to, subject, html }: SendEmailParams) {
 
     if (error) {
       console.error('Error sending email:', error);
-      throw new Error('Failed to send email');
+      // 保留原始错误信息，特别是配额限制等关键信息
+      const errorMessage = error.message || 'Failed to send email';
+      // 使用类型断言处理 error.name，因为 Resend 的错误类型可能不包含所有可能的错误名称
+      const errorName = (error.name as string) || '';
+      const statusCode = (error as any).statusCode || 0;
+      
+      // 精确检测配额限制错误：
+      // 1. 错误名称是 daily_quota_exceeded
+      // 2. 错误消息明确提到配额限制（daily email sending quota 或 You have reached your daily email sending quota）
+      // 3. 状态码是 429（Too Many Requests）
+      const isQuotaError = 
+        errorName === 'daily_quota_exceeded' ||
+        statusCode === 429 ||
+        (errorMessage.toLowerCase().includes('daily email sending quota') ||
+         errorMessage.toLowerCase().includes('you have reached your daily email sending quota') ||
+         errorMessage.toLowerCase().includes('daily sending quota limit'));
+      
+      // 如果是配额限制错误，抛出包含配额信息的错误
+      if (isQuotaError) {
+        throw new Error(`邮件发送失败：已达每日限制验证人数上限。${errorMessage}`);
+      }
+      
+      throw new Error(`邮件发送失败：${errorMessage}`);
     }
 
     console.log('Email sent successfully:', data);

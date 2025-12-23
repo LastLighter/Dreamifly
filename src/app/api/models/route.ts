@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
+import { ALL_MODELS, type ModelConfig } from '@/utils/modelConfig'
 
-// 模型环境变量映射
+// 模型环境变量映射（与 modelConfig.ts 保持一致）
 const MODEL_ENV_MAP = {
   "HiDream-full-fp8": "HiDream_Fp8_URL",
   "Flux-Dev": "Flux_Dev_URL", 
@@ -13,118 +14,6 @@ const MODEL_ENV_MAP = {
   "Z-Image-Turbo": "Z_Image_Turbo_URL",
   "Flux-2": "Flux_2_URL"
 } as const;
-
-// 基础模型配置
-interface ModelConfig {
-  id: string;
-  name: string;
-  image: string;
-  use_i2i: boolean;
-  use_t2i: boolean;
-  maxImages: number;
-  tags?: string[];
-  isRecommended?: boolean;
-}
-
-// 完整的模型配置列表
-const ALL_MODELS: ModelConfig[] = [
-  {
-    id: "Wai-SDXL-V150",
-    name: "Wai-SDXL-V150",
-    image: "/models/Wai-SDXL-V150.jpg",
-    use_i2i: false,
-    use_t2i: true,
-    maxImages: 0,
-    tags: ["fastGeneration", "animeSpecialty"],
-    isRecommended: true
-  },
-  {
-    id: "Qwen-Image-Edit",
-    name: "Qwen-Image-Edit",
-    image: "/models/Qwen-Image.jpg",
-    use_i2i: true,
-    use_t2i: false,
-    maxImages: 3,
-    tags: ["chineseSupport", "fastGeneration"],
-    isRecommended: true
-  },
-  {
-    id: "Flux-Krea",
-    name: "Flux-Krea",
-    image: "/models/Flux-Krea.jpg",
-    use_i2i: false,
-    use_t2i: true,
-    maxImages: 1,
-    tags: ["realisticStyle"],
-    isRecommended: true
-  },
-  {
-    id: "Flux-Kontext",
-    name: "Flux-Kontext",
-    image: "/models/Flux-Kontext.jpg",
-    use_i2i: true,
-    use_t2i: false,
-    maxImages: 2,
-    isRecommended: true
-  },
-  {
-    id: "Flux-Dev",
-    name: "Flux-Dev",
-    image: "/models/Flux-Dev.jpg",
-    use_i2i: true,
-    use_t2i: true,
-    maxImages: 1,
-    tags: ["fastGeneration"]
-  },
-  {
-    id: "Stable-Diffusion-3.5",
-    name: "Stable-Diffusion-3.5",
-    image: "/models/StableDiffusion-3.5.jpg",
-    use_i2i: false,
-    use_t2i: true,
-    maxImages: 1,
-    tags: ["fastGeneration"]
-  },
-  {
-    id: "HiDream-full-fp8",
-    name: "HiDream-full-fp8",
-    image: "/models/HiDream-full.jpg",
-    use_i2i: false,
-    use_t2i: true,
-    maxImages: 1,
-    tags: ["chineseSupport"]
-  },
-  {
-    id: "Qwen-Image",
-    name: "Qwen-Image",
-    image: "/models/Qwen-Image.jpg",
-    use_i2i: false,
-    use_t2i: true,
-    maxImages: 0,
-    tags: ["chineseSupport"],
-    isRecommended: true
-  },
-  {
-    id: "Z-Image-Turbo",
-    name: "Z-Image-Turbo",
-    image: "/models/Z-Image-Turbo.jpg",
-    use_i2i: false,
-    use_t2i: true,
-    maxImages: 0,
-    tags: ["chineseSupport", "fastGeneration"],
-    isRecommended: true
-  },
-  {
-    id: "Flux-2",
-    name: "Flux-2",
-    image: "/models/Flux-2.jpg",
-    use_i2i: false,
-    use_t2i: true,
-    maxImages: 0,
-    tags: ["fastGeneration"],
-    isRecommended: true
-  }
-];
 
 /**
  * 检查模型是否在环境变量中配置了URL

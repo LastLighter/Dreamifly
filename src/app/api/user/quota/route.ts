@@ -81,6 +81,8 @@ export async function GET(request: NextRequest) {
       .select({
         isAdmin: user.isAdmin,
         isPremium: user.isPremium,
+        isOldUser: user.isOldUser,
+        isActive: user.isActive,
         dailyRequestCount: user.dailyRequestCount,
         lastRequestResetDate: sql<string | null>`${user.lastRequestResetDate} AT TIME ZONE 'UTC'`,
       })
@@ -95,6 +97,7 @@ export async function GET(request: NextRequest) {
     const userInfo = userData[0];
     const isAdmin = userInfo.isAdmin || false;
     const isPremium = userInfo.isPremium || false;
+    const isOldUser = userInfo.isOldUser || false;
 
     // 辅助函数：获取指定日期在东八区的年月日
     const getShanghaiDate = (date: Date) => {
@@ -121,8 +124,10 @@ export async function GET(request: NextRequest) {
       todayShanghai.day
     ));
 
-    // 计算今日使用次数
+    // 计算今日使用次数并检查是否需要重置
     let todayCount = 0;
+    let needsReset = false;
+    
     if (userInfo.lastRequestResetDate) {
       // 由于查询时已经使用 AT TIME ZONE 'UTC' 转换为UTC时间字符串
       // 返回的格式是 '2025-11-17 15:17:26.143223' (无时区标识的UTC时间，空格分隔)
@@ -135,13 +140,31 @@ export async function GET(request: NextRequest) {
         lastResetDayShanghai.day
       ));
       
+      // 检查是否需要重置（上次重置日期不是今天）
+      needsReset = lastResetDayShanghaiDate.getTime() !== todayShanghaiDate.getTime();
+      
       // 如果上次重置日期是今天（东八区），使用当前计数；否则为0
-      if (lastResetDayShanghaiDate.getTime() === todayShanghaiDate.getTime()) {
+      if (!needsReset) {
         todayCount = userInfo.dailyRequestCount || 0;
       }
-      // 如果不是今天，todayCount 保持为 0
+      // 如果需要重置，todayCount 保持为 0
+    } else {
+      // 如果没有重置日期，也需要重置
+      needsReset = true;
     }
-    // 如果没有重置日期，todayCount 保持为 0
+    
+    // 如果需要重置，更新数据库（确保数据一致性）
+    if (needsReset) {
+      await db
+        .update(user)
+        .set({
+          dailyRequestCount: 0,
+          lastRequestResetDate: sql`now()`,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(user.id, userId));
+      todayCount = 0;
+    }
 
     // 获取用户限额配置
     let maxDailyRequests: number | null = null;
@@ -155,24 +178,47 @@ export async function GET(request: NextRequest) {
         if (config.length > 0) {
           const configData = config[0];
           if (isPremium) {
-            maxDailyRequests = configData.premiumUserDailyLimit ?? 
-              parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '500', 10);
+            // 优质用户额度：数据库 > 环境变量 > 默认
+            const dbPremiumLimit = configData.premiumUserDailyLimit;
+            const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
+            maxDailyRequests = dbPremiumLimit ?? envPremiumLimit;
+            console.log(`[Quota API] Premium user limit - DB: ${dbPremiumLimit}, Env: ${envPremiumLimit}, Final: ${maxDailyRequests}`);
           } else {
-            maxDailyRequests = configData.regularUserDailyLimit ?? 
-              parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10);
+            // 首批用户 & 新用户额度：数据库 > 环境变量 > 默认
+            if (isOldUser) {
+              const dbRegularLimit = configData.regularUserDailyLimit;
+              const envRegularLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
+              maxDailyRequests = dbRegularLimit ?? envRegularLimit;
+            } else {
+              const dbNewLimit = configData.newUserDailyLimit;
+              const envNewLimit = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
+              maxDailyRequests = dbNewLimit ?? envNewLimit;
+            }
           }
         } else {
-          // 配置不存在，使用环境变量
-          maxDailyRequests = isPremium 
-            ? parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '500', 10)
-            : parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10);
+          // 配置不存在，仅使用环境变量 > 默认
+          if (isPremium) {
+            maxDailyRequests = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
+          } else {
+            if (isOldUser) {
+              maxDailyRequests = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
+            } else {
+              maxDailyRequests = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
+            }
+          }
         }
       } catch (error) {
         // 如果查询配置失败，使用环境变量作为后备
         console.error('Error fetching user limit config:', error);
-        maxDailyRequests = isPremium 
-          ? parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '500', 10)
-          : parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10);
+        if (isPremium) {
+          maxDailyRequests = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
+        } else {
+          if (isOldUser) {
+            maxDailyRequests = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
+          } else {
+            maxDailyRequests = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
+          }
+        }
       }
     }
 
@@ -181,6 +227,8 @@ export async function GET(request: NextRequest) {
       maxDailyRequests,
       isAdmin,
       isPremium,
+      isOldUser,
+      isActive: userInfo.isActive !== undefined ? userInfo.isActive : true,
     });
   } catch (error) {
     console.error('Error fetching user quota:', error);

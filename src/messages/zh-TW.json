@@ -308,12 +308,12 @@
     "home": "首頁",
     "faq": "常見問題",
     "community": "社群",
-
     "quickGenerate": "快速生成",
     "siteName": "Dreamifly",
     "switchLanguage": "切換語言",
     "friends": "友鏈",
-    "workflows": "工作流"
+    "workflows": "工作流",
+    "pricing": "會員訂閱"
   },
   "footer": {
     "copyright": "Dreamifly 版權所有。"
@@ -362,6 +362,7 @@
       "login": "登入成功",
       "register": "註冊成功",
       "registerCheckEmail": "註冊成功！請查看電子郵件完成驗證",
+      "registerCheckEmailWithLimit": "註冊成功！請查看電子郵件完成驗證。注意：24小時內每個IP最多只能註冊2次",
       "logout": "已登出",
       "profileUpdated": "資料更新成功",
       "passwordChanged": "密碼修改成功",
@@ -386,12 +387,116 @@
       "invalidFileType": "只支援 JPG、PNG、GIF 格式的圖片",
       "emailNotVerified": "請先驗證你的電子郵件地址",
       "resendFailed": "發送失敗，請稍後重試",
-      "emailDomainNotAllowed": "不支援該電子郵件類型註冊"
+      "emailQuotaExceeded": "郵件發送失敗：已達到每日發送配額限制，建議加入官方群聯繫管理員處理",
+      "emailDomainNotAllowed": "不支援該電子郵件類型註冊",
+      "emailSendFailed": "註冊成功，但驗證郵件發送失敗，建議加入官方群聯繫管理員處理",
+      "unauthorized": "未授權，請重新整理頁面後重試",
+      "ipRegistrationLimitExceeded": "24小時內最多只能註冊2次，請稍後再試",
+      "termsRequired": "請先同意用戶協議與隱私政策"
     },
     "validation": {
       "minLength": "至少需要 {min} 個字元",
       "maxLength": "最多 {max} 個字元",
       "emailFormat": "請輸入有效的電子郵件地址"
+    },
+    "agreeToTerms": "我已閱讀並同意",
+    "termsAndPrivacy": "《用戶協議與隱私政策》",
+    "terms": {
+      "title": "Dreamifly 用戶協議與隱私政策",
+      "effectiveDate": "生效日期：2025年12月19日",
+      "close": "我已閱讀",
+      "section1": {
+        "title": "一、引言",
+        "content": "歡迎使用 Dreamifly（以下簡稱「本平台」）。本協議由 Dreamifly 運營方（以下簡稱「我們」）與您（用戶）共同簽署。使用本平台即表示您同意：(1) 遵守本協議全部條款；(2) 授權我們按本政策收集、使用您的數據；(3) 接受我們對違規行為的處理措施。",
+        "note": "若您不同意，請立即停止使用。"
+      },
+      "section2": {
+        "title": "二、用戶行為規範",
+        "intro": "您承諾在使用本平台時：",
+        "subsection1": {
+          "title": "2.1 禁止生成以下內容",
+          "item1": "違反法律法規或公序良俗的內容（如暴力、色情、仇恨言論、侵犯他人權益）",
+          "item2": "侵犯知識產權的內容（如未授權的名人肖像、受版權保護的藝術風格）",
+          "item3": "虛假信息或可能造成社會危害的內容（如深度偽造、政治敏感內容）",
+          "item4": "其他違反本平台《內容安全準則》的內容（詳見[連結]）"
+        },
+        "subsection2": {
+          "title": "2.2 違規處理措施",
+          "intro": "若用戶生成違規內容，我們有權：",
+          "item1": "立即封禁帳號（包括臨時或永久封禁）",
+          "item2": "刪除違規內容及關聯數據",
+          "item3": "向監管部門報告（如涉及違法）",
+          "item4": "追究法律責任（如造成損失）",
+          "note": "封禁決定為最終決定，不接受申訴（重大誤判除外）。"
+        }
+      },
+      "section3": {
+        "title": "三、數據收集與使用",
+        "subsection1": {
+          "title": "3.1 我們收集的數據類型",
+          "table": {
+            "header1": "數據類型",
+            "header2": "用途說明",
+            "row1": {
+              "col1": "帳戶信息",
+              "col2": "郵箱/手機號、用戶名（用於登錄及通知）"
+            },
+            "row2": {
+              "col1": "生成內容數據",
+              "col2": "輸入提示詞（Prompt）、生成的圖片、操作日誌（用於內容審核與模型優化）"
+            },
+            "row3": {
+              "col1": "設備與行為數據",
+              "col2": "IP地址、設備型號、使用頻率、功能點擊流（用於安全防護與產品改進）"
+            },
+            "row4": {
+              "col1": "反饋數據",
+              "col2": "用戶投訴、舉報內容（用於違規處理與模型調優）"
+            }
+          }
+        },
+        "subsection2": {
+          "title": "3.2 數據使用目的",
+          "item1": "核心目的：提供AI生成服務、內容安全審核、帳戶管理",
+          "item2": "優化目的：改進AI模型效果、開發新功能、提升用戶體驗",
+          "item3": "合規目的：履行法律義務、配合監管調查、處理用戶糾紛"
+        },
+        "subsection3": {
+          "title": "3.3 用戶授權",
+          "intro": "您明確授權我們：",
+          "item1": "對您提交的提示詞（Prompt）及生成圖片進行自動化分析（包括AI識別、人工抽檢），用於：(a) 實時檢測違規內容；(b) 訓練/優化Dreamifly AI模型（註：生成圖片用於訓練需經脫敏處理，且不包含可識別個人身份的信息）；(c) 平台安全防護（如識別惡意攻擊、濫用行為）"
+        },
+        "subsection4": {
+          "title": "3.4 數據共享與披露",
+          "intro": "不共享：除以下情況外，絕不向第三方出售或共享您的數據；",
+          "item1": "必要共享：雲服務商、內容審核服務商（簽訂保密協議）",
+          "item2": "司法機關依法要求時",
+          "item3": "企業併購等控制權變更場景（需保障數據安全）"
+        }
+      },
+      "section4": {
+        "title": "四、隱私保護措施",
+        "item1": "技術保障：數據傳輸加密（TLS）、存儲加密、訪問權限控制",
+        "item2": "存儲期限：帳戶數據保留至帳號註銷後1年；生成內容保留至違規風險解除（通常≤6個月）",
+        "item3": "您的權利：可隨時在帳戶設置中 導出/刪除個人數據（法律要求保留的數據除外）"
+      },
+      "section5": {
+        "title": "五、免責聲明",
+        "item1": "AI生成內容可能存在偏差，平台不保證內容準確性或合法性",
+        "item2": "因用戶輸入違規Prompt導致的法律責任由用戶自行承擔",
+        "item3": "不可抗力（如黑客攻擊、政策變更）導致的數據洩露，我們將及時通知但不承擔賠償責任"
+      },
+      "section6": {
+        "title": "六、協議更新",
+        "content": "我們可能根據法律或業務調整更新本協議。更新後將通過：",
+        "item1": "平台公告",
+        "item2": "郵件通知（註冊郵箱）",
+        "note": "繼續使用即視為接受新條款。"
+      },
+      "section7": {
+        "title": "七、聯繫我們",
+        "content": "隱私問題/帳號申訴"
+      }
     }
   },
   "friends": {
@@ -413,6 +518,156 @@
       "title": "即將推出",
       "subtitle": "更多友鏈",
       "description": "更多精彩的AI工具平台即將加入"
+    }
+  },
+  "pricing": {
+    "title": "定價方案",
+    "subtitle": "選擇最適合您的方案，開啟AI創作之旅",
+    "heroLabel": "會員訂閱",
+    "heroTitle": "創作力升級",
+    "heroSubtitle": "精心打磨的設計級體驗，穩定生成、高品質呈現，讓靈感與效率並行。",
+    "heroCtaSubscribe": "開通會員",
+    "heroCtaPoints": "購買積分",
+    "highlights": {
+      "instant": "即刻啟用",
+      "instantDesc": "開通後立即享受優先算力與權益",
+      "flexible": "自由切換",
+      "flexibleDesc": "訂閱與積分組合，按需彈性",
+      "aesthetic": "美學友好",
+      "aestheticDesc": "精選模型與細膩預設，減少反覆調參",
+      "commercialSafe": "商用無憂",
+      "commercialSafeDesc": "生成內容可商用，授權合規更安心"
+    },
+    "stats": {
+      "value1": { "value": "3×", "label": "高峰期優先隊列" },
+      "value2": { "value": "3000+", "label": "開通即得積分" },
+      "value3": { "value": "24/7", "label": "全程穩定服務" }
+    },
+    "viewBenefits": "查看詳細權益對比",
+    "subscriptionTab": "訂閱會員",
+    "pointsTab": "購買積分",
+    "recommended": "推薦",
+    "popular": "熱門",
+    "perMonth": "/月",
+    "perYear": "/年",
+    "perQuarter": "/季度",
+    "bonusPoints": "立即獲得 {points} 積分",
+    "totalPoints": "，總計獲得 {total} 積分",
+    "dailyMultiplier": "每日簽到{multiplier}積分",
+    "multiplierFive": "五倍",
+    "multiplierDouble": "雙倍",
+    "multiplierN": "{n}倍",
+    "dailyDouble": "每日簽到雙倍積分",
+    "subscribe": "立即訂閱",
+    "buy": "立即購買",
+    "pointsExchange": "積分兌換比例：",
+    "points": "積分",
+    "subscriptionEmptyTitle": "還沒有訂閱方案",
+    "subscriptionEmptyDesc": "我們正在準備更好的會員權益，敬請期待。",
+    "pointsEmptyTitle": "暫無積分包",
+    "pointsEmptyDesc": "請稍後再試或聯繫支援團隊。",
+    "loginRequired": "請先登入後再購買",
+    "paymentComingSoon": "支付功能即將上線，敬請期待！",
+    "notice": "所有套餐均為虛擬商品，購買後不支援退款。如有疑問請聯繫客服。",
+    "comparison": {
+      "title": "權益對比",
+      "subtitle": "了解不同用戶類型的權益差異",
+      "feature": "權益",
+      "member": "訂閱會員",
+      "registered": "註冊用戶",
+      "guest": "未登入用戶",
+      "features": {
+        "bonusPoints": {
+          "name": "訂閱贈送積分",
+          "member": "立即獲得3000積分",
+          "registered": "-",
+          "guest": "-"
+        },
+        "dailyPoints": {
+          "name": "每日簽到積分",
+          "member": "40積分/天（雙倍）",
+          "registered": "20積分/天",
+          "guest": "不可簽到"
+        },
+        "watermark": {
+          "name": "生成浮水印",
+          "member": "無浮水印",
+          "registered": "無浮水印",
+          "guest": "攜帶網站浮水印"
+        },
+        "adFree": {
+          "name": "廣告體驗",
+          "member": "無廣告",
+          "registered": "無廣告",
+          "guest": "有廣告"
+        },
+        "speed": {
+          "name": "生成速度",
+          "member": "極速生成",
+          "registered": "高峰期較慢",
+          "guest": "需要排隊"
+        },
+        "privacy": {
+          "name": "隱私安全",
+          "member": "生成內容不公開",
+          "registered": "生成內容可能公開展示",
+          "guest": "生成內容可能公開展示"
+        }
+      }
+    }
+  },
+  "membership": {
+    "title": "會員權益",
+    "subtitle": "解鎖專屬權益，享受更多創作福利",
+    "currentMember": "您已是會員",
+    "expiresAt": "會員到期時間：{date}",
+    "renew": "續費會員",
+    "regularUser": "普通用戶",
+    "upgradeTip": "升級會員享受更多權益",
+    "upgrade": "升級會員",
+    "regularUserTitle": "普通用戶",
+    "subscribedUserTitle": "訂閱會員",
+    "free": "免費",
+    "startFrom": "¥39.9起",
+    "viewPricing": "查看訂閱方案",
+    "benefits": {
+      "title": "權益對比",
+      "dailyPoints": {
+        "name": "每日簽到積分",
+        "description": "每天登入簽到可獲得積分獎勵",
+        "regular": "20積分/天",
+        "subscribed": "40積分/天（雙倍）"
+      },
+      "bonusPoints": {
+        "name": "訂閱贈送積分",
+        "description": "訂閱後立即獲得大量積分",
+        "regular": "無",
+        "subscribed": "3000積分起"
+      },
+      "memberBadge": {
+        "name": "專屬會員標識",
+        "description": "彰顯您的會員身份"
+      },
+      "prioritySupport": {
+        "name": "優先客服支援",
+        "description": "專屬客服通道，快速響應"
+      },
+      "exclusiveFrame": {
+        "name": "商用無憂",
+        "description": "輸出可商用，授權合規更安心"
+      },
+      "fastGeneration": {
+        "name": "極速生成",
+        "description": "享受高優先級算力隊列，生成更快"
+      },
+      "adFree": {
+        "name": "無廣告體驗",
+        "description": "享受純淨無廣告的創作環境"
+      },
+      "privacy": {
+        "name": "隱私安全",
+        "description": "生成內容將不被公開"
+      }
     }
   }
 } 

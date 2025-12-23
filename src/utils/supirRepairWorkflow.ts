@@ -1,206 +1,59 @@
 const supirRepairWorkflowTemplate = {
   "1": {
     "inputs": {
-      "ckpt_name": "sd_xl_base_1.0_0.9vae.safetensors"
+      "supir_model": "SUPIR-v0Q.ckpt",
+      "sdxl_model": "sd_xl_base_1.0_0.9vae.safetensors",
+      "seed": 608078894450978,
+      "resize_method": "lanczos",
+      "scale_by": 1,
+      "steps": 30,
+      "restoration_scale": 2,
+      "cfg_scale": 7.5,
+      "a_prompt": "",
+      "n_prompt": "bad quality, blurry, messy",
+      "s_churn": 5,
+      "s_noise": 1.003,
+      "control_scale": 1,
+      "cfg_scale_start": 0,
+      "control_scale_start": 0,
+      "color_fix_type": "Wavelet",
+      "keep_model_loaded": true,
+      "use_tiled_vae": true,
+      "encoder_tile_size_pixels": 512,
+      "decoder_tile_size_latent": 544,
+      "diffusion_dtype": "auto",
+      "encoder_dtype": "auto",
+      "batch_size": 1,
+      "use_tiled_sampling": false,
+      "sampler_tile_size": 512,
+      "sampler_tile_stride": 512,
+      "fp8_unet": false,
+      "fp8_vae": false,
+      "sampler": "RestoreEDMSampler",
+      "image": [
+        "2",
+        0
+      ]
     },
-    "class_type": "CheckpointLoaderSimple",
+    "class_type": "SUPIR_Upscale",
     "_meta": {
-      "title": "Checkpoint加载器（简易）"
+      "title": "SUPIR Upscale (Legacy)"
     }
   },
   "2": {
     "inputs": {
-      "supir_model": "SUPIR-v0Q.ckpt",
-      "fp8_unet": false,
-      "diffusion_dtype": "auto",
-      "high_vram": false,
-      "model": [
-        "1",
-        0
-      ],
-      "clip": [
-        "1",
-        1
-      ],
-      "vae": [
-        "1",
-        2
-      ]
-    },
-    "class_type": "SUPIR_model_loader_v2",
-    "_meta": {
-      "title": "SUPIR Model Loader (v2)"
-    }
-  },
-  "3": {
-    "inputs": {
-      "use_tiled_vae": true,
-      "encoder_tile_size": 512,
-      "decoder_tile_size": 512,
-      "encoder_dtype": "auto",
-      "SUPIR_VAE": [
-        "2",
-        1
-      ],
-      "image": [
-        "11",
-        0
-      ]
-    },
-    "class_type": "SUPIR_first_stage",
-    "_meta": {
-      "title": "SUPIR First Stage (Denoiser)"
-    }
-  },
-  "4": {
-    "inputs": {
-      "use_tiled_vae": true,
-      "encoder_tile_size": 512,
-      "encoder_dtype": "auto",
-      "SUPIR_VAE": [
-        "3",
-        0
-      ],
-      "image": [
-        "3",
-        1
-      ]
-    },
-    "class_type": "SUPIR_encode",
-    "_meta": {
-      "title": "SUPIR Encode"
-    }
-  },
-  "5": {
-    "inputs": {
-      "positive_prompt": "high quality, detailed,4k",
-      "negative_prompt": "bad quality, blurry, messy",
-      "SUPIR_model": [
-        "2",
-        0
-      ],
-      "latents": [
-        "3",
-        2
-      ]
-    },
-    "class_type": "SUPIR_conditioner",
-    "_meta": {
-      "title": "SUPIR Conditioner"
-    }
-  },
-  "6": {
-    "inputs": {
-      "seed": 475197826553389,
-      "steps": 35,
-      "cfg_scale_start": 7,
-      "cfg_scale_end": 7,
-      "EDM_s_churn": 1,
-      "s_noise": 1.0030000000000001,
-      "DPMPP_eta": 0.1,
-      "control_scale_start": 1,
-      "control_scale_end": 1,
-      "restore_cfg": 5,
-      "keep_model_loaded": false,
-      "sampler": "RestoreDPMPP2MSampler",
-      "sampler_tile_size": 1024,
-      "sampler_tile_stride": 512,
-      "SUPIR_model": [
-        "2",
-        0
-      ],
-      "latents": [
-        "4",
-        0
-      ],
-      "positive": [
-        "5",
-        0
-      ],
-      "negative": [
-        "5",
-        1
-      ]
-    },
-    "class_type": "SUPIR_sample",
-    "_meta": {
-      "title": "SUPIR Sampler"
-    }
-  },
-  "7": {
-    "inputs": {
-      "use_tiled_vae": true,
-      "decoder_tile_size": 512,
-      "SUPIR_VAE": [
-        "2",
-        1
-      ],
-      "latents": [
-        "6",
-        0
-      ]
-    },
-    "class_type": "SUPIR_decode",
-    "_meta": {
-      "title": "SUPIR Decode"
-    }
-  },
-  "11": {
-    "inputs": {
-      "image": "123.jpg"
+      "image": "banner.png"
     },
     "class_type": "LoadImage",
     "_meta": {
       "title": "加载图像"
     }
   },
-  "30": {
+  "10": {
     "inputs": {
+      "filename_prefix": "ComfyUI",
       "images": [
-        "7",
-        0
-      ]
-    },
-    "class_type": "PreviewImage",
-    "_meta": {
-      "title": "预览图像"
-    }
-  },
-  "32": {
-    "inputs": {
-      "rgthree_comparer": {
-        "images": [
-          {
-            "name": "A",
-            "selected": true,
-            "url": "/api/view?filename=rgthree.compare._temp_qpmzj_00009_.png&type=temp&subfolder=&rand=0.10679655269071098"
-          },
-          {
-            "name": "B",
-            "selected": true,
-            "url": "/api/view?filename=rgthree.compare._temp_qpmzj_00010_.png&type=temp&subfolder=&rand=0.9459863848476231"
-          }
-        ]
-      },
-      "image_a": [
-        "7",
-        0
-      ],
-      "image_b": [
-        "11",
-        0
-      ]
-    },
-    "class_type": "Image Comparer (rgthree)",
-    "_meta": {
-      "title": "Image Comparer (rgthree)"
-    }
-  },
-  "40": {
-    "inputs": {
-      "filename_prefix": "SupirRepair",
-      "images": [
-        "7",
+        "1",
         0
       ]
     },
@@ -237,27 +90,33 @@ export async function runSupirRepairWorkflow(
 
   const workflow: Record<string, any> = JSON.parse(JSON.stringify(supirRepairWorkflowTemplate))
 
-  if (!workflow['11']) {
-    throw new Error('工作流中缺少上传节点（11）')
+  if (!workflow['2']) {
+    throw new Error('工作流中缺少上传节点（2）')
   }
 
-  workflow['11'].inputs.image = imageBase64
-  workflow['11'].inputs.upload = 'image'
+  workflow['2'].inputs.image = imageBase64
+  workflow['2'].inputs.upload = 'image'
 
   if (options.positivePrompt) {
-    workflow['5'].inputs.positive_prompt = options.positivePrompt
+    workflow['1'].inputs.a_prompt = options.positivePrompt
   }
 
   if (options.negativePrompt) {
-    workflow['5'].inputs.negative_prompt = options.negativePrompt
+    workflow['1'].inputs.n_prompt = options.negativePrompt
   }
 
   if (typeof options.steps === 'number') {
-    workflow['6'].inputs.steps = options.steps
+    workflow['1'].inputs.steps = options.steps
   }
 
+  // 如果没有传递 seed，动态生成一个随机种子
+  // ComfyUI 种子范围：0 到 2^32-1 (4294967295)，但也可以使用更大的数字
+  // 使用 0 到 Number.MAX_SAFE_INTEGER (9007199254740991) 的范围
   if (typeof options.seed === 'number') {
-    workflow['6'].inputs.seed = options.seed
+    workflow['1'].inputs.seed = options.seed
+  } else {
+    // 动态生成随机种子：0 到 4294967295 (2^32-1)
+    workflow['1'].inputs.seed = Math.floor(Math.random() * 4294967296)
   }
 
   const response = await fetch(`${baseUrl}/prompt`, {
@@ -275,7 +134,22 @@ export async function runSupirRepairWorkflow(
     if (response.status === 404) {
       errorMessage = 'Supir Repair 服务不可用，请检查服务配置或联系管理员'
     } else if (response.status === 500) {
-      errorMessage = 'Supir Repair 服务内部错误，请稍后重试'
+      // 尝试解析详细错误信息
+      if (errorText) {
+        try {
+          const errorJson = JSON.parse(errorText)
+          errorMessage = errorJson.error || errorJson.message || errorJson.detail || errorMessage
+        } catch {
+          // 如果不是 JSON，使用原始文本（限制长度避免过长）
+          if (errorText.length < 500) {
+            errorMessage = `Supir Repair 服务内部错误: ${errorText}`
+          } else {
+            errorMessage = `Supir Repair 服务内部错误: ${errorText.substring(0, 500)}...`
+          }
+        }
+      } else {
+        errorMessage = 'Supir Repair 服务内部错误，请稍后重试'
+      }
     } else if (errorText) {
       try {
         const errorJson = JSON.parse(errorText)

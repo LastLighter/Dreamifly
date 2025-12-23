@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { signIn, sendVerificationEmail, forgetPassword } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
+import TermsModal from './TermsModal'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -21,6 +22,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
+  // Reset terms agreement when mode changes
+  useEffect(() => {
+    if (mode !== 'register') {
+      setAgreedToTerms(false)
+    }
+  }, [mode])
 
   if (!isOpen) return null
 
@@ -64,6 +76,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
         setError(t('error.passwordMismatch'))
         return
       }
+      if (!agreedToTerms) {
+        setError(t('error.termsRequired'))
+        return
+      }
     }
 
     setLoading(true)
@@ -89,18 +105,6 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             // 切换到验证模式
             setMode('verify')
             setError(t('error.emailNotVerified'))
-            
-            // 自动尝试重新发送验证邮件
-            try {
-              await sendVerificationEmail({
-                email,
-                callbackURL: '/',
-              })
-              setSuccess(t('success.verificationEmailSent'))
-            } catch (err) {
-              console.error('Failed to resend verification email:', err)
-              // 发送失败不影响用户体验，用户可以在验证页面手动点击重发
-            }
           } else {
             // 其他错误（密码错误等）
             setError(t('error.loginFailed'))
@@ -164,38 +168,45 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
             const errorMessage = signUpData.error?.message || ''
             const errorCode = signUpData.error?.code
             
-            if (errorCode === 'EMAIL_DOMAIN_NOT_ALLOWED' || 
+            // 优先检查邮件发送失败的情况（因为用户可能已经创建成功）
+            // 检查多种可能的邮件发送失败标识
+            const isEmailSendFailed = 
+              errorCode === 'EMAIL_SEND_FAILED' || 
+              errorMessage === 'EMAIL_SEND_FAILED' ||
+              errorMessage.includes('EMAIL_SEND_FAILED') ||
+              errorMessage.includes('Failed to send email') ||
+              errorMessage.includes('邮件发送失败') ||
+              errorMessage.includes('发送邮件失败') ||
+              (errorMessage.toLowerCase().includes('email') && 
+               (errorMessage.toLowerCase().includes('send') || 
+                errorMessage.toLowerCase().includes('fail')))
+            
+            if (isEmailSendFailed) {
+              // 邮件发送失败，但用户可能已创建
+              setError(t('error.emailSendFailed'))
+              setMode('verify') // 切换到验证模式，用户可以重发验证邮件
+            } else if (errorCode === 'IP_REGISTRATION_LIMIT_EXCEEDED' || 
+                errorMessage.includes('24小时内最多只能注册') ||
+                errorMessage.includes('最多只能注册') ||
+                errorMessage.includes('24小時內最多只能註冊')) {
+              // IP注册限制超出，优先显示后端返回的详细消息（包含重置时间）
+              setError(errorMessage || t('error.ipRegistrationLimitExceeded'))
+            } else if (errorCode === 'EMAIL_DOMAIN_NOT_ALLOWED' || 
                 errorMessage === 'EMAIL_DOMAIN_NOT_ALLOWED' ||
                 errorMessage.includes('EMAIL_DOMAIN_NOT_ALLOWED')) {
               setError(t('error.emailDomainNotAllowed'))
+            } else if (errorCode === 'UNAUTHORIZED' || errorCode === 'INVALID_TOKEN') {
+              setError(t('error.unauthorized'))
             } else {
               setError(t('error.registerFailed'))
             }
             return
           }
 
-          // 注册成功，处理响应
-          // 注册成功后，设置 UID 和昵称
-          if (signUpData?.user?.id) {
-            try {
-              // 获取动态token（使用服务器时间）
-              const token = await generateDynamicTokenWithServerTime()
-              
-              await fetch('/api/auth/signup-handler', {
-                method: 'POST',
-                headers: { 
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ userId: signUpData.user.id }),
-              });
-            } catch (err) {
-              console.error('Failed to set UID:', err);
-            }
-          }
-          
+          // 注册成功，UID 和昵称已由后端自动设置
           setMode('verify')
-          setSuccess(t('success.registerCheckEmail'))
+          // 显示带限制提示的成功消息
+          setSuccess(t('success.registerCheckEmailWithLimit'))
         } catch (signUpErr) {
           console.error('Sign up error:', signUpErr)
           setError(t('error.registerFailed'))
@@ -237,11 +248,61 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
     setSuccess('')
 
     try {
-      await sendVerificationEmail({
+      const result = await sendVerificationEmail({
         email,
         callbackURL: '/',
       })
-      setSuccess(t('success.verificationEmailSent'))
+      
+      // better-auth 的方法返回 { data, error } 格式
+      if (result.error) {
+        // 根据错误码和错误消息区分不同的错误类型
+        // 错误对象可能是嵌套的：result.error.error.code 或 result.error.code
+        // 使用类型断言处理可能的嵌套错误结构
+        const errorObj = result.error as any
+        const errorMessage = errorObj.error?.message || errorObj.message || ''
+        const errorMessageLower = errorMessage.toLowerCase()
+        const errorCode = errorObj.error?.code || errorObj.code || ''
+        
+        // 优先检查配额限制错误（包括错误码和错误消息）
+        const isQuotaError = 
+          errorCode === 'daily_quota_exceeded' ||
+          errorMessageLower.includes('quota') ||
+          errorMessageLower.includes('配额') ||
+          errorMessageLower.includes('daily email sending quota') ||
+          errorMessageLower.includes('已达到每日发送配额') ||
+          errorMessageLower.includes('you have reached your daily email sending quota') ||
+          errorMessageLower.includes('daily sending quota limit')
+        
+        // 检查IP注册限制错误
+        const isIPLimitError = 
+          errorCode === 'IP_REGISTRATION_LIMIT_EXCEEDED' ||
+          errorMessageLower.includes('24小时内最多只能注册') ||
+          errorMessageLower.includes('最多只能注册') ||
+          errorMessageLower.includes('24小時內最多只能註冊')
+        
+        // 检查其他邮件发送失败错误
+        const isEmailSendFailed = 
+          errorCode === 'EMAIL_SEND_FAILED' ||
+          (errorMessageLower.includes('email') && (errorMessageLower.includes('send') || errorMessageLower.includes('fail'))) ||
+          (errorMessageLower.includes('邮件') && (errorMessageLower.includes('发送') || errorMessageLower.includes('失败')))
+        
+        // 根据错误类型显示不同的提示（优先级：配额限制 > IP限制 > 邮件发送失败 > 其他）
+        if (isQuotaError) {
+          // 邮件发送配额限制（最高优先级）
+          setError(t('error.emailQuotaExceeded'))
+        } else if (isIPLimitError) {
+          // IP注册限制超出
+          setError(errorMessage || t('error.ipRegistrationLimitExceeded'))
+        } else if (isEmailSendFailed) {
+          // 其他邮件发送失败的错误
+          setError(t('error.emailSendFailed'))
+        } else {
+          // 其他未知错误
+          setError(t('error.resendFailed'))
+        }
+      } else {
+        setSuccess(t('success.verificationEmailSent'))
+      }
     } catch (err) {
       console.error('Resend verification error:', err)
       setError(t('error.resendFailed'))
@@ -370,14 +431,33 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 {t('password')}
               </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={t('passwordPlaceholder')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none transition-all"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t('passwordPlaceholder')}
+                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                  aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
           )}
 
@@ -387,14 +467,56 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                 {t('confirmPassword')}
               </label>
+              <div className="relative">
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder={t('confirmPasswordPlaceholder')}
+                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                  aria-label={showConfirmPassword ? '隐藏密码' : '显示密码'}
+                >
+                  {showConfirmPassword ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Terms agreement (register only) */}
+          {mode === 'register' && (
+            <div className="flex items-start gap-2">
               <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder={t('confirmPasswordPlaceholder')}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none transition-all"
+                id="agreeTerms"
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-400"
               />
+              <label htmlFor="agreeTerms" className="text-sm text-gray-700 flex-1">
+                {t('agreeToTerms')}{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowTermsModal(true)}
+                  className="text-orange-500 hover:text-orange-600 underline"
+                >
+                  {t('termsAndPrivacy')}
+                </button>
+              </label>
             </div>
           )}
 
@@ -471,6 +593,9 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           )}
         </div>}
       </div>
+
+      {/* Terms Modal */}
+      <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>
   )
 }

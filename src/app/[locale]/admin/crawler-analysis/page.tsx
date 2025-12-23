@@ -8,6 +8,7 @@ import AdminSidebar from '@/components/AdminSidebar'
 import Image from 'next/image'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import {
   BarChart,
   Bar,
@@ -33,6 +34,9 @@ interface UserCallRanking {
   userNickname: string | null
   isAdmin: boolean
   isPremium: boolean
+  isOldUser: boolean
+  isSubscribed: boolean
+  isActive: boolean
   dailyRequestCount: number
   maxDailyLimit: number | null
   callCount: number
@@ -63,7 +67,7 @@ export default function CrawlerAnalysisPage() {
   const locale = params?.locale as string || 'zh'
   const [isAdmin, setIsAdmin] = useState(false)
   const [checkingAdmin, setCheckingAdmin] = useState(true)
-  const [timeRange, setTimeRange] = useState<TimeRange>('week')
+  const [timeRange, setTimeRange] = useState<TimeRange>('today')
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<CrawlerAnalysisData | null>(null)
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string>('')
@@ -77,11 +81,43 @@ export default function CrawlerAnalysisPage() {
   const [detailData, setDetailData] = useState<{
     timeDistribution: Array<{ date: string; hour: number; count: number }>
     modelDistribution: Array<{ modelName: string; count: number }>
-    ipUsers?: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; callCount: number }>
+    ipUsers?: Array<{ userId: string; userName: string | null; userEmail: string; userNickname: string | null; isActive: boolean; isAdmin: boolean; isPremium: boolean; isOldUser: boolean; isSubscribed: boolean; callCount: number }>
+    paidOrders?: Array<{
+      id: string
+      orderType: string
+      productName: string
+      amount: number
+      pointsAmount: number | null
+      paymentMethod: string | null
+      paidAt: Date | string | null
+      createdAt: Date | string
+    }>
     dailyDistribution?: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }>
     dailyHourlyDistribution?: Array<{ date: string; hour: number; total: number; authenticated?: number; unauthenticated?: number }>
   } | null>(null)
   const [detailActiveTab, setDetailActiveTab] = useState<'users' | 'all-ip' | 'auth-ip' | 'unauth-ip'>('users')
+  
+  // 确认对话框状态
+  const [confirmDialog, setConfirmDialog] = useState<{
+    show: boolean
+    title: string
+    message: string
+    onConfirm?: () => void
+    onCancel?: () => void
+  }>({
+    show: false,
+    title: '',
+    message: '',
+  })
+
+  // 封禁原因输入状态
+  const [banReasonInput, setBanReasonInput] = useState('')
+  const [showBanReasonModal, setShowBanReasonModal] = useState(false)
+  const [pendingBanAction, setPendingBanAction] = useState<{
+    userId: string
+    currentIsActive: boolean
+    isAdmin: boolean
+  } | null>(null)
 
   // 获取当前用户完整信息（包括头像）
   useEffect(() => {
@@ -139,7 +175,25 @@ export default function CrawlerAnalysisPage() {
       }
 
       try {
-        const response = await fetch('/api/admin/check')
+        // 获取动态token
+        const token = await generateDynamicTokenWithServerTime()
+        
+        const response = await fetch('/api/admin/check', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        // 检查响应状态
+        if (!response.ok) {
+          // 如果是401或403，说明权限不足，重定向
+          if (response.status === 401 || response.status === 403) {
+            router.push(transferUrl('/', locale))
+            return
+          }
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const adminData = await response.json()
         if (!adminData.isAdmin) {
           router.push(transferUrl('/', locale))
@@ -221,6 +275,7 @@ export default function CrawlerAnalysisPage() {
         timeDistribution: detailResponse.timeDistribution || [],
         modelDistribution: detailResponse.modelDistribution || [],
         ipUsers: detailResponse.ipUsers || [],
+        paidOrders: detailResponse.paidOrders || [],
         dailyDistribution: detailResponse.dailyDistribution || [],
         dailyHourlyDistribution: detailResponse.dailyHourlyDistribution || [],
       })
@@ -230,6 +285,124 @@ export default function CrawlerAnalysisPage() {
       setDetailLoading(false)
     }
   }, [timeRange, activeTab])
+
+  // 显示确认对话框
+  const showConfirmDialog = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void
+  ) => {
+    setConfirmDialog({
+      show: true,
+      title,
+      message,
+      onConfirm,
+      onCancel,
+    })
+  }
+
+  // 关闭确认对话框
+  const closeConfirmDialog = () => {
+    setConfirmDialog({
+      show: false,
+      title: '',
+      message: '',
+    })
+  }
+
+  // 确认对话框确认
+  const handleConfirm = () => {
+    if (confirmDialog.onConfirm) {
+      confirmDialog.onConfirm()
+    }
+    closeConfirmDialog()
+  }
+
+  // 确认对话框取消
+  const handleCancel = () => {
+    if (confirmDialog.onCancel) {
+      confirmDialog.onCancel()
+    }
+    closeConfirmDialog()
+  }
+
+  // 执行封禁/解封操作
+  const executeToggleUserActive = async (userId: string, isActive: boolean, banReason?: string | null) => {
+    const action = isActive ? '解封' : '封禁'
+    try {
+      const response = await fetch(`/api/admin/users?_t=${Date.now()}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+        body: JSON.stringify({
+          userId,
+          isActive,
+          ...(isActive === false && banReason !== undefined ? { banReason } : {}),
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || `${action}失败`)
+      }
+
+      // 刷新详情数据
+      if (detailType === 'ip' && detailTitle) {
+        const identifier = detailTitle.replace(' - 详情', '')
+        await openDetailModal('ip', identifier, detailTitle)
+      }
+
+      // 关闭封禁原因模态框
+      setShowBanReasonModal(false)
+      setBanReasonInput('')
+      setPendingBanAction(null)
+    } catch (error: any) {
+      console.error(`Error ${action} user:`, error)
+      showConfirmDialog(
+        '操作失败',
+        error.message || `${action}用户失败`,
+        () => {}
+      )
+    }
+  }
+
+  // 封禁/解封用户
+  const handleToggleUserActive = (userId: string, currentIsActive: boolean, isAdmin: boolean) => {
+    if (isAdmin) {
+      showConfirmDialog(
+        '无法操作',
+        '无法封禁管理员账号',
+        () => {}
+      )
+      return
+    }
+
+    // 如果是解封操作，直接执行
+    if (!currentIsActive) {
+      showConfirmDialog(
+        '确认解封',
+        '确定要解封该用户吗？解封后用户将恢复为活跃状态。',
+        async () => {
+          await executeToggleUserActive(userId, true)
+        }
+      )
+      return
+    }
+
+    // 如果是封禁操作，显示封禁原因输入模态框
+    setPendingBanAction({ userId, currentIsActive, isAdmin })
+    setBanReasonInput('')
+    setShowBanReasonModal(true)
+  }
+
+  // 确认封禁（带原因）
+  const handleConfirmBan = async () => {
+    if (!pendingBanAction) return
+    await executeToggleUserActive(pendingBanAction.userId, false, banReasonInput.trim() || null)
+  }
 
   // 格式化时间分布数据用于图表
   // 对于hour范围，按分钟显示；其他范围按小时汇总显示
@@ -470,6 +643,7 @@ export default function CrawlerAnalysisPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户信息</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">身份标识</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">今日额度</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
@@ -478,7 +652,7 @@ export default function CrawlerAnalysisPage() {
                         <tbody className="bg-white divide-y divide-gray-200">
                           {data.userCallRanking.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                                 暂无数据
                               </td>
                             </tr>
@@ -509,20 +683,43 @@ export default function CrawlerAnalysisPage() {
                                   {user.userEmail}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-wrap items-center gap-1">
                                     {user.isAdmin && (
-                                      <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
                                         管理员
                                       </span>
                                     )}
-                                    {user.isPremium && !user.isAdmin && (
-                                      <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                                    {user.isPremium && (
+                                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                         优质用户
                                       </span>
                                     )}
-                                    {!user.isAdmin && !user.isPremium && (
-                                      <span className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
-                                        普通用户
+                                    {user.isOldUser && (
+                                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        首批用户
+                                      </span>
+                                    )}
+                                    {user.isSubscribed && (
+                                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        订阅用户
+                                      </span>
+                                    )}
+                                    {!user.isAdmin && !user.isPremium && !user.isOldUser && !user.isSubscribed && (
+                                      <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                                        新用户
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <div className="flex items-center gap-2">
+                                    {user.isActive ? (
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        活跃
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        已封禁
                                       </span>
                                     )}
                                   </div>
@@ -1087,8 +1284,11 @@ export default function CrawlerAnalysisPage() {
                               <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户信息</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">身份标识</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">调用次数</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">占比</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                               </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -1111,6 +1311,35 @@ export default function CrawlerAnalysisPage() {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                       {ipUser.userEmail}
                                     </td>
+                                    <td className="px-6 py-4">
+                                      <div className="flex flex-wrap items-center gap-1">
+                                        {ipUser.isAdmin && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
+                                            管理员
+                                          </span>
+                                        )}
+                                        {ipUser.isPremium && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                            优质用户
+                                          </span>
+                                        )}
+                                        {ipUser.isOldUser && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            首批用户
+                                          </span>
+                                        )}
+                                        {ipUser.isSubscribed && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            订阅用户
+                                          </span>
+                                        )}
+                                        {!ipUser.isAdmin && !ipUser.isPremium && !ipUser.isOldUser && !ipUser.isSubscribed && (
+                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                                            新用户
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                       <span className="text-sm font-semibold text-orange-600">
                                         {ipUser.callCount.toLocaleString()}
@@ -1129,9 +1358,108 @@ export default function CrawlerAnalysisPage() {
                                         </span>
                                       </div>
                                     </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                      <div className="flex items-center gap-2">
+                                        {ipUser.isActive ? (
+                                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            活跃
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            已封禁
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                      {!ipUser.isAdmin && (
+                                        <button
+                                          onClick={() => handleToggleUserActive(ipUser.userId, ipUser.isActive, ipUser.isAdmin)}
+                                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                                            ipUser.isActive
+                                              ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                                              : 'text-green-600 bg-green-50 hover:bg-green-100'
+                                          }`}
+                                        >
+                                          {ipUser.isActive ? '封禁' : '解封'}
+                                        </button>
+                                      )}
+                                      {ipUser.isAdmin && (
+                                        <span className="text-xs text-gray-400">管理员</span>
+                                      )}
+                                    </td>
                                   </tr>
                                 )
                               })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 已完成的付费订单（仅用户详情显示） */}
+                  {detailType === 'user' && detailData.paidOrders && detailData.paidOrders.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">已完成的付费订单</h3>
+                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单号</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单类型</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">产品名称</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付金额</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">积分数量</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付方式</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付时间</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {detailData.paidOrders.map((order) => (
+                                <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm font-mono text-gray-900">{order.id}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      order.orderType === 'subscription'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {order.orderType === 'subscription' ? '订阅付费' : '积分付费'}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <div className="text-sm text-gray-900">{order.productName}</div>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className="text-sm font-semibold text-orange-600">
+                                      ¥{order.amount.toFixed(2)}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    {order.pointsAmount ? (
+                                      <span className="text-sm font-semibold text-blue-600">
+                                        {order.pointsAmount.toLocaleString()}
+                                      </span>
+                                    ) : (
+                                      <span className="text-sm text-gray-400">-</span>
+                                    )}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <span className="text-sm text-gray-600">
+                                      {order.paymentMethod === 'alipay' ? '支付宝' : order.paymentMethod === 'wechat' ? '微信支付' : order.paymentMethod || '-'}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap">
+                                    <div className="text-sm text-gray-500">
+                                      {order.paidAt ? new Date(order.paidAt).toLocaleString('zh-CN') : '-'}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
                             </tbody>
                           </table>
                         </div>
@@ -1195,6 +1523,97 @@ export default function CrawlerAnalysisPage() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 确认对话框 */}
+      {confirmDialog.show && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          style={{ animation: 'fadeInUp 0.2s ease-out forwards' }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            style={{ animation: 'scaleIn 0.15s ease-out forwards' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 图标 */}
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-blue-100">
+              <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            
+            {/* 标题 */}
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              {confirmDialog.title}
+            </h3>
+            
+            {/* 消息 */}
+            <p className="text-gray-600 text-center mb-6">
+              {confirmDialog.message}
+            </p>
+            
+            {/* 按钮 */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleCancel}
+                className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-all duration-200"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 封禁原因输入模态框 */}
+      {showBanReasonModal && pendingBanAction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">封禁用户</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  封禁原因（可选）
+                </label>
+                <textarea
+                  value={banReasonInput}
+                  onChange={(e) => setBanReasonInput(e.target.value)}
+                  placeholder="请输入封禁原因..."
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none resize-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">填写封禁原因有助于记录和管理</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowBanReasonModal(false)
+                  setBanReasonInput('')
+                  setPendingBanAction(null)
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmBan}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold rounded-lg hover:from-red-600 hover:to-red-700 transition-all"
+              >
+                确认封禁
+              </button>
             </div>
           </div>
         </div>

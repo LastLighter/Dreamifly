@@ -8,7 +8,12 @@ import { useParams, useRouter } from 'next/navigation'
 import community from './communityWorks'
 import SiteStats from '@/components/SiteStats'
 import { transferUrl } from '@/utils/locale'
-import TencentAds from '@/components/TencentAds'
+import { getAvailableModels } from '@/utils/modelConfig'
+import { getAvailableWorkflows } from '@/utils/workflowConfig'
+import AIPlazaCard from '@/components/AIPlazaCard'
+import { ModelConfig } from '@/utils/modelConfig'
+import { WorkflowConfig } from '@/utils/workflowConfig'
+import CommunityMasonry, { type CommunityWork } from '@/components/CommunityMasonry'
 
 interface FAQItem {
   q: string;
@@ -24,6 +29,34 @@ export default function HomeClient() {
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
   const router = useRouter()
+  // 先使用所有模型和工作流，然后异步更新为可用的
+  const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
+  const [availableWorkflows, setAvailableWorkflows] = useState<WorkflowConfig[]>([])
+  const [isLoadingAIItems, setIsLoadingAIItems] = useState(false)
+
+  // 加载可用的模型和工作流（基于环境变量）
+  useEffect(() => {
+    const fetchAIItems = async () => {
+      setIsLoadingAIItems(true)
+      try {
+        const [models, workflows] = await Promise.all([
+          getAvailableModels(),
+          getAvailableWorkflows()
+        ])
+        setAvailableModels(models)
+        setAvailableWorkflows(workflows)
+      } catch (error) {
+        console.error('Error fetching AI items:', error)
+        // 如果API调用失败，显示空列表
+        setAvailableModels([])
+        setAvailableWorkflows([])
+      } finally {
+        setIsLoadingAIItems(false)
+      }
+    }
+
+    fetchAIItems()
+  }, [])
 
 
   // 示例图片数组
@@ -74,16 +107,113 @@ export default function HomeClient() {
     timerRef.current = timer
   }
 
-  // 模拟社区作品数据
-  const communityWorks = community
+  // 社区作品数据状态
+  const [communityWorks, setCommunityWorks] = useState<CommunityWork[]>(
+    community as unknown as CommunityWork[]
+  )
 
-  const navigateToCreate = (promptText?: string) => {
-    const query = promptText ? `?prompt=${encodeURIComponent(promptText)}` : ''
-    router.push(transferUrl(`/create${query}`, locale))
+  // 加载社区作品图片
+  useEffect(() => {
+    const fetchCommunityImages = async () => {
+      try {
+        const response = await fetch('/api/community/images')
+        
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.images && data.images.length > 0) {
+            // 使用从数据库获取的图片，确保包含 userAvatar、userNickname、model 和 avatarFrameId
+            const dbImages = data.images.map((img: any) => ({
+              id: img.id,
+              image: img.image,
+              prompt: img.prompt,
+              model: img.model || '',
+              userAvatar: img.userAvatar || '/images/default-avatar.svg',
+              userNickname: img.userNickname || '',
+              avatarFrameId: img.avatarFrameId || null,
+            }))
+            
+            // 如果数据库中的图片少于12张，用默认图片填充到12张
+            if (dbImages.length < 12) {
+              const defaultImages = community.map((work: any) => ({
+                ...work,
+                model: '默认',
+                userAvatar: '/images/default-avatar.svg',
+                userNickname: '默认',
+                avatarFrameId: null,
+              }))
+              
+              // 合并数据库图片和默认图片，优先显示数据库图片
+              // 使用 'default-' 前缀确保默认图片的ID不会与数据库图片ID冲突
+              const fillImages = defaultImages
+                .slice(0, 12 - dbImages.length)
+                .map((work: any, index: number) => ({
+                  ...work,
+                  id: `default-${work.id}-${index}`, // 确保ID唯一
+                  model: '默认',
+                  userNickname: '默认',
+                }))
+              
+              const combinedImages = [
+                ...dbImages,
+                ...fillImages
+              ]
+              
+              setCommunityWorks(combinedImages)
+            } else {
+              // 如果已经有12张或更多，直接使用数据库图片（最多显示12张）
+              setCommunityWorks(dbImages.slice(0, 12))
+            }
+          } else {
+            // 如果返回的数据无效或为空，使用默认图片（添加默认头像信息）
+            setCommunityWorks(community.map((work: any) => ({
+              ...work,
+              model: '默认',
+              userAvatar: '/images/default-avatar.svg',
+              userNickname: '默认',
+              avatarFrameId: null,
+            })))
+          }
+        } else {
+          // 请求失败，使用默认图片（添加默认头像信息）
+          setCommunityWorks(community.map((work: any) => ({
+            ...work,
+            model: '默认',
+            userAvatar: '/images/default-avatar.svg',
+            userNickname: '默认',
+            avatarFrameId: null,
+          })))
+        }
+      } catch (error) {
+        console.error('Error fetching community images:', error)
+        // 请求失败，使用默认图片（添加默认头像信息）
+        setCommunityWorks(community.map((work: any) => ({
+          ...work,
+          model: '默认',
+          userAvatar: '/images/default-avatar.svg',
+          userNickname: '默认',
+          avatarFrameId: null,
+        })))
+      }
+    }
+
+    fetchCommunityImages()
+  }, [])
+
+  const navigateToCreate = (promptText?: string, modelId?: string) => {
+    const params = new URLSearchParams()
+    if (promptText) {
+      params.set('prompt', promptText)
+    }
+    // 只有当模型ID存在且不是"默认"时才传递模型参数
+    if (modelId && modelId.trim() !== '' && modelId !== '默认') {
+      params.set('model', modelId)
+    }
+    const query = params.toString()
+    router.push(transferUrl(`/create${query ? `?${query}` : ''}`, locale))
   }
 
-  const handleGenerateSame = (promptText: string) => {
-    navigateToCreate(promptText)
+  const handleGenerateSame = (promptText: string, modelId?: string) => {
+    navigateToCreate(promptText, modelId)
   };
 
   return (
@@ -202,7 +332,12 @@ export default function HomeClient() {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 animate-fadeInUp animation-delay-600">
                   <button
-                    onClick={() => navigateToCreate()}
+                    onClick={() => {
+                      const aiPlazaSection = document.getElementById('ai-plaza')
+                      if (aiPlazaSection) {
+                        aiPlazaSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }
+                    }}
                     className="group px-6 py-2.5 sm:px-9 sm:py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-2xl hover:from-orange-400 hover:to-amber-400 transition-all duration-300 shadow-xl shadow-orange-500/20 hover:shadow-2xl hover:shadow-orange-500/30 hover:-translate-y-0.5 text-sm sm:text-base font-medium relative overflow-hidden"
                   >
                     <span className="relative z-10">{t('hero.startButton')}</span>
@@ -283,19 +418,41 @@ export default function HomeClient() {
           </div>
         </section>
 
-        {/* Stats Section - 改进响应式设计 */}
-        <section id="site-stats" className="py-8 sm:py-12 px-5 sm:px-8 lg:px-40 bg-gray-200/80 backdrop-blur-md relative">
-            
+        {/* AI Plaza Section - 统一的AI广场 */}
+        <section id="ai-plaza" className="py-14 sm:py-20 px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 bg-gray-50/90 backdrop-blur-md relative">
           <div className="w-full max-w-[1260px] mx-auto relative px-4 sm:px-6">
-            <SiteStats />
+            <div className="text-center mb-12">
+              <div className="flex items-center justify-center gap-5 mb-7">
+                <svg className="w-10 h-10" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" fill="#FED7AA">
+                  <path d="M383.87078 596.712739A85.244128 85.244128 0 0 1 299.138628 682.682168 85.07347 85.07347 0 0 1 213.339858 598.035346a85.286793 85.286793 0 1 1 170.530922-1.279942zM342.144675 426.693794a85.329458 85.329458 0 0 1-1.322607-170.573586A84.98814 84.98814 0 0 1 426.663503 340.639036 85.201464 85.201464 0 0 1 342.144675 426.693794zM682.651877 255.394907A85.500117 85.500117 0 0 1 597.96239 341.364336 85.201464 85.201464 0 0 1 511.992961 256.760179a85.158799 85.158799 0 0 1 84.689487-85.969429c46.973867-0.255988 85.542782 37.544961 85.969429 84.604157zM170.675129 931.502868c195.703112 16.212597 125.604962-191.649963 306.674072-193.569876l78.417772 65.40503c19.540446 236.234604-269.427763 288.968209-385.091844 128.164846z m600.079413-303.559547c60.882568-95.526328 249.46067-415.895778 249.460671-415.895778 15.017985-26.537461-18.345833-54.3122-41.598111-34.686425 0 0-280.435264 243.786261-363.119508 321.052086-65.40503 61.095892-65.661018 88.998625-86.822724 189.730049l71.676745 59.730621c94.971687-39.038227 122.319778-44.371318 170.402927-119.930553zM232.240333 832.990008c-88.913295-77.649807-145.913373-191.137986-146.894662-317.724236-1.877248-235.082657 188.023461-427.927232 423.234112-429.80448 163.789895-0.895959 276.467444 81.233644 277.192744 147.022656l70.951444-62.077181C813.632595 75.563075 678.300075-2.172061 507.897147 0.046505 225.285982 2.393065-2.202353 233.251913 0.016213 515.948407a509.800847 509.800847 0 0 0 120.44253 325.702541c40.87281 21.033711 90.57722 14.079361 111.78159-8.66094z m545.980537-81.318973c45.181948 84.049516-57.640049 143.780137-151.246464 170.317598-12.970078 38.910233-34.217113 73.383334-58.621338 98.555524 224.203151-25.17219 386.627774-183.586329 267.337192-336.539382-19.625775 29.225339-38.270262 51.069681-57.46939 67.66626z" />
+                </svg>
+                <h2 className="text-2xl font-bold text-gray-900 animate-fadeInUp">AI 广场</h2>
+              </div>
+              <p className="text-lg text-gray-700 animate-fadeInUp animation-delay-200">探索可用的 AI 模型和工作流工具</p>
+            </div>
+
+            {isLoadingAIItems || (availableModels.length === 0 && availableWorkflows.length === 0) ? (
+              <div className="flex justify-center items-center py-20">
+                <div className="text-gray-500">加载中...</div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+                {/* 显示所有可用的模型 */}
+                {availableModels.map((model, index) => (
+                  <div key={`model-${model.id}`} className="animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
+                    <AIPlazaCard item={model} type="model" />
+                  </div>
+                ))}
+                {/* 显示所有可用的工作流 */}
+                {availableWorkflows.map((workflow, index) => (
+                  <div key={`workflow-${workflow.id}`} className="animate-fadeInUp" style={{ animationDelay: `${(availableModels.length + index) * 100}ms` }}>
+                    <AIPlazaCard item={workflow} type="workflow" />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
-
-        {/* Tencent Ads - Above Community Section */}
-        <div className="relative py-6 px-5 sm:px-8 lg:px-40 z-20">
-          <div id="home-ad-above-community"></div>
-          <TencentAds placementId="5222868351048167" containerId="home-ad-above-community" />
-        </div>
 
         {/* Community Showcase Section - 改进响应式设计 */}
         <section id="community-showcase" className="py-14 sm:py-20 px-5 sm:px-8 lg:px-12 xl:px-16 2xl:px-20 bg-gray-50/90 backdrop-blur-md relative">
@@ -313,59 +470,27 @@ export default function HomeClient() {
                 />
                 <h2 className="text-2xl font-bold text-gray-900 animate-fadeInUp">{t('community.title')}</h2>
               </div>
+            </div>
+
+            {/* Stats Section - 移动到社区标题下方 */}
+            <section id="site-stats" className="mb-12">
+              <div className="w-full max-w-[1260px] mx-auto relative px-4 sm:px-6">
+                <SiteStats />
+              </div>
+            </section>
+
+            {/* 副标题 - 移动到site-stats下方 */}
+            <div className="text-center mb-8">
               <p className="text-lg text-gray-700 animate-fadeInUp animation-delay-200">{t('community.subtitle')}</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
-              {communityWorks.map((work, index) => (
-                <div 
-                  key={work.id} 
-                  className="relative group animate-fadeInUp" 
-                  style={{ animationDelay: `${index * 200}ms` }}
-                >
-                  <div className="aspect-square rounded-2xl overflow-hidden shadow-xl border border-orange-400/30 transform hover:scale-[1.02] transition-transform duration-300">
-                    <Image
-                      src={work.image}
-                      alt={`Community work ${work.id}`}
-                      width={450}
-                      height={450}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      priority={index < 3}
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    />
-                  </div>
-                  <div className="absolute inset-0 bg-gray-100/90 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl">
-                    <div className="absolute inset-0 flex flex-col justify-end p-6">
-                      <p className="text-gray-900 text-sm mb-6 line-clamp-3">{work.prompt}</p>
-                      <button
-                        onClick={() => handleGenerateSame(work.prompt)}
-                        className="group w-full py-2.5 px-5 bg-gradient-to-r from-orange-500 to-amber-500 text-gray-900 rounded-lg font-medium hover:from-orange-400 hover:to-amber-400 transition-all duration-300 hover:-translate-y-0.5 relative overflow-hidden"
-                      >
-                        <span className="relative z-10">{t('community.generateSame')}</span>
-                        <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-amber-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* 添加优雅的描述文本 */}
-            <div className="mt-10 text-center">
-              <Link 
-                href="https://fizuclq6u3i.feishu.cn/share/base/form/shrcnQsyy6dMkoOSa1RjqeBrOQf"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block text-gray-600 hover:text-gray-800 text-base transition-colors duration-300 cursor-pointer group"
-              >
-                <span className="relative">
-                  {t('community.sharePrompt.title')}
-                  <span className="block text-gray-500 group-hover:text-gray-700 text-sm mt-1.5">
-                    {t('community.sharePrompt.description')}
-                  </span>
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-orange-400/30 group-hover:w-full transition-all duration-300"></span>
-                </span>
-              </Link>
+            <div className="animate-fadeInUp">
+              <CommunityMasonry
+                works={communityWorks}
+                onGenerateSame={(prompt, model) => handleGenerateSame(prompt, model)}
+                onPreview={(img) => setZoomedImage(img)}
+                generateSameText={t('community.generateSame')}
+              />
             </div>
           </div>
         </section>

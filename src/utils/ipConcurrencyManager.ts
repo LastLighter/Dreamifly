@@ -14,6 +14,7 @@ interface IPConcurrencyInfo {
  * 计算IP的最大并发量（基于当前请求用户的身份）
  * 规则：
  * - 如果当前用户是管理员，返回null（不限）
+ * - 如果当前用户是会员，返回null（不限）
  * - 如果当前用户是已登录用户（优质/普通），返回MAX_CONCURRENT_GENERATIONS
  * - 如果当前用户未登录，返回1
  */
@@ -21,7 +22,8 @@ async function calculateMaxConcurrency(
   ipAddress: string,
   currentUserId: string | null,
   isAdmin: boolean,
-  isPremium: boolean
+  isPremium: boolean,
+  isSubscribed: boolean
 ): Promise<number | null> {
   // 获取环境变量中的最大并发数
   const maxConcurrentFromEnv = parseInt(process.env.MAX_CONCURRENT_GENERATIONS || '2', 10)
@@ -32,7 +34,13 @@ async function calculateMaxConcurrency(
     return null
   }
 
-  // 如果当前用户已登录（非管理员），使用环境变量
+  // 如果当前用户是会员，返回null（不限）
+  if (isSubscribed) {
+    console.log(`[IPConcurrency] IP ${ipAddress}: 当前请求用户是会员，返回null（不限）`)
+    return null
+  }
+
+  // 如果当前用户已登录（非管理员、非会员），使用环境变量
   if (currentUserId) {
     console.log(`[IPConcurrency] IP ${ipAddress}: 当前请求用户是已登录用户（${isPremium ? '优质' : '普通'}），返回${maxConcurrentFromEnv}`)
     return maxConcurrentFromEnv
@@ -127,20 +135,22 @@ export const ipConcurrencyManager = {
    * @param currentUserId 当前用户ID（如果已登录）
    * @param isAdmin 当前用户是否为管理员
    * @param isPremium 当前用户是否为优质用户
+   * @param isSubscribed 当前用户是否为会员
    * @returns 是否可以开始新请求，以及当前并发数和最大并发数
    */
   async canStart(
     ipAddress: string,
     currentUserId: string | null,
     isAdmin: boolean,
-    isPremium: boolean
+    isPremium: boolean,
+    isSubscribed: boolean
   ): Promise<{ canStart: boolean; currentConcurrency: number; maxConcurrency: number | null }> {
     if (!ipAddress) {
       return { canStart: false, currentConcurrency: 0, maxConcurrency: null }
     }
 
     // 先计算最大并发量（基于当前状态）
-    const maxConcurrency = await calculateMaxConcurrency(ipAddress, currentUserId, isAdmin, isPremium)
+    const maxConcurrency = await calculateMaxConcurrency(ipAddress, currentUserId, isAdmin, isPremium, isSubscribed)
 
     // 确保记录存在
     await getOrCreateIPRecord(ipAddress)
@@ -151,7 +161,7 @@ export const ipConcurrencyManager = {
     // 获取当前并发信息
     const ipRecord = await getOrCreateIPRecord(ipAddress)
 
-    // 如果最大并发量为null（管理员），直接允许开始
+    // 如果最大并发量为null（管理员或会员），直接允许开始
     if (maxConcurrency === null) {
       return { canStart: true, currentConcurrency: ipRecord.currentConcurrency, maxConcurrency: null }
     }

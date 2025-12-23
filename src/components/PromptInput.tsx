@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl'
 import { useState, useRef, useEffect } from 'react';
 import { styleOptions } from './StyleTransferForm';
+import LoginHint from './LoginHint';
 
 interface PromptInputProps {
   prompt: string;
@@ -19,6 +20,8 @@ interface PromptInputProps {
   selectedStyle: string | null;
   onStyleChange: (style: string) => void;
   isQueuing?: boolean;
+  estimatedCost?: number | null;
+  extraCost?: number | null;
 }
 
 const PromptInput = ({
@@ -36,7 +39,9 @@ const PromptInput = ({
   onRatioChange,
   selectedStyle,
   onStyleChange,
-  isQueuing = false
+  isQueuing = false,
+  estimatedCost = null,
+  extraCost = null
 }: PromptInputProps) => {
   const t = useTranslations('home.generate')
   const [isRatioOpen, setIsRatioOpen] = useState(false);
@@ -173,7 +178,7 @@ const PromptInput = ({
               </svg>
               {aspectRatio}
               {isRatioOpen && (
-                <div ref={ratioDropdownRef} className="absolute top-full left-0 mt-2 bg-white/95 border border-amber-400/40 rounded-xl shadow-xl p-2 min-w-[150px]">
+                <div ref={ratioDropdownRef} className="absolute top-full left-0 mt-2 bg-white/95 border border-amber-400/40 rounded-xl shadow-xl p-2 min-w-[150px] z-50">
                   {ratios.map(r => {
                     const [rw, rh] = r.split(':').map(Number);
                     const isHorizontal = rw >= rh;
@@ -206,58 +211,92 @@ const PromptInput = ({
               {isOptimizing ? t('form.optimizingPrompt') || 'Optimizing...' : t('form.optimizePrompt')}
             </button>
           </div>
-          <button
-            type="button"
-            onClick={onGenerate}
-            disabled={isGenerating || isOptimizing}
-            className="w-full md:w-[200px] px-4 py-2 text-sm md:px-6 md:py-3 md:text-base font-semibold rounded-2xl bg-white/95 text-gray-900 hover:bg-amber-50/95 transition-all duration-500 shadow-xl shadow-amber-400/20 hover:shadow-2xl hover:shadow-amber-400/30 hover:-translate-y-0.5 transform border border-amber-400/40 relative overflow-hidden group"
-          >
-            {/* 高级光效背景 */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-out"></div>
-            
-            {/* 微妙的发光效果 */}
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 via-transparent to-orange-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            
-            <span className="relative z-10 flex items-center justify-center font-bold">
-              {isGenerating ? (
-                isQueuing ? (
+          <div className="flex flex-col items-center gap-2 w-full md:w-auto md:min-w-[280px]">
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={isGenerating || isOptimizing}
+              className="w-full px-4 py-2 text-sm md:px-6 md:py-3 md:text-base font-semibold rounded-2xl bg-white/95 text-gray-900 hover:bg-amber-50/95 transition-all duration-500 shadow-xl shadow-amber-400/20 hover:shadow-2xl hover:shadow-amber-400/30 hover:-translate-y-0.5 transform border border-amber-400/40 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {/* 高级光效背景 */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-out"></div>
+              
+              {/* 微妙的发光效果 */}
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 via-transparent to-orange-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              
+              <span className="relative z-10 flex items-center justify-center font-bold">
+                {isGenerating ? (
+                  isQueuing ? (
+                    <>
+                      {/* 排队中 - 黄色时钟图标 */}
+                      <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-amber-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M12 6v6l4 2"></path>
+                        <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {t('form.progress.status.queuing')}
+                    </>
+                  ) : (
+                    <>
+                      {/* 生图中 - 绿色spinner */}
+                      <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-green-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {t('form.generateButton.loading')}
+                    </>
+                  )
+                ) : isOptimizing ? (
                   <>
-                    {/* 排队中 - 黄色时钟图标 */}
-                    <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-amber-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M12 6v6l4 2"></path>
-                      <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    {t('form.progress.status.queuing')}
-                  </>
-                ) : (
-                  <>
-                    {/* 生图中 - 绿色spinner */}
-                    <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-green-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    {t('form.generateButton.loading')}
+                    {t('form.optimizingPrompt') || 'Optimizing...'}
                   </>
-                )
-              ) : isOptimizing ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                ) : (
+                  <>
+                    <svg className="mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-orange-500" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                      <path fill="currentColor" d="M640 224A138.666667 138.666667 0 0 0 778.666667 85.333333h64A138.666667 138.666667 0 0 0 981.333333 224v64A138.666667 138.666667 0 0 0 842.666667 426.666667h-64A138.666667 138.666667 0 0 0 640 288v-64zM170.666667 298.666667a85.333333 85.333333 0 0 1 85.333333-85.333334h298.666667V128H256a170.666667 170.666667 0 0 0-170.666667 170.666667v426.666666a170.666667 170.666667 0 0 0 170.666667 170.666667h512a170.666667 170.666667 0 0 0 170.666667-170.666667v-213.333333h-85.333334v213.333333a85.333333 85.333333 0 0 1-85.333333 85.333334H256a85.333333 85.333333 0 0 1-85.333333-85.333334V298.666667z"></path>
+                    </svg>
+                    {t('form.generateButton.default')}
+                  </>
+                )}
+              </span>
+              
+              {/* 预计消耗积分数 - 显示在按钮右下角 */}
+              {estimatedCost !== null && !isGenerating && !isOptimizing && (
+                <div className="absolute bottom-1.5 right-2.5 flex items-center gap-0.5 bg-amber-100/90 px-1.5 py-0.5 rounded-full backdrop-blur-sm border border-amber-300/70 shadow-sm">
+                  <svg className="w-2.5 h-2.5 text-amber-700" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
                   </svg>
-                  {t('form.optimizingPrompt') || 'Optimizing...'}
-                </>
-              ) : (
-                <>
-                  <svg className="mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-orange-500" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-                    <path fill="currentColor" d="M640 224A138.666667 138.666667 0 0 0 778.666667 85.333333h64A138.666667 138.666667 0 0 0 981.333333 224v64A138.666667 138.666667 0 0 0 842.666667 426.666667h-64A138.666667 138.666667 0 0 0 640 288v-64zM170.666667 298.666667a85.333333 85.333333 0 0 1 85.333333-85.333334h298.666667V128H256a170.666667 170.666667 0 0 0-170.666667 170.666667v426.666666a170.666667 170.666667 0 0 0 170.666667 170.666667h512a170.666667 170.666667 0 0 0 170.666667-170.666667v-213.333333h-85.333334v213.333333a85.333333 85.333333 0 0 1-85.333333 85.333334H256a85.333333 85.333333 0 0 1-85.333333-85.333334V298.666667z"></path>
-                  </svg>
-                  {t('form.generateButton.default')}
-                </>
+                  <span className="text-[10px] md:text-xs text-amber-700 font-semibold">{estimatedCost}</span>
+                </div>
               )}
-            </span>
-          </button>
+            </button>
+            <LoginHint className="text-xs md:text-sm" />
+            {/* 额外消耗提示 - 仅对已登录用户显示，无论是否有额度都显示 */}
+            {extraCost !== null && extraCost > 0 && (
+              <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600 whitespace-nowrap">
+                <svg
+                  className="w-4 h-4 text-amber-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span>若当前无额度将额外消耗{extraCost}积分</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

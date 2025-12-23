@@ -45,6 +45,8 @@ export async function GET() {
         id: 1,
         regularUserDailyLimit: null,
         premiumUserDailyLimit: null,
+        newUserDailyLimit: null,
+        unauthenticatedIpDailyLimit: null,
       });
       config = await db.select()
         .from(userLimitConfig)
@@ -54,18 +56,43 @@ export async function GET() {
 
     const configData = config[0];
     
-    // 获取环境变量默认值
-    const envRegularLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '200', 10);
-    const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '500', 10);
+    // 获取环境变量默认值（优质300，首批100，新用户50，未登录IP 100）
+    const envRegularLimit = parseInt(process.env.REGULAR_USER_DAILY_LIMIT || '100', 10);
+    const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
+    const envNewLimit = parseInt(process.env.NEW_REGULAR_USER_DAILY_LIMIT || '50', 10);
+    const envUnauthIpLimit = parseInt(process.env.UNAUTHENTICATED_IP_DAILY_LIMIT || '100', 10);
+    const envRegularMaxImages = parseInt(process.env.REGULAR_USER_MAX_IMAGES || '3', 10);
+    const envSubscribedMaxImages = parseInt(process.env.SUBSCRIBED_USER_MAX_IMAGES || '30', 10);
 
-    return NextResponse.json({
-      regularUserDailyLimit: configData.regularUserDailyLimit ?? envRegularLimit,
-      premiumUserDailyLimit: configData.premiumUserDailyLimit ?? envPremiumLimit,
-      usingEnvRegular: configData.regularUserDailyLimit === null,
-      usingEnvPremium: configData.premiumUserDailyLimit === null,
-      envRegularLimit,
-      envPremiumLimit,
-    });
+    return NextResponse.json(
+      {
+        regularUserDailyLimit: configData.regularUserDailyLimit ?? envRegularLimit,
+        premiumUserDailyLimit: configData.premiumUserDailyLimit ?? envPremiumLimit,
+        newUserDailyLimit: configData.newUserDailyLimit ?? envNewLimit,
+        unauthenticatedIpDailyLimit: configData.unauthenticatedIpDailyLimit ?? envUnauthIpLimit,
+        regularUserMaxImages: configData.regularUserMaxImages ?? envRegularMaxImages,
+        subscribedUserMaxImages: configData.subscribedUserMaxImages ?? envSubscribedMaxImages,
+        usingEnvRegular: configData.regularUserDailyLimit === null,
+        usingEnvPremium: configData.premiumUserDailyLimit === null,
+        usingEnvNew: configData.newUserDailyLimit === null,
+        usingEnvUnauthIp: configData.unauthenticatedIpDailyLimit === null,
+        usingEnvRegularMaxImages: configData.regularUserMaxImages === null,
+        usingEnvSubscribedMaxImages: configData.subscribedUserMaxImages === null,
+        envRegularLimit,
+        envPremiumLimit,
+        envNewLimit,
+        envUnauthIpLimit,
+        envRegularMaxImages,
+        envSubscribedMaxImages,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   } catch (error) {
     console.error('Error fetching user limit config:', error);
     return NextResponse.json(
@@ -104,7 +131,20 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { regularUserDailyLimit, premiumUserDailyLimit, useEnvForRegular, useEnvForPremium } = body;
+    const {
+      regularUserDailyLimit,
+      premiumUserDailyLimit,
+      newUserDailyLimit,
+      unauthenticatedIpDailyLimit,
+      regularUserMaxImages,
+      subscribedUserMaxImages,
+      useEnvForRegular,
+      useEnvForPremium,
+      useEnvForNew,
+      useEnvForUnauthIp,
+      useEnvForRegularMaxImages,
+      useEnvForSubscribedMaxImages,
+    } = body;
 
     // 验证参数
     if (useEnvForRegular !== true && useEnvForRegular !== false && regularUserDailyLimit !== undefined) {
@@ -125,6 +165,42 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    if (useEnvForNew !== true && useEnvForNew !== false && newUserDailyLimit !== undefined) {
+      if (typeof newUserDailyLimit !== 'number' || newUserDailyLimit < 0) {
+        return NextResponse.json(
+          { error: '新用户限额必须是大于等于0的数字' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (useEnvForUnauthIp !== true && useEnvForUnauthIp !== false && unauthenticatedIpDailyLimit !== undefined) {
+      if (typeof unauthenticatedIpDailyLimit !== 'number' || unauthenticatedIpDailyLimit < 0) {
+        return NextResponse.json(
+          { error: '未登录用户IP限额必须是大于等于0的数字' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (useEnvForRegularMaxImages !== true && useEnvForRegularMaxImages !== false && regularUserMaxImages !== undefined) {
+      if (typeof regularUserMaxImages !== 'number' || regularUserMaxImages < 1) {
+        return NextResponse.json(
+          { error: '普通用户最大图片数必须是大于等于1的数字' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (useEnvForSubscribedMaxImages !== true && useEnvForSubscribedMaxImages !== false && subscribedUserMaxImages !== undefined) {
+      if (typeof subscribedUserMaxImages !== 'number' || subscribedUserMaxImages < 1) {
+        return NextResponse.json(
+          { error: '订阅用户最大图片数必须是大于等于1的数字' },
+          { status: 400 }
+        );
+      }
+    }
+
     // 检查配置是否存在
     const config = await db.select()
       .from(userLimitConfig)
@@ -137,6 +213,10 @@ export async function PATCH(request: NextRequest) {
         id: 1,
         regularUserDailyLimit: null,
         premiumUserDailyLimit: null,
+        newUserDailyLimit: null,
+        unauthenticatedIpDailyLimit: null,
+        regularUserMaxImages: null,
+        subscribedUserMaxImages: null,
       });
     }
 
@@ -144,6 +224,10 @@ export async function PATCH(request: NextRequest) {
     const updateData: {
       regularUserDailyLimit?: number | null;
       premiumUserDailyLimit?: number | null;
+      newUserDailyLimit?: number | null;
+      unauthenticatedIpDailyLimit?: number | null;
+      regularUserMaxImages?: number | null;
+      subscribedUserMaxImages?: number | null;
       updatedAt: Date;
     } = {
       updatedAt: new Date(),
@@ -159,6 +243,30 @@ export async function PATCH(request: NextRequest) {
       updateData.premiumUserDailyLimit = null;
     } else if (premiumUserDailyLimit !== undefined) {
       updateData.premiumUserDailyLimit = premiumUserDailyLimit;
+    }
+
+    if (useEnvForNew === true) {
+      updateData.newUserDailyLimit = null;
+    } else if (newUserDailyLimit !== undefined) {
+      updateData.newUserDailyLimit = newUserDailyLimit;
+    }
+
+    if (useEnvForUnauthIp === true) {
+      updateData.unauthenticatedIpDailyLimit = null;
+    } else if (unauthenticatedIpDailyLimit !== undefined) {
+      updateData.unauthenticatedIpDailyLimit = unauthenticatedIpDailyLimit;
+    }
+
+    if (useEnvForRegularMaxImages === true) {
+      updateData.regularUserMaxImages = null;
+    } else if (regularUserMaxImages !== undefined) {
+      updateData.regularUserMaxImages = regularUserMaxImages;
+    }
+
+    if (useEnvForSubscribedMaxImages === true) {
+      updateData.subscribedUserMaxImages = null;
+    } else if (subscribedUserMaxImages !== undefined) {
+      updateData.subscribedUserMaxImages = subscribedUserMaxImages;
     }
 
     // 更新配置

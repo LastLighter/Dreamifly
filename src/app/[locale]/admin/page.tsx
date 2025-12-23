@@ -9,6 +9,7 @@ import AdminSidebar from '@/components/AdminSidebar'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 interface User {
   id: string
@@ -21,11 +22,15 @@ interface User {
   isActive: boolean
   isAdmin: boolean
   isPremium: boolean
+  isOldUser: boolean
+  isSubscribed: boolean
+  subscriptionExpiresAt: Date | string | null
   dailyRequestCount: number
   createdAt: Date | string
   updatedAt: Date | string
   lastLoginAt: Date | string | null
   avatarFrameId: number | null
+  availableAvatarFrameIds: string | null
 }
 
 interface UserListResponse {
@@ -90,16 +95,21 @@ export default function AdminPage() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [emailVerifiedFilter, setEmailVerifiedFilter] = useState<string>('') // '', 'true', 'false'
   const [emailTypeFilter, setEmailTypeFilter] = useState<string>('all') // all, gmail, outlook, qq, 163, other
-  const [roleFilter, setRoleFilter] = useState<string>('all') // all, admin, premium, regular
+  const [roleFilter, setRoleFilter] = useState<string>('all') // all, admin, subscribed, premium, oldUser, regular
+  const [statusFilter, setStatusFilter] = useState<string>('active') // active, banned, all
+  const [isAdvancedSearchExpanded, setIsAdvancedSearchExpanded] = useState(false) // 高级搜索折叠状态，默认折叠
 
   // 用户限额配置状态（仅用于显示）
   const [limitConfig, setLimitConfig] = useState({
-    regularUserDailyLimit: 200,
-    premiumUserDailyLimit: 500,
+    regularUserDailyLimit: 100,
+    premiumUserDailyLimit: 300,
+    newUserDailyLimit: 50,
     usingEnvRegular: false,
     usingEnvPremium: false,
-    envRegularLimit: 200,
-    envPremiumLimit: 500,
+    usingEnvNew: false,
+    envRegularLimit: 100,
+    envPremiumLimit: 300,
+    envNewLimit: 50,
   })
 
   // 对话框状态
@@ -122,11 +132,50 @@ export default function AdminPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [avatarFrames, setAvatarFrames] = useState<Array<{ id: number; category: string; imageUrl: string | null }>>([])
   const [avatarFrameCategories, setAvatarFrameCategories] = useState<string[]>([])
-  const [selectedRole, setSelectedRole] = useState<'regular' | 'premium'>('regular')
+  const [selectedIsPremium, setSelectedIsPremium] = useState<boolean>(false) // 是否优质用户
+  const [selectedIsOldUser, setSelectedIsOldUser] = useState<boolean>(false) // 是否首批用户
+  const [selectedIsActive, setSelectedIsActive] = useState<boolean>(true) // 用户是否封禁
   const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState<number | null>(null)
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
   const [directFrameIdInput, setDirectFrameIdInput] = useState<string>('')
   const [updatingUser, setUpdatingUser] = useState(false)
+  const [isAvatarFrameExpanded, setIsAvatarFrameExpanded] = useState(false) // 头像框模块默认折叠
+  const [isAvatarFrameInventoryExpanded, setIsAvatarFrameInventoryExpanded] = useState(false) // 头像框库存模块默认折叠
+  const [availableFrameIds, setAvailableFrameIds] = useState<string[]>([]) // 用户可用头像框ID列表
+  const [originalAvailableFrameIds, setOriginalAvailableFrameIds] = useState<string[]>([]) // 原始的头像框库存（用于判断是否修改）
+  const [newFrameIdInput, setNewFrameIdInput] = useState('') // 新增头像框ID输入
+  
+  // 批量操作状态
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set()) // 选中的用户ID
+  const [allSelectedUserIds, setAllSelectedUserIds] = useState<Set<string>>(new Set()) // 全选所有符合条件的用户ID（不分页）
+  const [isSelectAllPages, setIsSelectAllPages] = useState(false) // 是否全选所有页
+  const [showBatchModal, setShowBatchModal] = useState(false) // 显示批量操作模态框
+  const [batchOperation, setBatchOperation] = useState<'setAvatarFrame' | 'addAvatarFrames' | null>(null) // 批量操作类型
+  const [batchFrameId, setBatchFrameId] = useState<string>('') // 批量设置头像框ID
+  const [batchFrameIds, setBatchFrameIds] = useState<string>('') // 批量新增头像框ID（逗号分隔）
+  const [batchProcessing, setBatchProcessing] = useState(false) // 批量处理中
+  const [fetchingAllUserIds, setFetchingAllUserIds] = useState(false) // 正在获取所有用户ID
+  const [isCompensateSubscriptionExpanded, setIsCompensateSubscriptionExpanded] = useState(false) // 补偿会员模块默认折叠
+  const [isCompensatePointsPackageExpanded, setIsCompensatePointsPackageExpanded] = useState(false) // 补偿积分套餐模块默认折叠
+  const [isRechargeHistoryExpanded, setIsRechargeHistoryExpanded] = useState(false) // 充值记录模块默认折叠
+  const [subscriptionPlans, setSubscriptionPlans] = useState<Array<{ id: number; name: string; type: string; bonusPoints: number }>>([])
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null)
+  const [compensating, setCompensating] = useState(false)
+  const [pointsPackages, setPointsPackages] = useState<Array<{ id: number; name: string; points: number }>>([])
+  const [selectedPointsPackageId, setSelectedPointsPackageId] = useState<number | null>(null)
+  const [compensatingPoints, setCompensatingPoints] = useState(false)
+  const [userPointsBalance, setUserPointsBalance] = useState<number | null>(null)
+  const [rechargeHistory, setRechargeHistory] = useState<Array<{
+    id: string
+    orderType: string
+    productName: string
+    amount: number
+    pointsAmount: number | null
+    paymentMethod: string | null
+    paidAt: Date | string | null
+    createdAt: Date | string
+  }>>([])
+  const [loadingRechargeHistory, setLoadingRechargeHistory] = useState(false)
   
   // 邮箱白名单状态
   const [emailDomains, setEmailDomains] = useState<Array<{ id: number; domain: string; isEnabled: boolean }>>([])
@@ -188,7 +237,25 @@ export default function AdminPage() {
       }
 
       try {
-        const response = await fetch('/api/admin/check')
+        // 获取动态token
+        const token = await generateDynamicTokenWithServerTime()
+        
+        const response = await fetch('/api/admin/check', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        // 检查响应状态
+        if (!response.ok) {
+          // 如果是401或403，说明权限不足，重定向
+          if (response.status === 401 || response.status === 403) {
+            router.push(transferUrl('/', locale))
+            return
+          }
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const data = await response.json()
         if (!data.isAdmin) {
           router.push(transferUrl('/', locale))
@@ -221,6 +288,7 @@ export default function AdminPage() {
         ...(emailVerifiedFilter && { emailVerified: emailVerifiedFilter }),
         emailType: emailTypeFilter,
         role: roleFilter,
+        status: statusFilter,
         t: Date.now().toString(), // 添加时间戳避免缓存
       })
 
@@ -237,11 +305,75 @@ export default function AdminPage() {
       const data: UserListResponse = await response.json()
       setUsers(data.users)
       setPagination(data.pagination)
+      
+      // 如果当前是全选所有页模式，更新当前页的选中状态
+      if (isSelectAllPages) {
+        // 只显示当前页中在全选列表中的用户为选中状态
+        const currentPageIds = new Set(data.users.filter(u => !u.isAdmin).map(u => u.id))
+        const currentPageSelected = new Set<string>()
+        currentPageIds.forEach(id => {
+          if (allSelectedUserIds.has(id)) {
+            currentPageSelected.add(id)
+          }
+        })
+        setSelectedUserIds(currentPageSelected)
+      } else {
+        // 如果不是全选所有页模式，保持当前页的选择状态（不清空）
+        // 但需要移除不在当前页的选中项
+        const currentPageIds = new Set(data.users.map(u => u.id))
+        const newSelected = new Set<string>()
+        selectedUserIds.forEach(id => {
+          if (currentPageIds.has(id)) {
+            newSelected.add(id)
+          }
+        })
+        setSelectedUserIds(newSelected)
+      }
     } catch (err) {
       console.error('Error fetching users:', err)
       setError(err instanceof Error ? err.message : '获取用户列表失败')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 获取所有符合条件的用户ID（不分页）
+  const fetchAllUserIds = async () => {
+    try {
+      setFetchingAllUserIds(true)
+      
+      const params = new URLSearchParams({
+        page: '1',
+        limit: '10000', // 设置一个很大的limit来获取所有用户
+        ...(searchTerm && { search: searchTerm }),
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        ...(emailVerifiedFilter && { emailVerified: emailVerifiedFilter }),
+        emailType: emailTypeFilter,
+        role: roleFilter,
+        status: statusFilter,
+        t: Date.now().toString(),
+      })
+
+      const response = await fetch(`/api/admin/users?${params}`)
+      
+      if (!response.ok) {
+        throw new Error('获取用户列表失败')
+      }
+
+      const data: UserListResponse = await response.json()
+      // 过滤掉管理员
+      const allIds = new Set(data.users.filter(u => !u.isAdmin).map(u => u.id))
+      console.log('fetchAllUserIds: allIds size =', allIds.size, 'ids =', Array.from(allIds))
+      setAllSelectedUserIds(allIds)
+      setSelectedUserIds(new Set(allIds))
+      setIsSelectAllPages(true)
+      console.log('fetchAllUserIds: set isSelectAllPages = true, allSelectedUserIds.size =', allIds.size)
+    } catch (err) {
+      console.error('Error fetching all user IDs:', err)
+      alert('获取所有用户ID失败')
+    } finally {
+      setFetchingAllUserIds(false)
     }
   }
 
@@ -284,9 +416,21 @@ export default function AdminPage() {
       fetchLimitConfig()
       fetchAvatarFrames()
       fetchEmailDomains()
+      fetchSubscriptionPlans()
+      fetchPointsPackages()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter])
+  }, [isAdmin, checkingAdmin, currentPage, searchTerm, sortBy, sortOrder, emailVerifiedFilter, emailTypeFilter, roleFilter, statusFilter])
+
+  // 当筛选条件改变时，重置全选状态
+  useEffect(() => {
+    if (isAdmin && !checkingAdmin) {
+      setSelectedUserIds(new Set())
+      setIsSelectAllPages(false)
+      setAllSelectedUserIds(new Set())
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, emailVerifiedFilter, emailTypeFilter, roleFilter, statusFilter])
 
   // 获取头像框列表
   const fetchAvatarFrames = async () => {
@@ -305,6 +449,62 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Failed to fetch avatar frames:', error)
+    }
+  }
+
+  const fetchSubscriptionPlans = async () => {
+    try {
+      const response = await fetch(`/api/subscription/plans?t=${Date.now()}`, { cache: 'no-store' })
+      if (response.ok) {
+        const data = await response.json()
+        const plans = (data?.plans || []).map((plan: any) => ({
+          id: plan.id,
+          name: plan.name,
+          type: plan.type,
+          bonusPoints: plan.bonusPoints ?? 0,
+        }))
+        setSubscriptionPlans(plans)
+        if (plans.length > 0) {
+          setSelectedPlanId(plans[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscription plans:', error)
+    }
+  }
+
+  const fetchPointsPackages = async () => {
+    try {
+      const response = await fetch(`/api/points/packages?t=${Date.now()}`, { cache: 'no-store' })
+      if (response.ok) {
+        const data = await response.json()
+        const packages = (data?.packages || []).map((pkg: any) => ({
+          id: pkg.id,
+          name: pkg.name,
+          points: pkg.points ?? 0,
+        }))
+        setPointsPackages(packages)
+        if (packages.length > 0) {
+          setSelectedPointsPackageId(packages[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch points packages:', error)
+    }
+  }
+
+  const fetchUserPointsBalance = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/admin/users/points-balance?userId=${userId}&t=${Date.now()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setUserPointsBalance(data.balance ?? 0)
+      } else {
+        setUserPointsBalance(null)
+      }
+    } catch (error) {
+      console.error('Failed to fetch user points balance:', error)
+      setUserPointsBalance(null)
     }
   }
 
@@ -345,6 +545,13 @@ export default function AdminPage() {
   }
 
   // 格式化日期（固定按东八区展示，但不额外显示时区后缀）
+  // 检查用户订阅是否有效
+  const isSubscriptionActive = (user: User): boolean => {
+    if (!user.isSubscribed) return false
+    if (!user.subscriptionExpiresAt) return false
+    return new Date(user.subscriptionExpiresAt) > new Date()
+  }
+
   const formatDate = (date: Date | string | null) => {
     if (!date) return '-'
     const formatInShanghai = (d: Date) => {
@@ -404,10 +611,19 @@ export default function AdminPage() {
     return formatInShanghai(new Date(dateStr))
   }
 
+  const renderPlanType = (type: string) => {
+    if (type === 'monthly') return '月度'
+    if (type === 'quarterly') return '季度'
+    if (type === 'yearly') return '年度'
+    return type
+  }
+
   // 获取用户限额配置（仅用于显示）
   const fetchLimitConfig = async () => {
     try {
-      const response = await fetch('/api/admin/user-limits')
+      const response = await fetch(`/api/admin/user-limits?t=${Date.now()}`, {
+        cache: 'no-store',
+      })
       if (response.ok) {
         const data = await response.json()
         setLimitConfig(data)
@@ -462,28 +678,103 @@ export default function AdminPage() {
   }
 
 
+  // 获取用户充值记录
+  const fetchRechargeHistory = async (userId: string) => {
+    setLoadingRechargeHistory(true)
+    try {
+      const response = await fetch(`/api/admin/users/recharge-history?userId=${userId}&t=${Date.now()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setRechargeHistory(data.orders || [])
+      } else {
+        console.error('Failed to fetch recharge history')
+        setRechargeHistory([])
+      }
+    } catch (error) {
+      console.error('Error fetching recharge history:', error)
+      setRechargeHistory([])
+    } finally {
+      setLoadingRechargeHistory(false)
+    }
+  }
+
   // 打开用户操作模态框
   const handleOpenUserActionModal = (user: User) => {
     setSelectedUser(user)
-    setSelectedRole(user.isPremium ? 'premium' : 'regular')
+    setSelectedIsPremium(user.isPremium || false) // 初始化优质用户状态
+    setSelectedIsOldUser(user.isOldUser || false) // 初始化首批用户状态
+    setSelectedIsActive(user.isActive !== undefined ? user.isActive : true) // 初始化封禁状态
     setSelectedAvatarFrameId(user.avatarFrameId)
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput(user.avatarFrameId?.toString() || '')
+    setIsAvatarFrameExpanded(false) // 重置为折叠状态
+    setIsCompensateSubscriptionExpanded(false) // 重置补偿会员为折叠状态
+    setIsCompensatePointsPackageExpanded(false) // 重置补偿积分套餐为折叠状态
+    setIsRechargeHistoryExpanded(false) // 重置充值记录为折叠状态
+    setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
+    setSelectedPointsPackageId(pointsPackages[0]?.id ?? null)
+    setRechargeHistory([]) // 清空充值记录
+    setUserPointsBalance(null) // 重置积分余额
+    // 初始化头像框库存
+    let frameIds: string[] = []
+    // 确保正确处理 availableAvatarFrameIds
+    const availableIds = user.availableAvatarFrameIds
+    
+    if (availableIds !== null && availableIds !== undefined && availableIds !== '') {
+      // 转换为字符串并处理
+      const idsStr = String(availableIds).trim()
+      
+      if (idsStr && idsStr !== 'null' && idsStr !== 'undefined') {
+        // 如果有逗号，按逗号分割；否则作为单个ID处理
+        if (idsStr.includes(',')) {
+          frameIds = idsStr.split(',').map(id => id.trim()).filter(id => id !== '')
+        } else {
+          // 单个ID，确保不是空字符串
+          const trimmed = idsStr.trim()
+          if (trimmed) {
+            frameIds = [trimmed]
+          }
+        }
+      }
+    }
+    
+    setAvailableFrameIds(frameIds)
+    setOriginalAvailableFrameIds([...frameIds]) // 保存原始值
+    setNewFrameIdInput('')
+    setIsAvatarFrameInventoryExpanded(false) // 重置为折叠状态
     setShowUserActionModal(true)
+    // 获取用户充值记录和积分余额
+    fetchRechargeHistory(user.id)
+    fetchUserPointsBalance(user.id)
   }
 
   // 关闭用户操作模态框
   const handleCloseUserActionModal = () => {
     setShowUserActionModal(false)
     setSelectedUser(null)
-    setSelectedRole('regular')
+    setSelectedIsPremium(false) // 重置为不是优质用户
+    setSelectedIsOldUser(false) // 重置为不是首批用户
+    setSelectedIsActive(true) // 重置为活跃状态
     setSelectedAvatarFrameId(null)
     setSelectedCategoryFilter('all')
     setDirectFrameIdInput('')
+    setIsRechargeHistoryExpanded(false) // 重置充值记录为折叠状态
+    setRechargeHistory([]) // 清空充值记录
     setUpdatingUser(false)
+    setIsAvatarFrameExpanded(false) // 重置为折叠状态
+    setAvailableFrameIds([])
+    setOriginalAvailableFrameIds([])
+    setNewFrameIdInput('')
+    setIsAvatarFrameInventoryExpanded(false) // 重置头像框库存为折叠状态
+    setIsCompensatePointsPackageExpanded(false) // 重置补偿积分套餐为折叠状态
+    setSelectedPlanId(subscriptionPlans[0]?.id ?? null)
+    setSelectedPointsPackageId(pointsPackages[0]?.id ?? null)
+    setCompensating(false)
+    setCompensatingPoints(false)
+    setUserPointsBalance(null) // 重置积分余额
   }
 
-  // 处理直接输入头像框ID
+  // 处理直接输入头像框ID（只能输入被授予的头像框ID）
   const handleDirectFrameIdChange = (value: string) => {
     setDirectFrameIdInput(value)
     const trimmedValue = value.trim()
@@ -493,23 +784,125 @@ export default function AdminPage() {
     }
     const parsed = parseInt(trimmedValue, 10)
     if (!isNaN(parsed) && parsed > 0) {
-      // 检查ID是否存在
-      const frameExists = avatarFrames.some(f => f.id === parsed)
-      if (frameExists) {
+      // 检查ID是否在授予的头像框列表中
+      const isGranted = availableFrameIds.includes(trimmedValue)
+      if (isGranted) {
         setSelectedAvatarFrameId(parsed)
       } else {
-        // ID不存在，但仍然设置（允许设置不存在的ID）
-        setSelectedAvatarFrameId(parsed)
+        // ID不在授予列表中，不设置
+        setSelectedAvatarFrameId(null)
       }
     } else {
       setSelectedAvatarFrameId(null)
     }
   }
 
-  // 根据分类筛选头像框
+  // 根据分类筛选头像框（仅显示用户被授予的头像框）
+  const grantedFrames = availableFrameIds.length > 0
+    ? avatarFrames.filter(frame => availableFrameIds.includes(frame.id.toString()))
+    : []
+  
   const filteredAvatarFrames = selectedCategoryFilter === 'all'
-    ? avatarFrames
-    : avatarFrames.filter(frame => frame.category === selectedCategoryFilter)
+    ? grantedFrames
+    : grantedFrames.filter(frame => frame.category === selectedCategoryFilter)
+
+  // 批量操作处理函数
+  const handleBatchOperation = async () => {
+    // 使用全选所有页的ID列表（如果启用），否则使用当前选中的ID
+    const userIdsToProcess = isSelectAllPages 
+      ? (allSelectedUserIds.size > 0 ? allSelectedUserIds : selectedUserIds)
+      : selectedUserIds
+    
+    if (userIdsToProcess.size === 0) return
+    if (!batchOperation) return
+
+    setBatchProcessing(true)
+    try {
+      const requestBody: any = {
+        userIds: Array.from(userIdsToProcess),
+        operation: batchOperation,
+      }
+
+      if (batchOperation === 'setAvatarFrame') {
+        const frameId = parseInt(batchFrameId.trim(), 10)
+        if (isNaN(frameId) || frameId <= 0) {
+          alert('请输入有效的头像框ID')
+          setBatchProcessing(false)
+          return
+        }
+        requestBody.frameId = frameId
+      } else if (batchOperation === 'addAvatarFrames') {
+        const frameIds = batchFrameIds.split(',').map(id => id.trim()).filter(id => id !== '')
+        const validFrameIds = frameIds
+          .map(id => parseInt(id, 10))
+          .filter(id => !isNaN(id) && id > 0)
+        
+        if (validFrameIds.length === 0) {
+          alert('请输入有效的头像框ID（多个用逗号分隔）')
+          setBatchProcessing(false)
+          return
+        }
+        requestBody.frameIds = validFrameIds
+      }
+
+      const response = await fetch('/api/admin/users/batch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || '批量操作失败')
+      }
+
+      const data = await response.json()
+      const results = data.results
+
+      // 显示结果
+      let message = `批量操作完成！\n`
+      message += `总计: ${results.total} 个用户\n`
+      message += `成功: ${results.success} 个\n`
+      message += `失败: ${results.failed} 个\n`
+      message += `跳过: ${results.skipped} 个\n\n`
+
+      if (results.failed > 0 || results.skipped > 0) {
+        message += `详细信息：\n`
+        if (results.details.failed.length > 0) {
+          message += `\n失败的用户：\n`
+          results.details.failed.forEach((item: any) => {
+            const user = users.find(u => u.id === item.userId)
+            message += `- ${user?.email || item.userId}: ${item.reason}\n`
+          })
+        }
+        if (results.details.skipped.length > 0) {
+          message += `\n跳过的用户：\n`
+          results.details.skipped.forEach((item: any) => {
+            const user = users.find(u => u.id === item.userId)
+            message += `- ${user?.email || item.userId}: ${item.reason}\n`
+          })
+        }
+      }
+
+      alert(message)
+
+      // 刷新用户列表
+      await fetchUsers()
+      // 关闭模态框并清空选择
+      setShowBatchModal(false)
+      setSelectedUserIds(new Set())
+      setBatchOperation(null)
+      setBatchFrameId('')
+      setBatchFrameIds('')
+    } catch (error) {
+      console.error('Batch operation error:', error)
+      alert(error instanceof Error ? error.message : '批量操作失败')
+    } finally {
+      setBatchProcessing(false)
+    }
+  }
 
   // 保存用户设置
   const handleSaveUserSettings = async () => {
@@ -517,19 +910,31 @@ export default function AdminPage() {
 
     setUpdatingUser(true)
     try {
-      const isPremium = selectedRole === 'premium'
-      
+      // 构建请求体
+      const requestBody: any = {
+        userId: selectedUser.id,
+        isPremium: selectedIsPremium,
+        isOldUser: selectedIsOldUser,
+        isActive: selectedIsActive,
+        avatarFrameId: selectedAvatarFrameId,
+      }
+
+      // 只有在头像框库存被修改时才更新（比较当前值和原始值）
+      const currentIdsStr = availableFrameIds.sort().join(',')
+      const originalIdsStr = originalAvailableFrameIds.sort().join(',')
+      if (currentIdsStr !== originalIdsStr) {
+        // 头像框库存被修改了，需要更新
+        requestBody.availableAvatarFrameIds = availableFrameIds.length > 0 ? availableFrameIds.join(',') : null
+      }
+      // 如果没有修改，不发送 availableAvatarFrameIds 字段，API 就不会更新它
+
       const response = await fetch(`/api/admin/users?t=${Date.now()}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
         },
-        body: JSON.stringify({
-          userId: selectedUser.id,
-          isPremium,
-          avatarFrameId: selectedAvatarFrameId,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {
@@ -558,6 +963,100 @@ export default function AdminPage() {
     } finally {
       setUpdatingUser(false)
     }
+  }
+
+  const handleCompensateSubscription = async () => {
+    if (!selectedUser) return
+    if (!selectedPlanId) {
+      showDialog('error', '补偿失败', '请选择要补偿的会员套餐')
+      return
+    }
+
+    const plan = subscriptionPlans.find(p => p.id === selectedPlanId)
+    const planName = plan ? `${plan.name}（${renderPlanType(plan.type)}）` : '会员'
+
+    // 二次确认
+    showDialog('confirm', '确认补偿会员', `确定要为用户 ${selectedUser.name || selectedUser.email} 补偿 ${planName} 吗？补偿后将按套餐时长叠加当前会员有效期，并赠送对应积分。`, async () => {
+      setCompensating(true)
+      try {
+        const response = await fetch(`/api/admin/users/compensate-subscription?t=${Date.now()}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify({
+            userId: selectedUser.id,
+            planId: selectedPlanId,
+          }),
+        })
+
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data?.error || '补偿失败')
+        }
+
+        await fetchUsers()
+        setSelectedUser(prev => prev ? {
+          ...prev,
+          isSubscribed: true,
+          subscriptionExpiresAt: data.subscriptionExpiresAt || prev.subscriptionExpiresAt,
+        } : prev)
+
+        const expiresText = data.subscriptionExpiresAt ? formatDate(data.subscriptionExpiresAt) : ''
+
+        showDialog('success', '补偿成功', `已为该用户补偿 ${planName}${expiresText ? `，有效期至 ${expiresText}` : ''}`)
+      } catch (error) {
+        console.error('Failed to compensate subscription:', error)
+        showDialog('error', '补偿失败', error instanceof Error ? error.message : '补偿会员失败')
+      } finally {
+        setCompensating(false)
+      }
+    })
+  }
+
+  const handleCompensatePointsPackage = async () => {
+    if (!selectedUser) return
+    if (!selectedPointsPackageId) {
+      showDialog('error', '补偿失败', '请选择要补偿的积分套餐')
+      return
+    }
+
+    const packageData = pointsPackages.find(p => p.id === selectedPointsPackageId)
+    const packageName = packageData ? `${packageData.name}（${packageData.points}积分）` : '积分套餐'
+
+    // 二次确认
+    showDialog('confirm', '确认补偿积分套餐', `确定要为用户 ${selectedUser.name || selectedUser.email} 补偿 ${packageName} 吗？补偿后将直接增加对应积分（积分有效期一年）。`, async () => {
+      setCompensatingPoints(true)
+      try {
+        const response = await fetch(`/api/admin/users/compensate-points-package?t=${Date.now()}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+          body: JSON.stringify({
+            userId: selectedUser.id,
+            packageId: selectedPointsPackageId,
+          }),
+        })
+
+        const data = await response.json()
+        if (!response.ok) {
+          throw new Error(data?.error || '补偿失败')
+        }
+
+        // 刷新用户积分余额
+        await fetchUserPointsBalance(selectedUser.id)
+
+        showDialog('success', '补偿成功', `已为该用户补偿 ${packageName}`)
+      } catch (error) {
+        console.error('Failed to compensate points package:', error)
+        showDialog('error', '补偿失败', error instanceof Error ? error.message : '补偿积分套餐失败')
+      } finally {
+        setCompensatingPoints(false)
+      }
+    })
   }
 
   // 加载中或权限检查
@@ -637,8 +1136,9 @@ export default function AdminPage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 mb-2">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="text-sm text-gray-600">
-                    当前限额: 普通用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
-                    优质用户 {limitConfig.usingEnvPremium ? `(环境变量: ${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit} 次
+                    当前限额: 优质用户 {limitConfig.usingEnvPremium ? `(环境变量: ${limitConfig.envPremiumLimit})` : limitConfig.premiumUserDailyLimit} 次，
+                    首批用户 {limitConfig.usingEnvRegular ? `(环境变量: ${limitConfig.envRegularLimit})` : limitConfig.regularUserDailyLimit} 次，
+                    新用户 {limitConfig.usingEnvNew ? `(环境变量: ${limitConfig.envNewLimit})` : limitConfig.newUserDailyLimit} 次
                   </div>
                 </div>
                 <form onSubmit={handleSearch} className="flex gap-2">
@@ -682,10 +1182,32 @@ export default function AdminPage() {
                 
                 {/* 筛选和排序控件 */}
                 <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                    {/* 排序字段 */}
-                    <div className="flex flex-col">
-                      <label className="text-xs text-gray-600 mb-1">排序字段</label>
+                  {/* 高级搜索标题和折叠按钮 */}
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-gray-700">高级搜索</h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsAdvancedSearchExpanded(!isAdvancedSearchExpanded)}
+                      className="flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      <span>{isAdvancedSearchExpanded ? '收起' : '展开'}</span>
+                      <svg
+                        className={`w-4 h-4 transform transition-transform duration-200 ${isAdvancedSearchExpanded ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  {/* 高级搜索内容（可折叠） */}
+                  {isAdvancedSearchExpanded && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                      {/* 排序字段 */}
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600 mb-1">排序字段</label>
                       <select
                         value={sortBy}
                         onChange={(e) => {
@@ -819,14 +1341,34 @@ export default function AdminPage() {
                       >
                         <option value="all">全部</option>
                         <option value="admin">管理员</option>
+                        <option value="subscribed">付费用户</option>
                         <option value="premium">优质用户</option>
+                        <option value="oldUser">首批用户</option>
                         <option value="regular">普通用户</option>
                       </select>
                     </div>
-                  </div>
+                    
+                    {/* 状态筛选 */}
+                    <div className="flex flex-col">
+                      <label className="text-xs text-gray-600 mb-1">状态</label>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => {
+                          setStatusFilter(e.target.value)
+                          setCurrentPage(1)
+                        }}
+                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                      >
+                        <option value="active">活跃</option>
+                        <option value="banned">封禁</option>
+                        <option value="all">全部</option>
+                      </select>
+                    </div>
+                    </div>
+                  )}
                   
                   {/* 重置筛选按钮 */}
-                  {(sortBy !== 'createdAt' || sortOrder !== 'desc' || emailVerifiedFilter || emailTypeFilter !== 'all' || roleFilter !== 'all') && (
+                  {(sortBy !== 'createdAt' || sortOrder !== 'desc' || emailVerifiedFilter || emailTypeFilter !== 'all' || roleFilter !== 'all' || statusFilter !== 'active') && (
                     <div className="mt-3">
                       <button
                         type="button"
@@ -836,6 +1378,7 @@ export default function AdminPage() {
                           setEmailVerifiedFilter('')
                           setEmailTypeFilter('all')
                           setRoleFilter('all')
+                          setStatusFilter('active')
                           setCurrentPage(1)
                         }}
                         className="px-4 py-1.5 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
@@ -871,10 +1414,100 @@ export default function AdminPage() {
                 </div>
               ) : (
                 <>
+                {/* 全选选项 - 放在表格上方 */}
+                <div className="px-6 py-3 bg-red-50 border-b border-red-200">
+                  <div className="flex items-center gap-6">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!isSelectAllPages && users.filter(u => !u.isAdmin).length > 0 && selectedUserIds.size === users.filter(u => !u.isAdmin).length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            // 全选当前页（排除管理员）
+                            const currentPageIds = users.filter(u => !u.isAdmin).map(u => u.id)
+                            setSelectedUserIds(new Set(currentPageIds))
+                            setIsSelectAllPages(false)
+                            setAllSelectedUserIds(new Set())
+                          } else {
+                            setSelectedUserIds(new Set())
+                            setIsSelectAllPages(false)
+                            setAllSelectedUserIds(new Set())
+                          }
+                        }}
+                        disabled={users.filter(u => !u.isAdmin).length === 0}
+                        className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded disabled:opacity-50"
+                      />
+                      <span className="text-sm text-gray-700">全选当前页</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isSelectAllPages) {
+                          // 取消全选所有页
+                          setSelectedUserIds(new Set())
+                          setIsSelectAllPages(false)
+                          setAllSelectedUserIds(new Set())
+                        } else {
+                          // 全选所有页
+                          fetchAllUserIds()
+                        }
+                      }}
+                      disabled={fetchingAllUserIds}
+                      className="flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 disabled:opacity-50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelectAllPages}
+                        onChange={() => {}} // 由按钮的onClick处理
+                        className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded pointer-events-none"
+                      />
+                      <span>{fetchingAllUserIds ? '加载中...' : isSelectAllPages ? '✓ 已全选所有' : '全选所有(不分页)'}</span>
+                    </button>
+                  </div>
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                          <input
+                            type="checkbox"
+                            checked={isSelectAllPages 
+                              ? users.filter(u => !u.isAdmin).length > 0 && users.filter(u => !u.isAdmin).every(u => allSelectedUserIds.has(u.id))
+                              : users.filter(u => !u.isAdmin).length > 0 && selectedUserIds.size === users.filter(u => !u.isAdmin).length}
+                            onChange={(e) => {
+                              if (isSelectAllPages) {
+                                // 全选所有页模式下的切换
+                                if (e.target.checked) {
+                                  const currentPageIds = users.filter(u => !u.isAdmin).map(u => u.id)
+                                  const newAllSelected = new Set(allSelectedUserIds)
+                                  currentPageIds.forEach(id => newAllSelected.add(id))
+                                  setAllSelectedUserIds(newAllSelected)
+                                  setSelectedUserIds(new Set(currentPageIds))
+                                } else {
+                                  const currentPageIds = users.filter(u => !u.isAdmin).map(u => u.id)
+                                  const newAllSelected = new Set(allSelectedUserIds)
+                                  currentPageIds.forEach(id => newAllSelected.delete(id))
+                                  setAllSelectedUserIds(newAllSelected)
+                                  setSelectedUserIds(new Set())
+                                  if (newAllSelected.size === 0) {
+                                    setIsSelectAllPages(false)
+                                  }
+                                }
+                              } else {
+                                // 普通模式下的切换
+                                if (e.target.checked) {
+                                  const currentPageIds = users.filter(u => !u.isAdmin).map(u => u.id)
+                                  setSelectedUserIds(new Set(currentPageIds))
+                                } else {
+                                  setSelectedUserIds(new Set())
+                                }
+                              }
+                            }}
+                            disabled={users.filter(u => !u.isAdmin).length === 0}
+                            className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded disabled:opacity-50"
+                          />
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           用户信息
                         </th>
@@ -901,6 +1534,39 @@ export default function AdminPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {users.map((user) => (
                         <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={selectedUserIds.has(user.id)}
+                              onChange={(e) => {
+                                const newSelected = new Set(selectedUserIds)
+                                if (e.target.checked) {
+                                  newSelected.add(user.id)
+                                  // 如果全选所有页，也要更新allSelectedUserIds
+                                  if (isSelectAllPages) {
+                                    const newAllSelected = new Set(allSelectedUserIds)
+                                    newAllSelected.add(user.id)
+                                    setAllSelectedUserIds(newAllSelected)
+                                  }
+                                } else {
+                                  newSelected.delete(user.id)
+                                  // 如果全选所有页，也要从allSelectedUserIds中移除
+                                  if (isSelectAllPages) {
+                                    const newAllSelected = new Set(allSelectedUserIds)
+                                    newAllSelected.delete(user.id)
+                                    setAllSelectedUserIds(newAllSelected)
+                                    // 如果移除后没有选中任何用户，取消全选所有页模式
+                                    if (newAllSelected.size === 0) {
+                                      setIsSelectAllPages(false)
+                                    }
+                                  }
+                                }
+                                setSelectedUserIds(newSelected)
+                              }}
+                              disabled={user.isAdmin} // 管理员不可选择
+                              className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded disabled:opacity-50"
+                            />
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <Image
@@ -971,22 +1637,36 @@ export default function AdminPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex flex-col gap-1">
-                              {user.isAdmin ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
-                                  管理员
-                                </span>
-                              ) : user.isPremium ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                  优质用户
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
-                                  普通用户
-                                </span>
-                              )}
+                            <div className="flex flex-col gap-1 items-center">
+                              <div className="flex flex-wrap gap-1 justify-center">
+                                {user.isAdmin && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-amber-400 text-white">
+                                    管理员
+                                  </span>
+                                )}
+                                {isSubscriptionActive(user) && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    付费用户
+                                  </span>
+                                )}
+                                {user.isPremium && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    优质用户
+                                  </span>
+                                )}
+                                {user.isOldUser && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    首批用户
+                                  </span>
+                                )}
+                                {!user.isAdmin && !isSubscriptionActive(user) && !user.isPremium && !user.isOldUser && (
+                                  <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700">
+                                    新用户
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-xs text-gray-600">
-                                今日: {user.dailyRequestCount || 0} / {user.isAdmin ? '∞' : user.isPremium ? limitConfig.premiumUserDailyLimit : limitConfig.regularUserDailyLimit}
+                                今日: {user.dailyRequestCount || 0} / {user.isAdmin ? '∞' : user.isPremium ? limitConfig.premiumUserDailyLimit : user.isOldUser ? limitConfig.regularUserDailyLimit : limitConfig.newUserDailyLimit}
                               </span>
                             </div>
                           </td>
@@ -1013,6 +1693,53 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* 批量操作栏 */}
+                {(selectedUserIds.size > 0 || (isSelectAllPages && allSelectedUserIds.size > 0)) && (
+                  <div className="bg-orange-50 border-t border-orange-200 px-6 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        {isSelectAllPages ? (
+                          <>已全选所有符合条件的用户（共 {allSelectedUserIds.size > 0 ? allSelectedUserIds.size : selectedUserIds.size} 个）</>
+                        ) : (
+                          <>已选择 {selectedUserIds.size} 个用户（当前页）</>
+                        )}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedUserIds(new Set())
+                          setIsSelectAllPages(false)
+                          setAllSelectedUserIds(new Set())
+                        }}
+                        className="text-sm text-gray-600 hover:text-gray-900 underline"
+                      >
+                        取消选择
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setBatchOperation('setAvatarFrame')
+                          setBatchFrameId('')
+                          setShowBatchModal(true)
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+                      >
+                        批量设置当前头像框
+                      </button>
+                      <button
+                        onClick={() => {
+                          setBatchOperation('addAvatarFrames')
+                          setBatchFrameIds('')
+                          setShowBatchModal(true)
+                        }}
+                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+                      >
+                        批量新增头像框
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* 分页 */}
                 {pagination.totalPages > 1 && (
@@ -1131,55 +1858,120 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* 设置用户角色 */}
+            {/* 设置用户身份（支持同时拥有多个身份） */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                用户角色
+                用户身份
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedIsPremium}
+                    onChange={(e) => setSelectedIsPremium(e.target.checked)}
+                    disabled={selectedUser.isAdmin || updatingUser}
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded"
+                  />
+                  <span className="text-sm text-gray-700">优质用户</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedIsOldUser}
+                    onChange={(e) => setSelectedIsOldUser(e.target.checked)}
+                    disabled={selectedUser.isAdmin || updatingUser}
+                    className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded"
+                  />
+                  <span className="text-sm text-gray-700">首批用户</span>
+                </label>
+              </div>
+              {selectedUser.isAdmin && (
+                <p className="mt-2 text-xs text-gray-500">管理员身份无法修改</p>
+              )}
+              <p className="mt-2 text-xs text-gray-500">
+                注意：用户可以同时拥有多个身份（优质用户、首批用户、付费用户等）
+              </p>
+            </div>
+
+            {/* 设置用户封禁状态 */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                账号状态
               </label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
-                    name="userRole"
-                    value="regular"
-                    checked={selectedRole === 'regular'}
-                    onChange={(e) => setSelectedRole(e.target.value as 'regular' | 'premium')}
+                    name="userActive"
+                    value="active"
+                    checked={selectedIsActive === true}
+                    onChange={() => setSelectedIsActive(true)}
                     disabled={selectedUser.isAdmin || updatingUser}
                     className="w-4 h-4 text-orange-600 focus:ring-orange-500"
                   />
-                  <span className="text-sm text-gray-700">普通用户</span>
+                  <span className="text-sm text-gray-700">活跃</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
-                    name="userRole"
-                    value="premium"
-                    checked={selectedRole === 'premium'}
-                    onChange={(e) => setSelectedRole(e.target.value as 'regular' | 'premium')}
+                    name="userActive"
+                    value="banned"
+                    checked={selectedIsActive === false}
+                    onChange={() => setSelectedIsActive(false)}
                     disabled={selectedUser.isAdmin || updatingUser}
                     className="w-4 h-4 text-orange-600 focus:ring-orange-500"
                   />
-                  <span className="text-sm text-gray-700">优质用户</span>
+                  <span className="text-sm text-gray-700">已封禁</span>
                 </label>
               </div>
               {selectedUser.isAdmin && (
-                <p className="mt-2 text-xs text-gray-500">管理员角色无法修改</p>
+                <p className="mt-2 text-xs text-gray-500">管理员账号无法封禁</p>
+              )}
+              {!selectedIsActive && (
+                <p className="mt-2 text-xs text-orange-600">封禁后用户将无法发起生图请求和签到获得积分</p>
               )}
             </div>
 
-            {/* 设置用户头像框 */}
+            {/* 设置用户当前头像框 */}
             <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <label className="block text-sm font-medium text-gray-700">
-                  头像框
-                </label>
-                {selectedUser.avatarFrameId && (
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                    当前ID: {selectedUser.avatarFrameId}
-                  </span>
-                )}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    当前头像框
+                  </label>
+                  {selectedUser.avatarFrameId && (
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      当前ID: {selectedUser.avatarFrameId}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAvatarFrameExpanded(!isAvatarFrameExpanded)}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <span>{isAvatarFrameExpanded ? '收起' : '展开'}</span>
+                  <svg
+                    className={`w-4 h-4 transform transition-transform duration-200 ${isAvatarFrameExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
               </div>
 
+              {isAvatarFrameExpanded && (
+                <>
+              {availableFrameIds.length === 0 ? (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    该用户暂无被授予的头像框，请先在&quot;头像框库存&quot;中添加头像框
+                  </p>
+                </div>
+              ) : (
+                <>
               {/* 直接输入头像框ID */}
               <div className="mb-4">
                 <label className="block text-xs font-medium text-gray-600 mb-2">
@@ -1189,19 +1981,24 @@ export default function AdminPage() {
                   type="text"
                   value={directFrameIdInput}
                   onChange={(e) => handleDirectFrameIdChange(e.target.value)}
-                  placeholder="输入头像框ID（留空为无头像框）"
+                  placeholder="输入被授予的头像框ID（留空为无头像框）"
                   disabled={updatingUser}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
                 />
+                {directFrameIdInput && !availableFrameIds.includes(directFrameIdInput.trim()) && (
+                  <p className="mt-1 text-xs text-orange-600">
+                    注意：ID {directFrameIdInput.trim()} 不在该用户的授予列表中
+                  </p>
+                )}
                 {selectedAvatarFrameId && !avatarFrames.some(f => f.id === selectedAvatarFrameId) && (
                   <p className="mt-1 text-xs text-orange-600">
-                    注意：ID {selectedAvatarFrameId} 不存在于当前头像框列表中
+                    注意：ID {selectedAvatarFrameId} 不存在于系统中
                   </p>
                 )}
               </div>
 
               {/* 分类筛选 */}
-              {avatarFrameCategories.length > 0 && (
+              {avatarFrameCategories.length > 0 && filteredAvatarFrames.length > 0 && (
                 <div className="mb-4">
                   <label className="block text-xs font-medium text-gray-600 mb-2">
                     按分类筛选
@@ -1212,7 +2009,7 @@ export default function AdminPage() {
                       setSelectedCategoryFilter(e.target.value)
                       // 如果当前选中的头像框不在筛选后的列表中，清除选择
                       if (e.target.value !== 'all' && selectedAvatarFrameId) {
-                        const frame = avatarFrames.find(f => f.id === selectedAvatarFrameId)
+                        const frame = filteredAvatarFrames.find(f => f.id === selectedAvatarFrameId)
                         if (!frame || frame.category !== e.target.value) {
                           setSelectedAvatarFrameId(null)
                           setDirectFrameIdInput('')
@@ -1222,14 +2019,14 @@ export default function AdminPage() {
                     disabled={updatingUser}
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
                   >
-                    <option value="all">全部分类 ({avatarFrames.length})</option>
+                    <option value="all">全部分类 ({filteredAvatarFrames.length})</option>
                     {avatarFrameCategories.map(cat => {
-                      const count = avatarFrames.filter(f => f.category === cat).length
-                      return (
+                      const count = filteredAvatarFrames.filter(f => f.category === cat).length
+                      return count > 0 ? (
                         <option key={cat} value={cat}>
                           {cat} ({count})
                         </option>
-                      )
+                      ) : null
                     })}
                   </select>
                 </div>
@@ -1238,7 +2035,7 @@ export default function AdminPage() {
               {/* 头像框选择列表 */}
               <div className="mb-2">
                 <label className="block text-xs font-medium text-gray-600 mb-2">
-                  从列表选择
+                  从授予的头像框中选择
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-64 overflow-y-auto p-2 border border-gray-200 rounded-lg">
                   <label className="relative cursor-pointer">
@@ -1307,11 +2104,422 @@ export default function AdminPage() {
                   ))}
                 </div>
               </div>
-              {filteredAvatarFrames.length === 0 && avatarFrames.length > 0 && (
-                <p className="mt-2 text-xs text-gray-500">该分类下暂无头像框</p>
+              {filteredAvatarFrames.length === 0 && grantedFrames.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">该分类下暂无被授予的头像框</p>
               )}
-              {avatarFrames.length === 0 && (
-                <p className="mt-2 text-xs text-gray-500">暂无头像框，请先在装饰管理中添加</p>
+              {grantedFrames.length === 0 && availableFrameIds.length > 0 && (
+                <p className="mt-2 text-xs text-gray-500">授予的头像框ID在系统中不存在</p>
+              )}
+                </>
+              )}
+                </>
+              )}
+            </div>
+
+            {/* 头像框库存管理 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    头像框库存
+                  </label>
+                  {availableFrameIds.length > 0 && (
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      共 {availableFrameIds.length} 个
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAvatarFrameInventoryExpanded(!isAvatarFrameInventoryExpanded)}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <span>{isAvatarFrameInventoryExpanded ? '收起' : '展开'}</span>
+                  <svg
+                    className={`w-4 h-4 transform transition-transform duration-200 ${isAvatarFrameInventoryExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+
+              {isAvatarFrameInventoryExpanded && (
+                <div className="space-y-4">
+                  {/* 当前库存列表 */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">
+                      当前可用头像框列表
+                    </label>
+                    {availableFrameIds.length === 0 ? (
+                      <p className="text-xs text-gray-500 py-2">暂无可用头像框</p>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        {availableFrameIds.map((frameId, index) => {
+                          const frameIdNum = parseInt(frameId, 10)
+                          const frame = avatarFrames.find(f => f.id === frameIdNum)
+                          // 确保 frameId 是有效的
+                          if (isNaN(frameIdNum) || frameIdNum <= 0) {
+                            return null
+                          }
+                          return (
+                            <div
+                              key={index}
+                              className="relative bg-white border border-gray-300 rounded-lg p-2 hover:border-orange-400 transition-colors"
+                            >
+                              <div className="aspect-square bg-gray-100 rounded mb-2 overflow-hidden flex items-center justify-center">
+                                {frame?.imageUrl ? (
+                                  <Image
+                                    src={frame.imageUrl}
+                                    alt={`Frame ${frameId}`}
+                                    width={80}
+                                    height={80}
+                                    className="w-full h-full object-contain"
+                                    unoptimized={frame.imageUrl.startsWith('http')}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center">
+                                    <span className="text-xs text-gray-400">ID: {frameId}</span>
+                                    {!frame && (
+                                      <span className="text-xs text-orange-500 mt-1">不存在</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-center">
+                                <span className="text-xs text-gray-600">ID: {frameId}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newIds = availableFrameIds.filter((_, i) => i !== index)
+                                  setAvailableFrameIds(newIds)
+                                }}
+                                disabled={updatingUser}
+                                className="absolute top-1 right-1 w-5 h-5 flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
+                                title="删除"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 添加新头像框ID */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-2">
+                      添加头像框ID
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newFrameIdInput}
+                        onChange={(e) => {
+                          const value = e.target.value.trim()
+                          // 只允许输入数字和逗号
+                          if (value === '' || /^[\d,]+$/.test(value)) {
+                            setNewFrameIdInput(value)
+                          }
+                        }}
+                        placeholder="输入头像框ID（多个用逗号分隔，如：1,2,3）"
+                        disabled={updatingUser}
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            const ids = newFrameIdInput.split(',').map(id => id.trim()).filter(id => id !== '')
+                            const validIds = ids.filter(id => {
+                              const numId = parseInt(id, 10)
+                              return !isNaN(numId) && numId > 0
+                            })
+                            const newIds = [...new Set([...availableFrameIds, ...validIds])]
+                            setAvailableFrameIds(newIds)
+                            setNewFrameIdInput('')
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ids = newFrameIdInput.split(',').map(id => id.trim()).filter(id => id !== '')
+                          const validIds = ids.filter(id => {
+                            const numId = parseInt(id, 10)
+                            return !isNaN(numId) && numId > 0
+                          })
+                          const newIds = [...new Set([...availableFrameIds, ...validIds])]
+                          setAvailableFrameIds(newIds)
+                          setNewFrameIdInput('')
+                        }}
+                        disabled={updatingUser || !newFrameIdInput.trim()}
+                        className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        添加
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      可以输入单个ID或多个ID（用逗号分隔），按Enter或点击添加按钮
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 用户充值记录 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  用户充值记录
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsRechargeHistoryExpanded(!isRechargeHistoryExpanded)}
+                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  <span>{isRechargeHistoryExpanded ? '收起' : '展开'}</span>
+                  <svg
+                    className={`w-4 h-4 transform transition-transform duration-200 ${isRechargeHistoryExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              <div className="text-sm text-gray-600">
+                已充值金额：¥{rechargeHistory.reduce((sum, order) => sum + order.amount, 0).toFixed(2)}
+              </div>
+              {isRechargeHistoryExpanded && (
+                <>
+                  {loadingRechargeHistory ? (
+                    <div className="mt-3 text-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                      <p className="text-sm text-gray-500">加载中...</p>
+                    </div>
+                  ) : rechargeHistory.length === 0 ? (
+                    <div className="mt-3 text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                      暂无充值记录
+                    </div>
+                  ) : (
+                    <div className="mt-3 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单号</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">订单类型</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">产品名称</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金额</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">积分</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付方式</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">支付时间</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {rechargeHistory.map((order) => (
+                              <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <div className="text-xs font-mono text-gray-900">{order.id}</div>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    order.orderType === 'subscription'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {order.orderType === 'subscription' ? '订阅付费' : '积分付费'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2">
+                                  <div className="text-xs text-gray-900 max-w-xs truncate">{order.productName}</div>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <span className="text-xs font-semibold text-orange-600">
+                                    ¥{order.amount.toFixed(2)}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  {order.pointsAmount ? (
+                                    <span className="text-xs font-semibold text-blue-600">
+                                      {order.pointsAmount.toLocaleString()}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <span className="text-xs text-gray-600">
+                                    {order.paymentMethod === 'alipay' ? '支付宝' : order.paymentMethod === 'wechat' ? '微信支付' : order.paymentMethod || '-'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap">
+                                  <div className="text-xs text-gray-500">
+                                    {order.paidAt ? new Date(order.paidAt).toLocaleString('zh-CN') : '-'}
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* 补偿会员 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  补偿会员
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="text-xs text-gray-500">
+                    当前状态：{selectedUser.isSubscribed && selectedUser.subscriptionExpiresAt
+                      ? `已开通，过期时间 ${formatDate(selectedUser.subscriptionExpiresAt)}`
+                      : '未开通'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCompensateSubscriptionExpanded(!isCompensateSubscriptionExpanded)}
+                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <span>{isCompensateSubscriptionExpanded ? '收起' : '展开'}</span>
+                    <svg
+                      className={`w-4 h-4 transform transition-transform duration-200 ${isCompensateSubscriptionExpanded ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              {isCompensateSubscriptionExpanded && (
+                <>
+                  {subscriptionPlans.length === 0 ? (
+                    <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                      暂无可用套餐，请先在订阅套餐配置中添加
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-2">
+                        <select
+                          value={selectedPlanId ?? ''}
+                          onChange={(e) => setSelectedPlanId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                          disabled={compensating}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                        >
+                          {subscriptionPlans.map(plan => (
+                            <option key={plan.id} value={plan.id}>
+                              {plan.name}（{renderPlanType(plan.type)}，赠送积分 {plan.bonusPoints}）
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500">
+                          选择套餐后点击补偿，将按套餐时长叠加当前会员有效期，并赠送对应积分（积分有效期一年）。
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCompensateSubscription}
+                        disabled={compensating}
+                        className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {compensating ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>补偿中...</span>
+                          </>
+                        ) : (
+                          '补偿会员'
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* 补偿积分套餐 */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  补偿积分套餐
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="text-xs text-gray-500">
+                    当前积分：{userPointsBalance !== null ? userPointsBalance : '加载中...'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCompensatePointsPackageExpanded(!isCompensatePointsPackageExpanded)}
+                    className="flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                    <span>{isCompensatePointsPackageExpanded ? '收起' : '展开'}</span>
+                    <svg
+                      className={`w-4 h-4 transform transition-transform duration-200 ${isCompensatePointsPackageExpanded ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              {isCompensatePointsPackageExpanded && (
+                <>
+                  {pointsPackages.length === 0 ? (
+                    <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-2">
+                      暂无可用套餐，请先在积分套餐配置中添加
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-2">
+                        <select
+                          value={selectedPointsPackageId ?? ''}
+                          onChange={(e) => setSelectedPointsPackageId(e.target.value ? parseInt(e.target.value, 10) : null)}
+                          disabled={compensatingPoints}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none"
+                        >
+                          {pointsPackages.map(pkg => (
+                            <option key={pkg.id} value={pkg.id}>
+                              {pkg.name}（{pkg.points}积分）
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-gray-500">
+                          选择套餐后点击补偿，将直接增加对应积分（积分有效期一年）。
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCompensatePointsPackage}
+                        disabled={compensatingPoints}
+                        className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {compensatingPoints ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>补偿中...</span>
+                          </>
+                        ) : (
+                          '补偿积分套餐'
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1416,6 +2624,117 @@ export default function AdminPage() {
                   我知道了
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批量操作模态框 */}
+      {showBatchModal && batchOperation && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {batchOperation === 'setAvatarFrame' ? '批量设置当前头像框' : '批量新增头像框'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowBatchModal(false)
+                  setBatchOperation(null)
+                  setBatchFrameId('')
+                  setBatchFrameIds('')
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={batchProcessing}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 mb-4">
+                将对选中的 <span className="font-semibold text-orange-600">
+                  {isSelectAllPages ? allSelectedUserIds.size : selectedUserIds.size}
+                </span> 个用户执行操作
+                {isSelectAllPages && (
+                  <span className="block mt-1 text-xs text-orange-600">
+                    （已全选所有符合条件的用户，不分页）
+                  </span>
+                )}
+              </p>
+
+              {batchOperation === 'setAvatarFrame' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    头像框ID
+                  </label>
+                  <input
+                    type="number"
+                    value={batchFrameId}
+                    onChange={(e) => setBatchFrameId(e.target.value)}
+                    placeholder="输入头像框ID"
+                    disabled={batchProcessing}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none disabled:opacity-50"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    注意：只会为已拥有该头像框的用户设置（在available_avatar_frame_ids中）
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    头像框ID（多个用逗号分隔）
+                  </label>
+                  <input
+                    type="text"
+                    value={batchFrameIds}
+                    onChange={(e) => {
+                      const value = e.target.value.trim()
+                      // 只允许输入数字和逗号
+                      if (value === '' || /^[\d,]+$/.test(value)) {
+                        setBatchFrameIds(value)
+                      }
+                    }}
+                    placeholder="例如：1,2,3"
+                    disabled={batchProcessing}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none disabled:opacity-50"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    注意：如果用户已拥有某个头像框，不会重复添加
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowBatchModal(false)
+                  setBatchOperation(null)
+                  setBatchFrameId('')
+                  setBatchFrameIds('')
+                }}
+                disabled={batchProcessing}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBatchOperation}
+                disabled={batchProcessing || (batchOperation === 'setAvatarFrame' ? !batchFrameId.trim() : !batchFrameIds.trim())}
+                className="flex-1 px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {batchProcessing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>处理中...</span>
+                  </>
+                ) : (
+                  '确认执行'
+                )}
+              </button>
             </div>
           </div>
         </div>

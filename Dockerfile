@@ -11,6 +11,8 @@ ENV DATABASE_URL=''
 # 构建阶段
 FROM base  AS builder
 
+# 安装 pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # 复制配置文件（这些文件变化较少，利于缓存）
 COPY next.config.js ./
@@ -21,24 +23,36 @@ COPY tsconfig.json ./
 COPY drizzle.config.json ./
 
 # 复制源代码和必要的文件
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 COPY public ./public
 COPY src ./src
 COPY drizzle ./drizzle
 COPY middleware.ts ./
 COPY eslint.config.mjs ./
 COPY .env ./
+COPY fonts ./fonts
+COPY scripts ./scripts
 
-RUN npm install --registry=http://nexus.suanleme.local:8081/repository/npm
+# 配置 pnpm 使用国内镜像（淘宝镜像）
+# 可以通过构建参数 --build-arg NPM_REGISTRY=xxx 来指定其他镜像
+# 例如：docker build --build-arg NPM_REGISTRY=https://registry.npmjs.org .
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+RUN echo "registry=${NPM_REGISTRY}" > .npmrc
+
+# 安装依赖
+RUN pnpm install --frozen-lockfile
 
 # 构建应用
-RUN npm run build
+RUN pnpm run build
 
 # 生产运行阶段
 FROM base AS runner
 
-# 安装必要的系统工具
-RUN apk add --no-cache curl
+# 安装 pnpm（运行时也需要）
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# 安装必要的系统工具和字体管理工具
+RUN apk add --no-cache curl fontconfig ttf-dejavu
 
 # 复制构建结果
 COPY --from=builder  /app/.next ./.next
@@ -46,9 +60,15 @@ COPY --from=builder  /app/public ./public
 COPY --from=builder  /app/node_modules ./node_modules
 COPY --from=builder  /app/package.json ./package.json
 
-# 复制必要的配置文件
+# 复制必要的配置文件和脚本
 COPY --from=builder  /app/next.config.js ./
 COPY --from=builder  /app/middleware.ts ./
+COPY --from=builder  /app/scripts ./scripts
+
+# 将字体文件复制到系统字体目录并更新字体缓存
+RUN mkdir -p /usr/share/fonts/truetype
+COPY --from=builder  /app/fonts/*.ttf /usr/share/fonts/truetype/
+RUN fc-cache -fv && echo "字体缓存已更新"
 
 # 暴露端口
 EXPOSE 3000
@@ -58,4 +78,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # 启动应用
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]

@@ -8,6 +8,7 @@ import AdminSidebar from '@/components/AdminSidebar'
 import Image from 'next/image'
 import { transferUrl } from '@/utils/locale'
 import { useAvatar } from '@/contexts/AvatarContext'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import {
   LineChart,
   Line,
@@ -48,6 +49,9 @@ interface TotalStats {
   activeUsers: number
   authenticatedIPs: number
   unauthenticatedIPs: number
+  registeredUsers: number
+  verifiedRegistrations: number
+  unverifiedRegistrations: number
 }
 
 interface DailyTrend {
@@ -102,7 +106,7 @@ export default function AnalyticsPage() {
   const locale = params?.locale as string || 'zh'
   const [isAdmin, setIsAdmin] = useState(false)
   const [checkingAdmin, setCheckingAdmin] = useState(true)
-  const [timeRange, setTimeRange] = useState<TimeRange>('week')
+  const [timeRange, setTimeRange] = useState<TimeRange>('today')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [stats, setStats] = useState<StatsResponse | null>(null)
@@ -172,7 +176,25 @@ export default function AnalyticsPage() {
       }
 
       try {
-        const response = await fetch('/api/admin/check')
+        // 获取动态token
+        const token = await generateDynamicTokenWithServerTime()
+        
+        const response = await fetch('/api/admin/check', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        // 检查响应状态
+        if (!response.ok) {
+          // 如果是401或403，说明权限不足，重定向
+          if (response.status === 401 || response.status === 403) {
+            router.push(transferUrl('/', locale))
+            return
+          }
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
         const data = await response.json()
         if (!data.isAdmin) {
           router.push(transferUrl('/', locale))
@@ -448,7 +470,7 @@ export default function AnalyticsPage() {
                   </h2>
                   
                   {/* 总计卡片 */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4 mb-6">
                     <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-6 border border-orange-200">
                       <div className="flex items-center justify-between">
                         <div>
@@ -571,6 +593,84 @@ export default function AnalyticsPage() {
                           <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-6 border border-teal-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-gray-600 mb-1">总注册次数</p>
+                          <p className="text-3xl font-bold text-teal-600">
+                            {stats.totalStats.registeredUsers.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="p-3 bg-teal-100 rounded-lg">
+                          <svg className="w-8 h-8 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg p-6 border border-emerald-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-600 mb-1">新增用户人数</p>
+                          <p className="text-3xl font-bold text-emerald-600 mb-2">
+                            {stats.totalStats.verifiedRegistrations.toLocaleString()}
+                          </p>
+                          {stats.totalStats.registeredUsers > 0 && (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-emerald-100 rounded-full h-2 overflow-hidden">
+                                <div 
+                                  className="bg-emerald-600 h-2 rounded-full transition-all"
+                                  style={{ 
+                                    width: `${(stats.totalStats.verifiedRegistrations / stats.totalStats.registeredUsers) * 100}%` 
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-emerald-700">
+                                {((stats.totalStats.verifiedRegistrations / stats.totalStats.registeredUsers) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3 bg-emerald-100 rounded-lg ml-4">
+                          <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-lg p-6 border border-rose-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-600 mb-1">未验证邮箱注册</p>
+                          <p className="text-3xl font-bold text-rose-600 mb-2">
+                            {stats.totalStats.unverifiedRegistrations.toLocaleString()}
+                          </p>
+                          {stats.totalStats.registeredUsers > 0 && (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-rose-100 rounded-full h-2 overflow-hidden">
+                                <div 
+                                  className="bg-rose-600 h-2 rounded-full transition-all"
+                                  style={{ 
+                                    width: `${(stats.totalStats.unverifiedRegistrations / stats.totalStats.registeredUsers) * 100}%` 
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-rose-700">
+                                {((stats.totalStats.unverifiedRegistrations / stats.totalStats.registeredUsers) * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3 bg-rose-100 rounded-lg ml-4">
+                          <svg className="w-8 h-8 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
                       </div>

@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
+import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import GenerateForm from './GenerateForm'
 import GeneratePreview from './GeneratePreview'
 import StyleTransferForm from './StyleTransferForm'
@@ -8,23 +10,34 @@ import PromptInput from './PromptInput'
 import { optimizePrompt } from '../utils/promptOptimizer'
 import { useSession } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
+import { getModelThresholds, getAllModels } from '@/utils/modelConfig'
+import { usePoints } from '@/contexts/PointsContext'
+import { calculateEstimatedCost } from '@/utils/pointsClient'
+import { transferUrl } from '@/utils/locale'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
   initialPrompt?: string;
+  initialModel?: string;
 }
 
-const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps) => {
+const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: GenerateSectionProps) => {
   const t = useTranslations('home.generate')
   const tHome = useTranslations('home')
   const { data: session, isPending } = useSession()
+  const { refreshPoints } = usePoints()
+  const params = useParams()
+  const locale = (params?.locale as string) || 'zh'
   const [prompt, setPrompt] = useState(initialPrompt || '');
   const [negativePrompt, setNegativePrompt] = useState('');
   const [width, setWidth] = useState(1024);
   const [height, setHeight] = useState(1024);
-  const [steps, setSteps] = useState(20);
+  // 初始步数根据初始模型配置设置（如果提供了initialModel，使用它的配置；否则使用默认模型）
+  const initialModelForSteps = initialModel || 'Z-Image-Turbo';
+  const initialModelThresholds = getModelThresholds(initialModelForSteps);
+  const [steps, setSteps] = useState(initialModelThresholds.normalSteps || 10);
   const [batch_size, setBatchSize] = useState(1);
-  const [model, setModel] = useState('Z-Image-Turbo');
+  const [model, setModel] = useState(initialModel || 'Z-Image-Turbo');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [imageStatuses, setImageStatuses] = useState<Array<{
@@ -33,7 +46,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
     startTime?: number;
     endTime?: number;
   }>>([]);
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
@@ -48,7 +61,8 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   const [isQueuing, setIsQueuing] = useState(false);
   const [concurrencyError, setConcurrencyError] = useState<string | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorType, setErrorType] = useState<'concurrency' | 'daily_limit'>('concurrency');
+  const [errorType, setErrorType] = useState<'concurrency' | 'daily_limit' | 'insufficient_points'>('concurrency');
+  const [showLoginTip, setShowLoginTip] = useState(false);
   
   // 要设置为参考图片的生成图片 URL
   const [generatedImageToSetAsReference, setGeneratedImageToSetAsReference] = useState<string | null>(null);
@@ -66,6 +80,17 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   useEffect(() => {
     setPrompt(initialPrompt || '');
   }, [initialPrompt]);
+
+  useEffect(() => {
+    if (initialModel) {
+      setModel(initialModel);
+      // 同时更新步数到新模型的默认步数
+      const modelThresholds = getModelThresholds(initialModel);
+      if (modelThresholds.normalSteps !== null) {
+        setSteps(modelThresholds.normalSteps);
+      }
+    }
+  }, [initialModel]);
 
   // 处理设置生成的图片为参考图片
   const handleSetGeneratedImageAsReference = async (imageUrl: string) => {
@@ -138,22 +163,52 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
     const maxImages = currentModel?.maxImages || 1;
     const supportsChinese = currentModel?.tags?.includes("chineseSupport") || false;
     
+    // 首先检查图生图模型是否上传了图片（优先级最高，避免被后续逻辑覆盖）
+    const allModels = getAllModels();
+    const modelConfig = allModels.find(m => m.id === model);
+    
+    if (modelConfig) {
+      // 如果模型只支持图生图（不支持文生图），必须上传图片
+      if (modelConfig.use_i2i && !modelConfig.use_t2i && uploadedImages.length === 0) {
+        setImageCountError(`${modelConfig.name} 需要上传图片才能生成`);
+        hasError = true;
+        
+        // 滚动到错误位置
+        window.setTimeout(() => {
+          const uploadSection = document.querySelector('[data-image-upload-section]');
+          if (uploadSection) {
+            uploadSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 100);
+        
+        // 直接返回，不继续后续验证，确保错误提示不被覆盖
+        if (hasError) {
+          return;
+        }
+      }
+    }
+    
     if (uploadedImages.length > maxImages) {
       setImageCountError(t('error.validation.imageCountLimit', { model, maxImages }));
       hasError = true;
     }
     
-    if (steps < 5 || steps > 32) {
-      setStepsError(t('error.validation.stepsRange'));
-      stepsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      hasError = true;
+    // 验证步数：根据模型配置验证
+    const thresholds = getModelThresholds(model);
+    if (thresholds.normalSteps !== null && thresholds.highSteps !== null) {
+      if (steps !== thresholds.normalSteps && steps !== thresholds.highSteps) {
+        setStepsError(`步数只能选择${thresholds.normalSteps}或${thresholds.highSteps}`);
+        stepsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        hasError = true;
+      }
     }
     if (batch_size < 1 || batch_size > 2) {
       setBatchSizeError(t('error.validation.batchSizeRange'));
       batchSizeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       hasError = true;
     }
-    if (width < 64 || width > 1440 || height < 64 || height > 1440) {
+    // 验证尺寸范围：只检查最小尺寸，不限制最大尺寸
+    if (width < 64 || height < 64) {
       widthRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       hasError = true;
     }
@@ -186,8 +241,6 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
     
     const requests = Array(batch_size).fill(null).map((_, index) => {
       const startTime = Date.now();
-      let retryCount = 0;
-      const maxRetries = 1;
 
       const makeRequest = async () => {
         try {
@@ -218,6 +271,43 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             }),
           });
 
+          // 检查是否是401未登录错误（图改图模型限制）
+          if (res.status === 401) {
+            const errorData = await res.json().catch(() => ({}));
+            if (errorData.code === 'LOGIN_REQUIRED_FOR_I2I') {
+              setShowLoginTip(true);
+              setIsGenerating(false);
+              setImageStatuses(prev => {
+                const newStatuses = [...prev];
+                newStatuses[index] = ({
+                  status: 'error',
+                  message: '需要登录'
+                });
+                return newStatuses;
+              });
+              return;
+            }
+          }
+
+          // 处理402错误（积分不足）
+          if (res.status === 402) {
+            const errorData = await res.json();
+            const errorMessage = errorData.error || '积分不足';
+            setConcurrencyError(errorMessage);
+            setErrorType('insufficient_points');
+            setShowErrorModal(true);
+            setIsGenerating(false);
+            setImageStatuses(prev => {
+              const newStatuses = [...prev];
+              newStatuses[index] = ({
+                status: 'error',
+                message: '积分不足'
+              });
+              return newStatuses;
+            });
+            throw new Error('INSUFFICIENT_POINTS');
+          }
+
           // 处理429错误（可能是并发限制或每日限额）
           if (res.status === 429) {
             const errorData = await res.json();
@@ -225,7 +315,8 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             const errorCode = errorData.code;
             
             // 根据错误代码区分错误类型
-            if (errorCode === 'DAILY_LIMIT_EXCEEDED') {
+            // 支持 DAILY_LIMIT_EXCEEDED（登录用户）和 IP_DAILY_LIMIT_EXCEEDED（未登录用户）
+            if (errorCode === 'DAILY_LIMIT_EXCEEDED' || errorCode === 'IP_DAILY_LIMIT_EXCEEDED') {
               setErrorType('daily_limit');
             } else {
               setErrorType('concurrency');
@@ -234,7 +325,8 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             setConcurrencyError(errorMessage);
             setShowErrorModal(true);
             setIsGenerating(false);
-            throw new Error(errorCode === 'DAILY_LIMIT_EXCEEDED' ? 'DAILY_LIMIT' : 'CONCURRENCY_LIMIT');
+            const isDailyLimit = errorCode === 'DAILY_LIMIT_EXCEEDED' || errorCode === 'IP_DAILY_LIMIT_EXCEEDED';
+            throw new Error(isDailyLimit ? 'DAILY_LIMIT' : 'CONCURRENCY_LIMIT');
           }
 
           if (res.status !== 200) {
@@ -261,15 +353,41 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
                 return newStatuses;
               });
               
+              // 刷新积分显示和额度信息（如果用户已登录）
+              if (session?.user) {
+                refreshPoints().catch(err => {
+                  console.error('Failed to refresh points:', err);
+                });
+                // 刷新额度信息
+                const refreshQuota = async () => {
+                  try {
+                    const token = await generateDynamicTokenWithServerTime();
+                    const response = await fetch(`/api/user/quota?t=${Date.now()}`, {
+                      headers: {
+                        'Authorization': `Bearer ${token}`
+                      }
+                    });
+                    if (response.ok) {
+                      const data = await response.json();
+                      const quota = data.isAdmin ? true : (data.todayCount < (data.maxDailyRequests || 0));
+                      setHasQuota(quota);
+                    }
+                  } catch (error) {
+                    console.error('Failed to refresh quota:', error);
+                  }
+                };
+                refreshQuota();
+              }
+              
               resolve();
             };
             img.src = data.imageUrl;
           });
           await imageLoadPromise;
         } catch (err) {
-          console.error(`生成图片失败 (尝试 ${retryCount + 1}/${maxRetries + 1}):`, err);
+          console.error(`生成图片失败:`, err);
 
-          // 如果是并发限制或每日限额错误，不进行重试
+          // 如果是并发限制或每日限额错误，直接显示错误
           if (err instanceof Error && (err.message === 'CONCURRENCY_LIMIT' || err.message === 'DAILY_LIMIT')) {
             setImageStatuses(prev => {
               const newStatuses = [...prev];
@@ -282,29 +400,15 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             return;
           }
 
-          if (retryCount < maxRetries) {
-            retryCount++;
-            setImageStatuses(prev => {
-              const newStatuses = [...prev];
-              newStatuses[index] = ({
-                status: 'pending',
-                message: `${t('preview.retrying')} (${retryCount}/${maxRetries})`
-              });
-              return newStatuses;
+          // 直接显示错误，不进行重试
+          setImageStatuses(prev => {
+            const newStatuses = [...prev];
+            newStatuses[index] = ({
+              status: 'error',
+              message: t('preview.error')
             });
-            // Wait for 1 second before retrying
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            return makeRequest();
-          } else {
-            setImageStatuses(prev => {
-              const newStatuses = [...prev];
-              newStatuses[index] = ({
-                status: 'error',
-                message: t('preview.error')
-              });
-              return newStatuses;
-            });
-          }
+            return newStatuses;
+          });
         }
       };
 
@@ -324,6 +428,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   const handleOptimizePrompt = async () => {
     console.log('优化提示词按钮被点击');
     console.log('当前提示词:', prompt);
+    console.log('当前模型:', model);
     
     if (!prompt.trim()) {
       console.log('提示词为空，无法优化');
@@ -336,7 +441,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
     console.log('开始优化提示词...');
     setIsOptimizing(true);
     try {
-      const optimizedPrompt = await optimizePrompt(prompt);
+      const optimizedPrompt = await optimizePrompt(prompt, model);
       console.log('优化成功，结果:', optimizedPrompt);
       setPrompt(optimizedPrompt);
     } catch (error) {
@@ -380,6 +485,20 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
         }),
       });
 
+      // 检查是否是401未登录错误（图改图模型限制）
+      if (res.status === 401) {
+        const errorData = await res.json().catch(() => ({}));
+        if (errorData.code === 'LOGIN_REQUIRED_FOR_I2I') {
+          setShowLoginTip(true);
+          setIsGenerating(false);
+          setImageStatuses([{
+            status: 'error',
+            message: '需要登录'
+          }]);
+          return;
+        }
+      }
+
       // 处理429错误（可能是并发限制或每日限额）
       if (res.status === 429) {
         const errorData = await res.json();
@@ -387,7 +506,9 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
         const errorCode = errorData.code;
         
         // 根据错误代码区分错误类型
-        if (errorCode === 'DAILY_LIMIT_EXCEEDED') {
+        // 支持 DAILY_LIMIT_EXCEEDED（登录用户）和 IP_DAILY_LIMIT_EXCEEDED（未登录用户）
+        const isDailyLimit = errorCode === 'DAILY_LIMIT_EXCEEDED' || errorCode === 'IP_DAILY_LIMIT_EXCEEDED';
+        if (isDailyLimit) {
           setErrorType('daily_limit');
         } else {
           setErrorType('concurrency');
@@ -398,7 +519,7 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
         setIsGenerating(false);
         setImageStatuses([{
           status: 'error',
-          message: errorCode === 'DAILY_LIMIT_EXCEEDED' ? '每日限额已满' : '并发限制'
+          message: isDailyLimit ? '每日限额已满' : '并发限制'
         }]);
         return;
       }
@@ -422,6 +543,33 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             startTime,
             endTime
           }]);
+          
+          // 刷新积分显示和额度信息（如果用户已登录）
+          if (session?.user) {
+            refreshPoints().catch(err => {
+              console.error('Failed to refresh points:', err);
+            });
+            // 刷新额度信息
+            const refreshQuota = async () => {
+              try {
+                const token = await generateDynamicTokenWithServerTime();
+                const response = await fetch(`/api/user/quota?t=${Date.now()}`, {
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
+                if (response.ok) {
+                  const data = await response.json();
+                  const quota = data.isAdmin ? true : (data.todayCount < (data.maxDailyRequests || 0));
+                  setHasQuota(quota);
+                }
+              } catch (error) {
+                console.error('Failed to refresh quota:', error);
+              }
+            };
+            refreshQuota();
+          }
+          
           resolve();
         };
         img.src = data.imageUrl;
@@ -440,32 +588,37 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
   };
 
   const [aspectRatio, setAspectRatio] = useState('1:1');
+  // 高分辨率开关状态（独立控制，不受图片比例影响）
+  const [isHighResolution, setIsHighResolution] = useState(false);
 
   const handleRatioChange = (ratio: string) => {
     setAspectRatio(ratio);
     const [wStr, hStr] = ratio.split(':');
     const w = parseInt(wStr);
     const h = parseInt(hStr);
-    const area = 1024 * 1024;
+    
+    // 根据高分辨率开关状态来确定总像素数
+    const thresholds = getModelThresholds(model);
+    const normalPixels = thresholds.normalResolutionPixels || 1024 * 1024;
+    const highPixels = thresholds.highResolutionPixels || 1416 * 1416;
+    
+    // 使用开关状态来决定目标总像素数
+    const area = isHighResolution ? highPixels : normalPixels;
+    
     const ratioNum = w / h;
+    const minDimension = 64;
+    
+    // 先计算理想尺寸（基于目标总像素数）
     let newWidth = Math.round(Math.sqrt(area * ratioNum) / 8) * 8;
     let newHeight = Math.round(newWidth / ratioNum / 8) * 8;
-    // Adjust if necessary to better match area
+    
+    // 如果计算出的尺寸不准确，重新计算
     if (newWidth * newHeight < area * 0.9 || newWidth * newHeight > area * 1.1) {
       newHeight = Math.round(Math.sqrt(area / ratioNum) / 8) * 8;
       newWidth = Math.round(newHeight * ratioNum / 8) * 8;
     }
     
-    // 确保尺寸在允许范围内（64-1440）
-    const maxDimension = 1440;
-    const minDimension = 64;
-    
-    // 如果宽度或高度超过限制，按比例缩放
-    if (newWidth > maxDimension || newHeight > maxDimension) {
-      const scale = Math.min(maxDimension / newWidth, maxDimension / newHeight);
-      newWidth = Math.round(newWidth * scale / 8) * 8;
-      newHeight = Math.round(newHeight * scale / 8) * 8;
-    }
+    // 不再限制最大尺寸，允许任何尺寸以保持目标总像素数
     
     // 确保最小尺寸，同时保持比例
     if (newWidth < minDimension || newHeight < minDimension) {
@@ -491,18 +644,126 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
       }
     }
     
-    // 最终确保不超过最大限制，同时保持比例
-    if (newWidth > maxDimension || newHeight > maxDimension) {
-      const scale = Math.min(maxDimension / newWidth, maxDimension / newHeight);
-      newWidth = Math.round(newWidth * scale / 8) * 8;
-      newHeight = Math.round(newHeight * scale / 8) * 8;
-    }
+    // 不再限制最大尺寸，允许任何尺寸以保持目标总像素数
     
     setWidth(newWidth);
     setHeight(newHeight);
   };
 
   const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
+  
+  // 计算预计积分消耗（仅对已登录用户）
+  const [modelBaseCost, setModelBaseCost] = useState<number | null>(null);
+  const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
+  const [hasQuota, setHasQuota] = useState<boolean | null>(null);
+  const [extraCost, setExtraCost] = useState<number | null>(null);
+  
+  // 获取模型基础积分消耗（仅对已登录用户）
+  useEffect(() => {
+    // 如果用户未登录，不获取积分消耗
+    if (authStatus !== 'authenticated') {
+      setModelBaseCost(null);
+      setEstimatedCost(null);
+      setHasQuota(null);
+      setExtraCost(null);
+      return;
+    }
+
+    const fetchModelBaseCost = async () => {
+      try {
+        const response = await fetch(`/api/points/model-base-cost?modelId=${encodeURIComponent(model)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setModelBaseCost(data.baseCost);
+        } else {
+          setModelBaseCost(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch model base cost:', error);
+        setModelBaseCost(null);
+      }
+    };
+
+    fetchModelBaseCost();
+  }, [model, authStatus]);
+  
+  // 获取用户额度信息（仅对已登录用户）
+  useEffect(() => {
+    if (authStatus !== 'authenticated') {
+      setHasQuota(null);
+      return;
+    }
+
+    const fetchQuota = async () => {
+      try {
+        const token = await generateDynamicTokenWithServerTime();
+        const response = await fetch(`/api/user/quota?t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // 管理员不限次，视为有额度
+          const quota = data.isAdmin ? true : (data.todayCount < (data.maxDailyRequests || 0));
+          setHasQuota(quota);
+        } else {
+          setHasQuota(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch quota:', error);
+        setHasQuota(null);
+      }
+    };
+
+    fetchQuota();
+    
+    // 定期刷新额度信息（每30秒）
+    const interval = setInterval(() => {
+      if (authStatus === 'authenticated') {
+        fetchQuota();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [authStatus]);
+  
+  // 计算预计消耗和额外消耗（仅对已登录用户）
+  useEffect(() => {
+    // 如果用户未登录，不计算预计消耗
+    if (authStatus !== 'authenticated') {
+      setEstimatedCost(null);
+      setExtraCost(null);
+      return;
+    }
+
+    if (modelBaseCost !== null) {
+      // 计算总消耗（不考虑额度）
+      const totalCost = calculateEstimatedCost(modelBaseCost, model, steps, width, height);
+      // 乘以批次大小
+      const totalCostWithBatch = totalCost !== null ? totalCost * batch_size : null;
+      
+      // 计算有额度时需要扣除的积分（总消耗 - 基础消耗）
+      if (totalCostWithBatch !== null && hasQuota !== null) {
+        const baseCostWithBatch = modelBaseCost * batch_size;
+        if (hasQuota) {
+          // 有额度：显示额外消耗（总消耗 - 基础消耗）
+          setEstimatedCost(Math.max(0, totalCostWithBatch - baseCostWithBatch));
+        } else {
+          // 无额度：显示全部消耗
+          setEstimatedCost(totalCostWithBatch);
+        }
+      } else {
+        setEstimatedCost(null);
+      }
+      
+      // 计算额外消耗（无额度时的基础积分消耗）- 无论是否有额度都显示
+      setExtraCost(modelBaseCost * batch_size);
+    } else {
+      setEstimatedCost(null);
+      setExtraCost(null);
+    }
+  }, [modelBaseCost, model, steps, width, height, batch_size, authStatus, hasQuota]);
 
   return (
     <section id="generate-section" className="py-10 sm:py-12 lg:py-6 relative">
@@ -538,6 +799,8 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
                   selectedStyle={selectedStyle}
                   onStyleChange={setSelectedStyle}
                   isQueuing={isQueuing}
+                  estimatedCost={estimatedCost}
+                  extraCost={extraCost}
                 />
               </div>
             </div>
@@ -574,10 +837,13 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
                     stepsError={stepsError}
                     batchSizeError={batchSizeError}
                     imageCountError={imageCountError}
-                    stepsRef={stepsRef}
                     batchSizeRef={batchSizeRef}
                     generatedImageToSetAsReference={generatedImageToSetAsReference}
                     setIsQueuing={setIsQueuing}
+                    isHighResolution={isHighResolution}
+                    setIsHighResolution={setIsHighResolution}
+                    aspectRatio={aspectRatio}
+                    setAspectRatio={setAspectRatio}
                   />
                 </div>
               ) : (
@@ -628,7 +894,11 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
             
             {/* 标题 */}
             <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
-              {errorType === 'daily_limit' ? '每日限额已满' : '并发限制'}
+              {errorType === 'daily_limit' 
+                ? '每日限额已满' 
+                : errorType === 'insufficient_points'
+                ? '积分不足'
+                : '并发限制'}
             </h3>
             
             {/* 错误消息 */}
@@ -643,6 +913,12 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
                   💡 提示：每日限额将在次日重置，请明天再试
                 </p>
               </div>
+            ) : errorType === 'insufficient_points' ? (
+              <div className="bg-orange-50 border-l-4 border-orange-500 p-3 mb-6 rounded">
+                <p className="text-sm text-orange-800">
+                  💡 提示：订阅会员可享受更多积分和权益
+                </p>
+              </div>
             ) : (
               <div className="bg-amber-50 border-l-4 border-amber-500 p-3 mb-6 rounded">
                 <p className="text-sm text-amber-800">
@@ -651,13 +927,70 @@ const GenerateSection = ({ communityWorks, initialPrompt }: GenerateSectionProps
               </div>
             )}
             
-            {/* 关闭按钮 */}
+            {/* 按钮区域 */}
+            {errorType === 'insufficient_points' ? (
+              <div className="flex flex-col gap-3">
+                <Link
+                  href={transferUrl('/pricing', locale)}
+                  onClick={() => setShowErrorModal(false)}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
+                >
+                  前往订阅会员
+                </Link>
+                <button
+                  onClick={() => setShowErrorModal(false)}
+                  className="w-full px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-all duration-300"
+                >
+                  我知道了
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowErrorModal(false)}
+                className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl"
+              >
+                我知道了
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 未登录提示框 */}
+      {showLoginTip && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 relative">
             <button
-              onClick={() => setShowErrorModal(false)}
-              className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl"
+              aria-label="Close"
+              onClick={() => setShowLoginTip(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
             >
-              我知道了
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
+
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="p-3 rounded-full bg-orange-100 text-orange-600">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-gray-900">该功能仅限登录用户使用</h3>
+                <p className="text-sm text-gray-600">
+                  请先登录后再使用图改图功能
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowLoginTip(false)}
+                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors"
+              >
+                知道啦
+              </button>
+            </div>
           </div>
         </div>
       )}

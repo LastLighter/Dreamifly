@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { getAvailableModels, filterModelsByImageCount, type ModelConfig } from '@/utils/modelConfig'
+import { getAvailableModels, filterModelsByImageCount, type ModelConfig, getModelThresholds, supportsStepsModification, supportsResolutionModification } from '@/utils/modelConfig'
+import Toast from './Toast'
 
 type ModelWithAvailability = ModelConfig & { isAvailable: boolean };
 
@@ -28,10 +29,13 @@ interface GenerateFormProps {
   stepsError?: string | null;
   batchSizeError?: string | null;
   imageCountError?: string | null;
-  stepsRef?: React.RefObject<HTMLInputElement | null>;
   batchSizeRef?: React.RefObject<HTMLInputElement | null>;
   generatedImageToSetAsReference?: string | null;
   setIsQueuing?: (value: boolean) => void;
+  isHighResolution: boolean;
+  setIsHighResolution: (value: boolean) => void;
+  aspectRatio: string;
+  setAspectRatio: (value: string) => void;
 }
 
 export default function GenerateForm({
@@ -55,10 +59,13 @@ export default function GenerateForm({
   stepsError,
   batchSizeError,
   imageCountError,
-  stepsRef,
   batchSizeRef,
   generatedImageToSetAsReference,
-  setIsQueuing: setIsQueuingProp
+  setIsQueuing: setIsQueuingProp,
+  isHighResolution,
+  setIsHighResolution,
+  aspectRatio,
+  setAspectRatio
 }: GenerateFormProps) {
   const t = useTranslations('home.generate')
   const [progress, setProgress] = useState(0)
@@ -71,6 +78,62 @@ export default function GenerateForm({
   const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
   const [modelsLoading, setModelsLoading] = useState(true)
   const [isQueuing, setIsQueuing] = useState(false)
+  const previousModelRef = useRef<string>(model)
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'warning' | 'success' | 'info' } | null>(null)
+  const DEFAULT_PIXELS = 1024 * 1024
+  const MIN_DIMENSION = 64
+  const getTargetPixels = (useHigh: boolean) => {
+    const thresholds = getModelThresholds(model)
+    const normalPixels = thresholds.normalResolutionPixels || DEFAULT_PIXELS
+    const highPixels = thresholds.highResolutionPixels || 1416 * 1416
+    return useHigh ? highPixels : normalPixels
+  }
+
+  const normalizeAspectRatio = (w: number, h: number) => {
+    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
+    if (w <= 0 || h <= 0) return '1:1'
+    const divisor = gcd(Math.round(w), Math.round(h))
+    const ratioW = Math.max(1, Math.round(w / divisor))
+    const ratioH = Math.max(1, Math.round(h / divisor))
+    return `${ratioW}:${ratioH}`
+  }
+
+  const getDimensionsByPixels = (targetPixels: number, ratio: string) => {
+    const [wStr, hStr] = ratio.split(':')
+    const w = parseInt(wStr) || 1
+    const h = parseInt(hStr) || 1
+    const ratioNum = w / h || 1
+
+    let newWidth = Math.round(Math.sqrt(targetPixels * ratioNum) / 8) * 8
+    let newHeight = Math.round(newWidth / ratioNum / 8) * 8
+
+    // 如果像素误差较大，使用另一套计算方案
+    if (newWidth * newHeight < targetPixels * 0.9 || newWidth * newHeight > targetPixels * 1.1) {
+      newHeight = Math.round(Math.sqrt(targetPixels / ratioNum) / 8) * 8
+      newWidth = Math.round(newHeight * ratioNum / 8) * 8
+    }
+
+    // 保证最小边界同时保持比例
+    if (newWidth < MIN_DIMENSION || newHeight < MIN_DIMENSION) {
+      if (ratioNum >= 1) {
+        newWidth = Math.max(newWidth, Math.round(MIN_DIMENSION / 8) * 8)
+        newHeight = Math.round(newWidth / ratioNum / 8) * 8
+        if (newHeight < MIN_DIMENSION) {
+          newHeight = Math.round(MIN_DIMENSION / 8) * 8
+          newWidth = Math.round(newHeight * ratioNum / 8) * 8
+        }
+      } else {
+        newHeight = Math.max(newHeight, Math.round(MIN_DIMENSION / 8) * 8)
+        newWidth = Math.round(newHeight * ratioNum / 8) * 8
+        if (newWidth < MIN_DIMENSION) {
+          newWidth = Math.round(MIN_DIMENSION / 8) * 8
+          newHeight = Math.round(newWidth / ratioNum / 8) * 8
+        }
+      }
+    }
+
+    return { width: newWidth, height: newHeight }
+  }
   
   // 获取未登录用户延迟时间（秒）
   const unauthDelay = parseInt(process.env.NEXT_PUBLIC_UNAUTHENTICATED_USER_DELAY || '20', 10)
@@ -123,6 +186,7 @@ export default function GenerateForm({
     loadModels();
   }, []);
 
+  // 获取模型基础积分消耗
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isGenerating) {
@@ -229,6 +293,50 @@ export default function GenerateForm({
     };
   }, [isGenerating, steps, width, height, model, status, unauthDelay, setIsQueuingProp]);
 
+  // 生成时自动关闭模型下拉框
+  useEffect(() => {
+    if (isGenerating) {
+      setIsModelDropdownOpen(false)
+    }
+  }, [isGenerating])
+
+  // 当模型切换时，自动调整步数和分辨率到新模型的默认值
+  useEffect(() => {
+    // 只在模型真正改变时执行调整逻辑
+    const currentModel = model;
+    if (previousModelRef.current === currentModel) {
+      return;
+    }
+    
+    const thresholds = getModelThresholds(currentModel);
+    
+    // 如果模型支持步数修改，切换到新模型时总是设置为普通步数
+    // 这样可以避免切换到新模型时自动选择高步数
+    if (thresholds.normalSteps !== null && thresholds.highSteps !== null) {
+      // 无论当前步数是什么，切换到新模型时都设置为普通步数
+      setSteps(thresholds.normalSteps);
+    }
+    
+    // 如果模型支持分辨率修改，重置为普通分辨率状态
+    if (thresholds.normalResolutionPixels !== null && thresholds.highResolutionPixels !== null) {
+      // 重置高分辨率开关为关闭状态
+      setIsHighResolution(false);
+
+      const currentAspectRatio = aspectRatio;
+      const normalPixels = thresholds.normalResolutionPixels || DEFAULT_PIXELS;
+      const { width: newWidth, height: newHeight } = getDimensionsByPixels(normalPixels, currentAspectRatio);
+
+      setWidth(newWidth);
+      setHeight(newHeight);
+    } else {
+      // 如果模型不支持分辨率修改，保持当前宽高不变
+    }
+    
+    // 更新上一次的模型
+    previousModelRef.current = currentModel;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model]); // 只依赖 model，确保只在模型改变时执行，aspectRatio 在函数内部使用当前值
+
   // Add click outside handler for dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -265,7 +373,7 @@ export default function GenerateForm({
   // 上传图片区域，始终显示
   const renderImageUploadSection = () => {
     return (
-      <div>
+      <div data-image-upload-section>
         <label className="flex items-center text-sm font-medium text-gray-900 mb-4">
           <img src="/form/upload.svg" alt="Upload" className="w-5 h-5 mr-2 text-gray-800 [&>path]:fill-current" />
           {t('form.upload.label')}
@@ -356,7 +464,14 @@ export default function GenerateForm({
           </div>
         </div>
         {imageCountError && (
-          <p className="mt-2 text-sm text-red-400">{imageCountError}</p>
+          <div className="mt-3 p-3 bg-red-50 border border-red-300 rounded-lg animate-fadeInUp">
+            <p className="text-sm font-medium text-red-600 flex items-center">
+              <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              {imageCountError}
+            </p>
+          </div>
         )}
       </div>
     );
@@ -367,19 +482,19 @@ export default function GenerateForm({
     if (!file) return
 
     if (uploadedImages.length >= maxImages) {
-      alert(t('error.validation.imageCountLimit', { model: currentModel?.name || model, maxImages }))
+      setToast({ message: t('error.validation.imageCountLimit', { model: currentModel?.name || model, maxImages }), type: 'error' })
       return
     }
 
     // 验证文件类型
     if (!file.type.startsWith('image/')) {
-      alert(t('error.validation.fileType'))
+      setToast({ message: t('error.validation.fileType'), type: 'error' })
       return
     }
 
     // 验证文件大小（最大 10MB）
     if (file.size > 10 * 1024 * 1024) {
-      alert(t('error.validation.fileSize'))
+      setToast({ message: t('error.validation.fileSize'), type: 'error' })
       return
     }
 
@@ -394,24 +509,13 @@ export default function GenerateForm({
           // 创建图片对象以获取尺寸
           const img = new window.Image()
           img.onload = () => {
-            console.log('GenerateForm: Successfully set previewImage')
-            
-            // 计算合适的尺寸（保持8的倍数）
-            let newWidth = Math.round(img.width / 8) * 8
-            let newHeight = Math.round(img.height / 8) * 8
-            
-            // 如果图片尺寸超过1440，按比例缩放
-            if (newWidth > 1440 || newHeight > 1440) {
-              const scale = Math.min(1440 / newWidth, 1440 / newHeight)
-              newWidth = Math.round(newWidth * scale / 8) * 8
-              newHeight = Math.round(newHeight * scale / 8) * 8
-            }
-            
-            // 确保尺寸在允许范围内
-            const finalWidth = Math.min(Math.max(newWidth, 64), 1440)
-            const finalHeight = Math.min(Math.max(newHeight, 64), 1440)
-            
-            // 更新宽高状态
+            // 默认以百万像素限制分辨率，并继承原图比例
+            const ratio = normalizeAspectRatio(img.width, img.height)
+            const targetPixels = getTargetPixels(false)
+            const { width: finalWidth, height: finalHeight } = getDimensionsByPixels(targetPixels, ratio)
+
+            setIsHighResolution(false)
+            setAspectRatio(ratio)
             setWidth(finalWidth)
             setHeight(finalHeight)
 
@@ -424,7 +528,7 @@ export default function GenerateForm({
       reader.readAsDataURL(file)
     } catch (error) {
       console.error('Error processing image:', error)
-      alert(t('error.validation.imageProcessing'))
+      setToast({ message: t('error.validation.imageProcessing'), type: 'error' })
     }
   }
 
@@ -455,7 +559,7 @@ export default function GenerateForm({
     setDraggingWithDebounce(false)
     
     if (!canUploadMore) {
-      alert(t('error.validation.imageCountLimit', { model: currentModel?.name || model, maxImages }))
+      setToast({ message: t('error.validation.imageCountLimit', { model: currentModel?.name || model, maxImages }), type: 'error' })
       return
     }
     
@@ -464,13 +568,13 @@ export default function GenerateForm({
 
     // 验证文件类型
     if (!file.type.startsWith('image/')) {
-      alert(t('error.validation.fileType'))
+      setToast({ message: t('error.validation.fileType'), type: 'error' })
       return
     }
 
     // 验证文件大小（最大 10MB）
     if (file.size > 10 * 1024 * 1024) {
-      alert(t('error.validation.fileSize'))
+      setToast({ message: t('error.validation.fileSize'), type: 'error' })
       return
     }
 
@@ -481,19 +585,12 @@ export default function GenerateForm({
         const base64String = event.target.result.toString().split(',')[1]
         const img = new window.Image()
         img.onload = () => {
-          // 计算合适的尺寸（保持8的倍数）
-          let newWidth = Math.round(img.width / 8) * 8
-          let newHeight = Math.round(img.height / 8) * 8
-          
-          // 如果图片尺寸超过1440，按比例缩放
-          if (newWidth > 1440 || newHeight > 1440) {
-            const scale = Math.min(1440 / newWidth, 1440 / newHeight)
-            newWidth = Math.round(newWidth * scale / 8) * 8
-            newHeight = Math.round(newHeight * scale / 8) * 8
-          }
-          
-          const finalWidth = Math.min(Math.max(newWidth, 64), 1440)
-          const finalHeight = Math.min(Math.max(newHeight, 64), 1440)
+          const ratio = normalizeAspectRatio(img.width, img.height)
+          const targetPixels = getTargetPixels(false)
+          const { width: finalWidth, height: finalHeight } = getDimensionsByPixels(targetPixels, ratio)
+
+          setIsHighResolution(false)
+          setAspectRatio(ratio)
           setWidth(finalWidth)
           setHeight(finalHeight)
           setUploadedImages((prev: string[]) => [...prev, base64String])
@@ -509,15 +606,69 @@ export default function GenerateForm({
   // 根据上传图片数量过滤可用模型
   const filteredModels: ModelWithAvailability[] = filterModelsByImageCount(uploadedImages.length, availableModels);
 
+  // 跟踪初始模型（用于判断是否是从URL传入的）
+  const initialModelRef = useRef<string | null>(null)
+  const previousModelForTrackingRef = useRef<string>(model)
+  const hasRecordedInitialModel = useRef(false)
+  
+  // 记录初始模型，用于识别从URL传入的模型
+  useEffect(() => {
+    // 首次渲染时记录初始模型
+    if (!hasRecordedInitialModel.current) {
+      initialModelRef.current = model
+      hasRecordedInitialModel.current = true
+      previousModelForTrackingRef.current = model
+      return
+    }
+    
+    // 如果模型从默认值变为其他值，可能是从URL传入的，更新初始模型引用
+    if (model !== previousModelForTrackingRef.current) {
+      // 如果之前是默认值，现在变成了其他值，可能是从URL传入的
+      if (previousModelForTrackingRef.current === 'Z-Image-Turbo' && model !== 'Z-Image-Turbo') {
+        initialModelRef.current = model
+      }
+      previousModelForTrackingRef.current = model
+    }
+  }, [model])
+
   // 如果当前选中的模型不可用，自动切换到第一个可用模型
+  // 注意：Qwen-Image-Edit 即使没有上传图片也可以选择（但生成时需要图片）
+  // 注意：如果模型是从URL传入的（初始模型），不要自动切换（除非因为图片数量限制导致不兼容）
   useEffect(() => {
     if (modelsLoading || availableModels.length === 0) return;
     
     const currentModel = filteredModels.find(m => m.id === model)
-    if (currentModel && !currentModel.isAvailable) {
+    const modelExistsInAll = availableModels.some(m => m.id === model)
+    const isInitialModel = initialModelRef.current === model
+    
+    // Qwen-Image-Edit 总是可用，不需要自动切换
+    if (model === 'Qwen-Image-Edit') return;
+    
+    // 如果模型是初始模型（可能是从URL传入的）且存在于所有模型中，即使暂时不可用也保留
+    // 只有在因为图片数量限制导致模型不兼容时才切换
+    if (isInitialModel && modelExistsInAll) {
+      // 检查是否因为图片数量限制导致不兼容
+      const modelConfig = availableModels.find(m => m.id === model)
+      if (modelConfig) {
+        const maxImages = modelConfig.maxImages || 0
+        // 如果上传的图片数量超过了模型限制，才需要切换
+        if (uploadedImages.length <= maxImages) {
+          return // 保留初始模型（可能是从URL传入的）
+        }
+      } else {
+        return // 模型存在但配置未加载，保留
+      }
+    }
+    
+    // 只有当模型不在filteredModels中（因为图片数量限制）或不可用时，才自动切换
+    if (!currentModel || (currentModel && !currentModel.isAvailable)) {
       const firstAvailable = filteredModels.find(m => m.isAvailable)
-      if (firstAvailable) {
+      if (firstAvailable && firstAvailable.id !== model) {
         setModel(firstAvailable.id)
+        // 如果切换了模型，更新初始模型引用（避免后续再次自动切换）
+        if (isInitialModel) {
+          initialModelRef.current = firstAvailable.id
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -550,22 +701,12 @@ export default function GenerateForm({
                 // 创建图片对象以获取尺寸
                 const img = new window.Image();
                 img.onload = () => {
-                  // 计算合适的尺寸（保持8的倍数）
-                  let newWidth = Math.round(img.width / 8) * 8;
-                  let newHeight = Math.round(img.height / 8) * 8;
-                  
-                  // 如果图片尺寸超过1440，按比例缩放
-                  if (newWidth > 1440 || newHeight > 1440) {
-                    const scale = Math.min(1440 / newWidth, 1440 / newHeight);
-                    newWidth = Math.round(newWidth * scale / 8) * 8;
-                    newHeight = Math.round(newHeight * scale / 8) * 8;
-                  }
-                  
-                  // 确保尺寸在允许范围内
-                  const finalWidth = Math.min(Math.max(newWidth, 64), 1440);
-                  const finalHeight = Math.min(Math.max(newHeight, 64), 1440);
-                  
-                  // 更新宽高状态
+                  const ratio = normalizeAspectRatio(img.width, img.height);
+                  const targetPixels = getTargetPixels(false);
+                  const { width: finalWidth, height: finalHeight } = getDimensionsByPixels(targetPixels, ratio);
+
+                  setIsHighResolution(false);
+                  setAspectRatio(ratio);
                   setWidth(finalWidth);
                   setHeight(finalHeight);
 
@@ -613,11 +754,15 @@ export default function GenerateForm({
               <div className="relative" ref={modelDropdownRef}>
                 <button
                   type="button"
-                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                  onClick={() => {
+                    if (!isGenerating && status !== 'loading') {
+                      setIsModelDropdownOpen(!isModelDropdownOpen)
+                    }
+                  }}
                   className={`w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-left text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300 flex items-center justify-between ${
-                    !filteredModels.find(m => m.id === model)?.isAvailable ? 'opacity-50' : ''
+                    !filteredModels.find(m => m.id === model)?.isAvailable || isGenerating ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
-                  disabled={status === 'loading'}
+                  disabled={status === 'loading' || isGenerating}
                 >
                   <div className="flex items-center space-x-3">
                     <div className="w-12 h-6 rounded overflow-hidden flex-shrink-0">
@@ -679,12 +824,17 @@ export default function GenerateForm({
                         key={modelOption.id}
                         type="button"
                         onClick={() => {
-                          if (modelOption.isAvailable) {
+                          // 生成时不允许切换模型
+                          if (isGenerating) {
+                            return
+                          }
+                          // Qwen-Image-Edit 即使没有上传图片也可以选择
+                          if (modelOption.isAvailable || modelOption.id === 'Qwen-Image-Edit') {
                             setModel(modelOption.id)
                             setIsModelDropdownOpen(false)
                           }
                         }}
-                        disabled={!modelOption.isAvailable}
+                        disabled={(!modelOption.isAvailable && modelOption.id !== 'Qwen-Image-Edit') || isGenerating}
                         className={`w-full px-4 py-4 text-left transition-colors duration-200 flex flex-col space-y-3 ${
                           model === modelOption.id ? 'bg-white/50' : ''
                         } ${
@@ -788,51 +938,95 @@ export default function GenerateForm({
 
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="steps" className="flex items-center text-sm font-medium text-gray-900 mb-3">
-                      <img src="/form/steps.svg" alt="Steps" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-                      {t('form.steps.label')}
-                    </label>
-                    <div className="relative flex items-center bg-white/50 backdrop-blur-sm border border-amber-400/40 rounded-xl focus-within:ring-2 focus-within:ring-amber-400/50 focus-within:border-amber-400/50 shadow-inner transition-all duration-300">
-                      <input
-                        type="number"
-                        id="steps"
-                        value={steps}
-                        onChange={(e) => setSteps(Number(e.target.value))}
-                        className="w-full bg-transparent text-center text-gray-900 border-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        min="10"
-                        max="32"
-                        disabled={status === 'loading'}
-                        ref={stepsRef}
-                      />
-                      <div className="flex items-center border-l border-orange-400/30">
-                        <button
-                          type="button"
-                          onClick={() => setSteps(Math.max(10, steps - 1))}
-                          className="px-3 text-gray-700 hover:text-gray-900 disabled:opacity-50 h-full flex items-center justify-center transition-colors"
-                          disabled={status === 'loading' || steps <= 10}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setSteps(Math.min(32, steps + 1))}
-                          className="px-3 text-gray-700 hover:text-gray-900 disabled:opacity-50 h-full flex items-center justify-center transition-colors"
-                          disabled={status === 'loading' || steps >= 32}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
+                  {/* 步数开关 - 根据模型配置显示/隐藏 */}
+                  {supportsStepsModification(model) && (() => {
+                    const thresholds = getModelThresholds(model);
+                    const isHighSteps = steps >= (thresholds.highSteps || 20);
+                    const normalSteps = thresholds.normalSteps || 10;
+                    const highSteps = thresholds.highSteps || 20;
+                    
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="flex items-center text-sm font-medium text-gray-900">
+                            <img src="/form/steps.svg" alt="Steps" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
+                            启用高步数
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSteps(isHighSteps ? normalSteps : highSteps);
+                            }}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 ${
+                              isHighSteps ? 'bg-amber-500' : 'bg-gray-300'
+                            }`}
+                            disabled={status === 'loading' || isGenerating}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                isHighSteps ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                        <p className="text-sm text-gray-600/80">
+                          {isHighSteps ? '使用高步数生成，质量更高但消耗更多积分' : '使用普通步数生成，平衡速度与质量'}
+                        </p>
+                        {stepsError && (
+                          <p className="mt-1 text-sm text-red-400">{stepsError}</p>
+                        )}
                       </div>
-                    </div>
-                    <p className="mt-2 text-sm text-gray-600/80">{t('form.steps.hint')}</p>
-                    {stepsError && (
-                      <p className="mt-1 text-sm text-red-400">{stepsError}</p>
-                    )}
-                  </div>
+                    );
+                  })()}
+
+                  {/* 分辨率开关 - 根据模型配置显示/隐藏 */}
+                  {supportsResolutionModification(model) && (() => {
+                    const thresholds = getModelThresholds(model);
+                    const normalPixels = thresholds.normalResolutionPixels || 1024 * 1024;
+                    const highPixels = thresholds.highResolutionPixels || 1416 * 1416;
+                    const normalSize = Math.sqrt(normalPixels);
+                    const highSize = Math.sqrt(highPixels);
+                    
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <label className="flex items-center text-sm font-medium text-gray-900">
+                            <img src="/form/steps.svg" alt="Resolution" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
+                            启用高分辨率
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // 切换高分辨率开关状态
+                              const newIsHighResolution = !isHighResolution;
+                              setIsHighResolution(newIsHighResolution);
+                              
+                              const targetArea = newIsHighResolution ? highPixels : normalPixels;
+                              const { width: newWidth, height: newHeight } = getDimensionsByPixels(targetArea, aspectRatio);
+
+                              setWidth(newWidth);
+                              setHeight(newHeight);
+                            }}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 ${
+                              isHighResolution ? 'bg-amber-500' : 'bg-gray-300'
+                            }`}
+                            disabled={status === 'loading' || isGenerating}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                isHighResolution ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                        <p className="text-sm text-gray-600/80">
+                          {isHighResolution 
+                            ? `高分辨率 ${Math.round(highSize)}×${Math.round(highSize)} 像素，画质更精细但消耗更多积分`
+                            : `普通分辨率 ${Math.round(normalSize)}×${Math.round(normalSize)} 像素，平衡速度与画质`}
+                        </p>
+                      </div>
+                    );
+                  })()}
 
                   {/* 生成数量调节 - 仅登录用户可见 */}
                   {status === 'authenticated' && (
@@ -916,6 +1110,13 @@ export default function GenerateForm({
           </div>
         )}
       </form>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   )
 } 

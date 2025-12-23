@@ -22,7 +22,8 @@ const AvatarContext = createContext<AvatarContextType | undefined>(undefined)
 interface DailyAwardInfo {
   points: number
   expiresInDays: number
-  userType: 'regular' | 'premium'
+  userType: 'regular' | 'premium' | 'subscribed'
+  isSubscribed?: boolean
 }
 
 export function AvatarProvider({ children }: { children: ReactNode }) {
@@ -83,7 +84,8 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
           setDailyAwardInfo({
             points: data.points,
             expiresInDays: data.expiresInDays,
-            userType: data.userType === 'premium' ? 'premium' : 'regular',
+            userType: data.userType === 'subscribed' ? 'subscribed' : data.userType === 'premium' ? 'premium' : 'regular',
+            isSubscribed: data.isSubscribed || false,
           })
           setShowDailyAwardModal(true)
           // 刷新积分显示
@@ -137,11 +139,14 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
 
               <div className="space-y-2">
                 <p className="text-sm font-medium text-orange-600">
-                  {dailyAwardInfo.userType === 'premium' ? '优质用户' : '欢迎回来'}
+                  {dailyAwardInfo.isSubscribed ? '会员用户' : dailyAwardInfo.userType === 'premium' ? '优质用户' : '欢迎回来'}
                 </p>
                 <h3 className="text-lg font-bold text-gray-900">
                   今日签到获得 {dailyAwardInfo.points} 积分
                 </h3>
+                <p className="text-sm text-gray-600">
+                  {dailyAwardInfo.isSubscribed ? '每日登录奖励（会员双倍）' : '每日登录奖励'}
+                </p>
                 <p className="text-sm text-gray-600">
                 有效期为 {dailyAwardInfo.expiresInDays} 天
                 </p>
