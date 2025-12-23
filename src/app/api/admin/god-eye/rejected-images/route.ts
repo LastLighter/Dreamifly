@@ -15,6 +15,7 @@ import { headers } from 'next/headers'
  * - startDate: 开始日期（YYYY-MM-DD）
  * - endDate: 结束日期（YYYY-MM-DD）
  * - reason: 拒绝原因筛选（image, prompt, both, all）
+ * - model: 模型筛选（模型ID，all表示全部）
  */
 export async function GET(request: NextRequest) {
   try {
@@ -53,6 +54,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const reasonFilter = searchParams.get('reason') || 'all'
+    const modelFilter = searchParams.get('model') || 'all'
 
     // 构建筛选条件
     const conditions = []
@@ -74,6 +76,11 @@ export async function GET(request: NextRequest) {
     // 拒绝原因筛选
     if (reasonFilter !== 'all') {
       conditions.push(eq(rejectedImages.rejectionReason, reasonFilter))
+    }
+
+    // 模型筛选
+    if (modelFilter !== 'all' && modelFilter.trim()) {
+      conditions.push(eq(rejectedImages.model, modelFilter.trim()))
     }
 
     // 搜索筛选（用户昵称）

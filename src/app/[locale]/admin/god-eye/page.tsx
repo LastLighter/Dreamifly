@@ -72,6 +72,9 @@ export default function GodEyePage() {
   const [rejectedStartDate, setRejectedStartDate] = useState('')
   const [rejectedEndDate, setRejectedEndDate] = useState('')
   const [reasonFilter, setReasonFilter] = useState<'all' | 'image' | 'prompt' | 'both'>('all')
+  const [modelFilter, setModelFilter] = useState<string>('all')
+  const [availableModels, setAvailableModels] = useState<string[]>([])
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false) // 高级搜索折叠状态
   const [blurEnabled, setBlurEnabled] = useState(true) // 默认开启磨砂玻璃
   const [decodedImages, setDecodedImages] = useState<{ [key: string]: string }>({})
 
@@ -275,6 +278,9 @@ export default function GodEyePage() {
         if (reasonFilter !== 'all') {
           params.set('reason', reasonFilter)
         }
+        if (modelFilter !== 'all') {
+          params.set('model', modelFilter)
+        }
 
         const response = await fetch(`/api/admin/god-eye/rejected-images?${params.toString()}`)
         if (!response.ok) {
@@ -292,7 +298,27 @@ export default function GodEyePage() {
     }
 
     fetchRejectedImages()
-  }, [activeTab, isAdmin, rejectedPage, rejectedRoleFilter, rejectedSearchTerm, rejectedStartDate, rejectedEndDate, reasonFilter])
+  }, [activeTab, isAdmin, rejectedPage, rejectedRoleFilter, rejectedSearchTerm, rejectedStartDate, rejectedEndDate, reasonFilter, modelFilter])
+
+  // 获取可用模型列表
+  useEffect(() => {
+    if (activeTab !== 'rejected' || !isAdmin) return
+
+    const fetchModels = async () => {
+      try {
+        const response = await fetch('/api/admin/god-eye/rejected-images/models')
+        if (!response.ok) {
+          throw new Error('Failed to fetch models')
+        }
+        const data = await response.json()
+        setAvailableModels(data.models || [])
+      } catch (error) {
+        console.error('Error fetching models:', error)
+      }
+    }
+
+    fetchModels()
+  }, [activeTab, isAdmin])
 
   // 切换tab时重置页码
   useEffect(() => {
@@ -1048,43 +1074,6 @@ export default function GodEyePage() {
                       </label>
                     </div>
 
-                    {/* 用户角色筛选 */}
-                    <div className="flex items-center gap-2 h-[38px]">
-                      <span className="text-sm text-gray-700 whitespace-nowrap">用户角色：</span>
-                      <select
-                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm min-w-[120px] focus:outline-none focus:ring-2 focus:ring-orange-400"
-                        value={rejectedRoleFilter}
-                        onChange={(e) => {
-                          setRejectedRoleFilter(e.target.value as RoleFilter)
-                          setRejectedPage(1)
-                        }}
-                      >
-                        <option value="all">全部</option>
-                        <option value="subscribed">付费用户</option>
-                        <option value="premium">优质用户</option>
-                        <option value="oldUser">首批用户</option>
-                        <option value="regular">普通用户</option>
-                      </select>
-                    </div>
-
-                    {/* 拒绝原因筛选 */}
-                    <div className="flex items-center gap-2 h-[38px]">
-                      <span className="text-sm text-gray-700 whitespace-nowrap">拒绝原因：</span>
-                      <select
-                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm min-w-[180px] focus:outline-none focus:ring-2 focus:ring-orange-400"
-                        value={reasonFilter}
-                        onChange={(e) => {
-                          setReasonFilter(e.target.value as 'all' | 'image' | 'prompt' | 'both')
-                          setRejectedPage(1)
-                        }}
-                      >
-                        <option value="all">全部</option>
-                        <option value="image">图片审核未通过</option>
-                        <option value="prompt">提示词审核未通过</option>
-                        <option value="both">两者都未通过</option>
-                      </select>
-                    </div>
-
                     {/* 搜索 */}
                     <div className="flex items-center gap-2 flex-1 min-w-[200px] h-[38px]">
                       <input
@@ -1107,41 +1096,125 @@ export default function GodEyePage() {
                       </button>
                     </div>
 
-                    {/* 日期范围 */}
-                    <div className="flex items-center gap-2 h-[38px]">
-                      <input
-                        type="date"
-                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                        value={rejectedStartDate}
-                        onChange={(e) => {
-                          setRejectedStartDate(e.target.value)
-                          setRejectedPage(1)
-                        }}
-                      />
-                      <span className="text-sm text-gray-500">至</span>
-                      <input
-                        type="date"
-                        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                        value={rejectedEndDate}
-                        onChange={(e) => {
-                          setRejectedEndDate(e.target.value)
-                          setRejectedPage(1)
-                        }}
-                      />
-                      {(rejectedStartDate || rejectedEndDate) && (
-                        <button
-                          onClick={() => {
-                            setRejectedStartDate('')
-                            setRejectedEndDate('')
-                            setRejectedPage(1)
-                          }}
-                          className="px-3 py-1.5 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
-                        >
-                          清除
-                        </button>
-                      )}
-                    </div>
+                    {/* 高级搜索按钮 */}
+                    <button
+                      onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+                      className="px-4 py-1.5 rounded-lg text-sm border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    >
+                      <span>高级搜索</span>
+                      <svg
+                        className={`w-4 h-4 transition-transform ${showAdvancedSearch ? 'rotate-180' : ''}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
                   </div>
+
+                  {/* 高级搜索区域（折叠） */}
+                  {showAdvancedSearch && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* 用户角色筛选 */}
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm text-gray-700">用户角色</label>
+                          <select
+                            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            value={rejectedRoleFilter}
+                            onChange={(e) => {
+                              setRejectedRoleFilter(e.target.value as RoleFilter)
+                              setRejectedPage(1)
+                            }}
+                          >
+                            <option value="all">全部</option>
+                            <option value="subscribed">付费用户</option>
+                            <option value="premium">优质用户</option>
+                            <option value="oldUser">首批用户</option>
+                            <option value="regular">普通用户</option>
+                          </select>
+                        </div>
+
+                        {/* 拒绝原因筛选 */}
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm text-gray-700">拒绝原因</label>
+                          <select
+                            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            value={reasonFilter}
+                            onChange={(e) => {
+                              setReasonFilter(e.target.value as 'all' | 'image' | 'prompt' | 'both')
+                              setRejectedPage(1)
+                            }}
+                          >
+                            <option value="all">全部</option>
+                            <option value="image">图片审核未通过</option>
+                            <option value="prompt">提示词审核未通过</option>
+                            <option value="both">两者都未通过</option>
+                          </select>
+                        </div>
+
+                        {/* 所用模型筛选 */}
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm text-gray-700">所用模型</label>
+                          <select
+                            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            value={modelFilter}
+                            onChange={(e) => {
+                              setModelFilter(e.target.value)
+                              setRejectedPage(1)
+                            }}
+                          >
+                            <option value="all">全部</option>
+                            {availableModels.map((model) => (
+                              <option key={model} value={model}>
+                                {model}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* 日期范围 */}
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm text-gray-700">日期范围</label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="date"
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                              value={rejectedStartDate}
+                              onChange={(e) => {
+                                setRejectedStartDate(e.target.value)
+                                setRejectedPage(1)
+                              }}
+                            />
+                            <span className="text-sm text-gray-500">至</span>
+                            <input
+                              type="date"
+                              className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                              value={rejectedEndDate}
+                              onChange={(e) => {
+                                setRejectedEndDate(e.target.value)
+                                setRejectedPage(1)
+                              }}
+                            />
+                            {(rejectedStartDate || rejectedEndDate) && (
+                              <button
+                                onClick={() => {
+                                  setRejectedStartDate('')
+                                  setRejectedEndDate('')
+                                  setRejectedPage(1)
+                                }}
+                                className="px-3 py-1.5 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors whitespace-nowrap"
+                                title="清除日期"
+                              >
+                                清除
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 统计信息 */}
