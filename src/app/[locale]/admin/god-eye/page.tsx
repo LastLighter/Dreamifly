@@ -270,10 +270,17 @@ export default function GodEyePage() {
           params.set('search', rejectedSearchTerm.trim())
         }
         if (rejectedStartDate) {
-          params.set('startDate', rejectedStartDate)
+          // datetime-local 输入返回的是本地时间格式（YYYY-MM-DDTHH:mm）
+          // 将其转换为 UTC 时间字符串（ISO 格式）
+          // new Date() 会将字符串解释为本地时间，然后 toISOString() 会转换为 UTC
+          const localDate = new Date(rejectedStartDate)
+          params.set('startTime', localDate.toISOString())
         }
         if (rejectedEndDate) {
-          params.set('endDate', rejectedEndDate)
+          // datetime-local 输入返回的是本地时间格式（YYYY-MM-DDTHH:mm）
+          // 将其转换为 UTC 时间字符串（ISO 格式）
+          const localDate = new Date(rejectedEndDate)
+          params.set('endTime', localDate.toISOString())
         }
         if (reasonFilter !== 'all') {
           params.set('reason', reasonFilter)
@@ -1174,12 +1181,12 @@ export default function GodEyePage() {
                           </select>
                         </div>
 
-                        {/* 日期范围 */}
+                        {/* 时间范围 */}
                         <div className="flex flex-col gap-2">
-                          <label className="text-sm text-gray-700">日期范围</label>
+                          <label className="text-sm text-gray-700">时间范围</label>
                           <div className="flex items-center gap-2">
                             <input
-                              type="date"
+                              type="datetime-local"
                               className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                               value={rejectedStartDate}
                               onChange={(e) => {
@@ -1189,7 +1196,7 @@ export default function GodEyePage() {
                             />
                             <span className="text-sm text-gray-500">至</span>
                             <input
-                              type="date"
+                              type="datetime-local"
                               className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                               value={rejectedEndDate}
                               onChange={(e) => {
@@ -1205,7 +1212,7 @@ export default function GodEyePage() {
                                   setRejectedPage(1)
                                 }}
                                 className="px-3 py-1.5 rounded-lg text-sm bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors whitespace-nowrap"
-                                title="清除日期"
+                                title="清除时间"
                               >
                                 清除
                               </button>

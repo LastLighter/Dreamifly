@@ -12,8 +12,8 @@ import { headers } from 'next/headers'
  * - limit: 每页数量（默认20）
  * - role: 用户角色筛选（subscribed, premium, oldUser, regular, all）
  * - search: 搜索关键词（用户昵称）
- * - startDate: 开始日期（YYYY-MM-DD）
- * - endDate: 结束日期（YYYY-MM-DD）
+ * - startTime: 开始时间（ISO 8601 UTC 格式，精确到分钟）
+ * - endTime: 结束时间（ISO 8601 UTC 格式，精确到分钟）
  * - reason: 拒绝原因筛选（image, prompt, both, all）
  * - model: 模型筛选（模型ID，all表示全部）
  */
@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit
     const roleFilter = searchParams.get('role') || 'all'
     const search = searchParams.get('search') || ''
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
+    const startTime = searchParams.get('startTime')
+    const endTime = searchParams.get('endTime')
     const reasonFilter = searchParams.get('reason') || 'all'
     const modelFilter = searchParams.get('model') || 'all'
 
@@ -127,15 +127,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // 日期范围筛选
-    if (startDate) {
-      const start = new Date(startDate)
-      start.setHours(0, 0, 0, 0)
+    // 时间范围筛选（UTC 时间，精确到分钟）
+    if (startTime) {
+      const start = new Date(startTime)
+      // 确保精确到分钟（秒和毫秒设为0）
+      start.setUTCSeconds(0, 0)
       conditions.push(gte(rejectedImages.createdAt, start))
     }
-    if (endDate) {
-      const end = new Date(endDate)
-      end.setHours(23, 59, 59, 999)
+    if (endTime) {
+      const end = new Date(endTime)
+      // 结束时间包含该分钟的最后时刻（59秒999毫秒）
+      end.setUTCSeconds(59, 999)
       conditions.push(lte(rejectedImages.createdAt, end))
     }
 
