@@ -1040,31 +1040,40 @@ export async function POST(request: Request) {
       await ipConcurrencyManager.end(clientIP)
     }
 
-    // 如果用户已登录，保存生成的图片
+    // 如果用户已登录，异步保存生成的图片（不阻塞响应）
     if (session?.user) {
-      try {
-        const { saveUserGeneratedImage } = await import('@/utils/userImageStorage')
-        await saveUserGeneratedImage(
-          session.user.id,
-          imageUrl, // base64格式的图片
-          {
-            prompt,
-            model,
-            width,
-            height,
-            ipAddress: clientIP || undefined,
-          }
-        )
-        console.log('用户生成图片已保存')
-      } catch (error) {
-        console.error('保存用户生成图片失败:', error)
-        // 不阻止主流程，继续返回图片给用户
-      }
+      // 使用 Fire and Forget 模式，不等待保存完成
+      // 注意：不要使用 await，让保存操作在后台执行
+      (async () => {
+        try {
+          const { saveUserGeneratedImage } = await import('@/utils/userImageStorage')
+          
+          // 直接传入参考图的base64数组，让 saveUserGeneratedImage 内部处理
+          // images 是 base64 数组（不包含 data:image 前缀）
+          await saveUserGeneratedImage(
+            session.user.id,
+            imageUrl, // base64格式的图片
+            {
+              prompt,
+              model,
+              width,
+              height,
+              ipAddress: clientIP || undefined,
+              referenceImages: images || [], // 传入参考图的base64数组
+            }
+          )
+          console.log('用户生成图片已保存')
+        } catch (error) {
+          console.error('保存用户生成图片失败:', error)
+          // 错误已记录，不影响主流程
+        }
+      })() // 立即执行，不等待
     } else {
       // 未登录用户：也需要尝试保存（虽然 saveUserGeneratedImage 需要 userId，但我们可以处理）
       // 实际上未登录用户不会调用 saveUserGeneratedImage，所以这里不需要处理
     }
 
+    // 立即返回响应，不等待保存完成
     return NextResponse.json({ imageUrl })
   } catch (error) {
     console.error('Error generating image:', error)

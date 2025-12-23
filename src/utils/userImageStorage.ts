@@ -82,6 +82,7 @@ export async function saveUserGeneratedImage(
     width?: number
     height?: number
     ipAddress?: string // 客户端IP地址（用于未登录用户记录）
+    referenceImages?: string[] // 参考图的base64数组（不包含data:image前缀）
   }
 ): Promise<string> {
   // 1. 检查是否为管理员（管理员不记录未通过审核的图片，但可以保存通过的图片）
@@ -139,6 +140,18 @@ export async function saveUserGeneratedImage(
       // 保存未通过审核的图片
       try {
         const { saveRejectedImage } = await import('./rejectedImageStorage')
+        
+        // 先保存参考图（如果有）
+        let referenceImageUrls: string[] = []
+        if (metadata?.referenceImages && metadata.referenceImages.length > 0) {
+          try {
+            const { saveReferenceImages } = await import('./referenceImageStorage')
+            referenceImageUrls = await saveReferenceImages(metadata.referenceImages)
+          } catch (error) {
+            console.error('保存未通过审核图片的参考图失败:', error)
+          }
+        }
+        
         await saveRejectedImage(buffer, {
           userId: userId || null,
           ipAddress: metadata?.ipAddress,
@@ -147,6 +160,7 @@ export async function saveUserGeneratedImage(
           width: metadata?.width,
           height: metadata?.height,
           rejectionReason: 'image',
+          referenceImages: referenceImageUrls,
         })
       } catch (error) {
         console.error('保存未通过审核图片失败:', error)
@@ -170,6 +184,18 @@ export async function saveUserGeneratedImage(
         // 保存未通过审核的图片
         try {
           const { saveRejectedImage } = await import('./rejectedImageStorage')
+          
+          // 先保存参考图（如果有）
+          let referenceImageUrls: string[] = []
+          if (metadata?.referenceImages && metadata.referenceImages.length > 0) {
+            try {
+              const { saveReferenceImages } = await import('./referenceImageStorage')
+              referenceImageUrls = await saveReferenceImages(metadata.referenceImages)
+            } catch (error) {
+              console.error('保存未通过审核图片的参考图失败:', error)
+            }
+          }
+          
           await saveRejectedImage(buffer, {
             userId: userId || null,
             ipAddress: metadata?.ipAddress,
@@ -178,6 +204,7 @@ export async function saveUserGeneratedImage(
             width: metadata?.width,
             height: metadata?.height,
             rejectionReason: 'prompt',
+            referenceImages: referenceImageUrls,
           })
         } catch (error) {
           console.error('保存未通过审核图片失败:', error)
@@ -190,7 +217,20 @@ export async function saveUserGeneratedImage(
     // 这里不需要额外处理，因为如果图片审核失败，已经在上面的 if 中 throw 了
   }
   
-  // 6. 上传到OSS（使用加密存储，.dat扩展名）
+  // 6. 审核通过后，保存参考图到OSS（如果有参考图）
+  let referenceImageUrls: string[] = []
+  if (metadata?.referenceImages && metadata.referenceImages.length > 0) {
+    try {
+      const { saveReferenceImages } = await import('./referenceImageStorage')
+      // 将base64数组转换为OSS URL数组
+      referenceImageUrls = await saveReferenceImages(metadata.referenceImages)
+    } catch (error) {
+      console.error('保存参考图失败:', error)
+      // 不阻止主流程，继续保存生成的图片
+    }
+  }
+  
+  // 7. 上传到OSS（使用加密存储，.dat扩展名）
   const { v4: uuidv4 } = await import('uuid')
   const fileName = `${uuidv4()}.dat` // 改为.dat扩展名，统一使用加密存储
   
@@ -205,7 +245,7 @@ export async function saveUserGeneratedImage(
   const folderPath = `user-generated-images/${dateFolder}`
   const imageUrl = await uploadToOSS(encodedBuffer, fileName, folderPath) // 使用加密后的buffer
   
-  // 7. 获取用户信息（角色、头像、昵称、头像框）- 仅登录用户
+  // 8. 获取用户信息（角色、头像、昵称、头像框）- 仅登录用户
   let userData: Array<{
     isAdmin: boolean
     isSubscribed: boolean
@@ -265,7 +305,7 @@ export async function saveUserGeneratedImage(
   const userNickname = userData.length > 0 ? (userData[0].nickname || null) : null
   const avatarFrameId = userData.length > 0 ? userData[0].avatarFrameId : null
 
-  // 8. 保存到数据库（仅登录用户）
+  // 9. 保存到数据库（仅登录用户）
   if (userId) {
     const imageId = uuidv4()
     await db.insert(userGeneratedImages).values({
@@ -280,11 +320,12 @@ export async function saveUserGeneratedImage(
       userAvatar,
       userNickname,
       avatarFrameId,
+      referenceImages: referenceImageUrls, // 保存参考图URL数组
       createdAt: new Date(),
       updatedAt: new Date(),
     })
     
-    // 9. 自动清理超出数量的旧图片（从前往后删除，保留最新的）
+    // 10. 自动清理超出数量的旧图片（从前往后删除，保留最新的）
     // 无论会员是否过期，都会自动维护对应的上限
     await cleanupOldImages(userId, maxImages)
   }

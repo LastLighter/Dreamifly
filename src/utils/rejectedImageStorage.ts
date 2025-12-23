@@ -82,6 +82,7 @@ export async function saveRejectedImage(
     width?: number
     height?: number
     rejectionReason: 'image' | 'prompt' | 'both'
+    referenceImages?: string[] // 参考图URL数组（已上传到OSS的URL）
   }
 ): Promise<string> {
   // 1. 检查是否为管理员（管理员不记录）
@@ -133,6 +134,7 @@ export async function saveRejectedImage(
     width: metadata.width || null,
     height: metadata.height || null,
     rejectionReason: metadata.rejectionReason,
+    referenceImages: metadata.referenceImages || [], // 保存参考图URL数组
     createdAt: new Date(),
     updatedAt: new Date(),
   })

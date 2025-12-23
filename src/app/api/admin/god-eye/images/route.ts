@@ -122,6 +122,7 @@ export async function GET(request: NextRequest) {
         userAvatar: userGeneratedImages.userAvatar,
         userNickname: userGeneratedImages.userNickname,
         avatarFrameId: userGeneratedImages.avatarFrameId,
+        referenceImages: userGeneratedImages.referenceImages,
         createdAt: userGeneratedImages.createdAt,
         userId: userGeneratedImages.userId,
       })
@@ -143,6 +144,7 @@ export async function GET(request: NextRequest) {
       userAvatar: img.userAvatar || '/images/default-avatar.svg',
       userNickname: img.userNickname || '未知用户',
       avatarFrameId: img.avatarFrameId,
+      referenceImages: img.referenceImages || [],
       createdAt: img.createdAt?.toISOString() || new Date().toISOString(),
       userId: img.userId,
     }))

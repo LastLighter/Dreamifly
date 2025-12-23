@@ -27,6 +27,7 @@ interface ImageItem {
   userAvatar: string
   userNickname: string
   avatarFrameId: number | null
+  referenceImages?: string[] // 参考图URL数组
   createdAt: string
   userId: string
   rejectionReason?: string
@@ -60,6 +61,10 @@ export default function GodEyePage() {
   const [clickedPromptId, setClickedPromptId] = useState<string | null>(null)
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
   const promptPopoverRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+  
+  // 参考图预览相关状态
+  const [decodedReferenceImages, setDecodedReferenceImages] = useState<{ [key: string]: string }>({})
+  const [decodingReferenceImages, setDecodingReferenceImages] = useState<Set<string>>(new Set())
   
   // 未通过审核图片相关状态
   const [rejectedImages, setRejectedImages] = useState<ImageItem[]>([])
@@ -642,6 +647,38 @@ export default function GodEyePage() {
     return imageUrl
   }
 
+  // 处理参考图点击预览
+  const handleReferenceImageClick = async (refUrl: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    
+    // 如果是加密图片，确保已解码
+    if (isEncryptedImage(refUrl)) {
+      if (!decodedReferenceImages[refUrl]) {
+        if (!decodingReferenceImages.has(refUrl)) {
+          setDecodingReferenceImages(prev => new Set(prev).add(refUrl))
+          try {
+            const decodedUrl = await getImageDisplayUrl(refUrl, decodedReferenceImages)
+            setDecodedReferenceImages(prev => ({ ...prev, [refUrl]: decodedUrl }))
+            setZoomedImage(decodedUrl)
+          } catch (error) {
+            console.error('解码参考图失败:', error)
+            setZoomedImage(refUrl)
+          } finally {
+            setDecodingReferenceImages(prev => {
+              const newSet = new Set(prev)
+              newSet.delete(refUrl)
+              return newSet
+            })
+          }
+        }
+      } else {
+        setZoomedImage(decodedReferenceImages[refUrl])
+      }
+    } else {
+      setZoomedImage(refUrl)
+    }
+  }
+
   // 处理图片点击预览
   const handleImageClick = async (imageUrl: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -1012,6 +1049,53 @@ export default function GodEyePage() {
                                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                                 </div>
                               )}
+                              
+                              {/* 参考图预览入口 - 左上角 */}
+                              {image.referenceImages && image.referenceImages.length > 0 && (
+                                <div className="absolute top-2 left-2 flex gap-1.5 z-20">
+                                  {image.referenceImages.map((refUrl, index) => {
+                                    const isRefDecoding = isEncryptedImage(refUrl) && !decodedReferenceImages[refUrl] && decodingReferenceImages.has(refUrl)
+                                    const refDisplayUrl = isEncryptedImage(refUrl) 
+                                      ? (decodedReferenceImages[refUrl] || refUrl)
+                                      : refUrl
+                                    
+                                    return (
+                                      <button
+                                        key={index}
+                                        onClick={(e) => handleReferenceImageClick(refUrl, e)}
+                                        className="relative w-10 h-10 rounded-lg overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg hover:bg-white/30 transition-all hover:scale-110 group"
+                                        title={`参考图 ${index + 1}`}
+                                      >
+                                        {isRefDecoding ? (
+                                          <div className="absolute inset-0 flex items-center justify-center bg-white/20">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                          </div>
+                                        ) : (
+                                          <Image
+                                            src={refDisplayUrl}
+                                            alt={`参考图 ${index + 1}`}
+                                            fill
+                                            className="object-cover"
+                                            unoptimized={isEncryptedImage(refUrl)}
+                                            onError={(e) => {
+                                              // 如果加载失败，显示占位符
+                                              const target = e.target as HTMLImageElement
+                                              target.style.display = 'none'
+                                            }}
+                                          />
+                                        )}
+                                        {/* 数量标签 - 只在第一张显示 */}
+                                        {index === 0 && image.referenceImages!.length > 1 && (
+                                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                                            {image.referenceImages.length}
+                                          </div>
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              
                               <Image
                                 src={thumbnailUrl}
                                 alt={image.prompt || '生成的图片'}
@@ -1356,6 +1440,52 @@ export default function GodEyePage() {
                                 <span className="text-xs font-medium text-gray-800 whitespace-nowrap">
                                   {image.model}
                                 </span>
+                              </div>
+                            )}
+                            
+                            {/* 参考图预览入口 - 左上角 */}
+                            {image.referenceImages && image.referenceImages.length > 0 && (
+                              <div className="absolute top-2 left-2 flex gap-1.5 z-20">
+                                {image.referenceImages.map((refUrl, index) => {
+                                  const isRefDecoding = isEncryptedImage(refUrl) && !decodedReferenceImages[refUrl] && decodingReferenceImages.has(refUrl)
+                                  const refDisplayUrl = isEncryptedImage(refUrl) 
+                                    ? (decodedReferenceImages[refUrl] || refUrl)
+                                    : refUrl
+                                  
+                                  return (
+                                    <button
+                                      key={index}
+                                      onClick={(e) => handleReferenceImageClick(refUrl, e)}
+                                      className="relative w-10 h-10 rounded-lg overflow-hidden bg-white/20 backdrop-blur-md border border-white/30 shadow-lg hover:bg-white/30 transition-all hover:scale-110 group"
+                                      title={`参考图 ${index + 1}`}
+                                    >
+                                      {isRefDecoding ? (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-white/20">
+                                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                        </div>
+                                      ) : (
+                                        <Image
+                                          src={refDisplayUrl}
+                                          alt={`参考图 ${index + 1}`}
+                                          fill
+                                          className="object-cover"
+                                          unoptimized={isEncryptedImage(refUrl)}
+                                          onError={(e) => {
+                                            // 如果加载失败，显示占位符
+                                            const target = e.target as HTMLImageElement
+                                            target.style.display = 'none'
+                                          }}
+                                        />
+                                      )}
+                                      {/* 数量标签 - 只在第一张显示 */}
+                                      {index === 0 && image.referenceImages!.length > 1 && (
+                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                                          {image.referenceImages.length}
+                                        </div>
+                                      )}
+                                    </button>
+                                  )
+                                })}
                               </div>
                             )}
                             
