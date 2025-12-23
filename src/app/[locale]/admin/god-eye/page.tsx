@@ -75,7 +75,7 @@ export default function GodEyePage() {
   const [modelFilter, setModelFilter] = useState<string>('all')
   const [availableModels, setAvailableModels] = useState<string[]>([])
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false) // 高级搜索折叠状态
-  const [blurEnabled, setBlurEnabled] = useState(true) // 默认开启磨砂玻璃
+  const [unmaskedImages, setUnmaskedImages] = useState<Set<string>>(new Set()) // 已移除遮罩的图片ID集合
   const [decodedImages, setDecodedImages] = useState<{ [key: string]: string }>({})
 
   // 违禁词管理相关状态
@@ -1067,19 +1067,6 @@ export default function GodEyePage() {
                 {/* 控制栏 */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
                   <div className="flex flex-wrap gap-3 items-center">
-                    {/* 磨砂玻璃开关 */}
-                    <div className="flex items-center gap-2 h-[38px]">
-                      <input
-                        type="checkbox"
-                        id="blur-toggle"
-                        checked={blurEnabled}
-                        onChange={(e) => setBlurEnabled(e.target.checked)}
-                        className="w-4 h-4 text-orange-500 rounded focus:ring-orange-400 flex-shrink-0"
-                      />
-                      <label htmlFor="blur-toggle" className="text-sm text-gray-700 cursor-pointer whitespace-nowrap">
-                        默认磨砂玻璃遮挡
-                      </label>
-                    </div>
 
                     {/* 搜索 */}
                     <div className="flex items-center gap-2 flex-1 min-w-[200px] h-[38px]">
@@ -1272,12 +1259,12 @@ export default function GodEyePage() {
                         >
                           <div className="aspect-square relative overflow-hidden bg-gray-100">
                             {/* 磨砂玻璃层 */}
-                            {blurEnabled && (
+                            {!unmaskedImages.has(image.id) && (
                               <div className="absolute inset-0 bg-white/30 backdrop-blur-md z-10 flex flex-col items-center justify-center gap-2">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    setBlurEnabled(false)
+                                    setUnmaskedImages(prev => new Set(prev).add(image.id))
                                   }}
                                   className="px-4 py-2 bg-black/60 backdrop-blur-sm text-white rounded-lg hover:bg-black/80 transition-colors"
                                 >
@@ -1298,9 +1285,9 @@ export default function GodEyePage() {
                                 src={decodedImages[image.id]}
                                 alt={image.prompt || '未通过审核的图片'}
                                 fill
-                                className={`object-cover cursor-zoom-in ${blurEnabled ? 'blur-sm' : ''}`}
+                                className={`object-cover cursor-zoom-in ${!unmaskedImages.has(image.id) ? 'blur-sm' : ''}`}
                                 onClick={(e) => {
-                                  if (!blurEnabled) {
+                                  if (unmaskedImages.has(image.id)) {
                                     handleImageClick(decodedImages[image.id], e)
                                   }
                                 }}
