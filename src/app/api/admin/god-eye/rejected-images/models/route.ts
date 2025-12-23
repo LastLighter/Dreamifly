@@ -1,14 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/db'
 import { rejectedImages, user } from '@/db/schema'
-import { eq, sql, isNotNull } from 'drizzle-orm'
+import { eq, isNotNull } from 'drizzle-orm'
 import { headers } from 'next/headers'
 
 /**
  * 获取未通过审核图片中使用的所有模型列表（管理员专用）
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // 验证管理员权限
     const session = await auth.api.getSession({
