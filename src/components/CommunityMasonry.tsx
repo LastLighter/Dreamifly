@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
+import { isEncryptedImage, getImageDisplayUrl } from '@/utils/imageDisplay'
 
 export type CommunityWork = {
   id: string | number
@@ -90,10 +91,73 @@ export default function CommunityMasonry({
     return () => cleanups.forEach((fn) => fn())
   }, [])
 
-  // 切到 hover 模式时，不保留点击“展开态”
+  // 切到 hover 模式时，不保留点击"展开态"
   useEffect(() => {
     if (interactionMode === 'hover') setActiveTapId(null)
   }, [interactionMode])
+
+  // 解码加密图片的状态
+  const [decodedImages, setDecodedImages] = useState<{ [key: string]: string }>({})
+  const [decodingImages, setDecodingImages] = useState<Set<string>>(new Set())
+
+  // 批量解码加密图片
+  useEffect(() => {
+    if (!works.length) return
+
+    const encryptedImages = works.filter(
+      work => isEncryptedImage(work.image) && !decodedImages[work.image] && !decodingImages.has(work.image)
+    )
+
+    if (encryptedImages.length === 0) return
+
+    let cancelled = false
+    const concurrency = 4
+    const queue = [...encryptedImages]
+
+    const runWorker = async () => {
+      while (queue.length && !cancelled) {
+        const work = queue.shift()
+        if (!work) continue
+
+        setDecodingImages(prev => new Set(prev).add(work.image))
+
+        try {
+          const decodedUrl = await getImageDisplayUrl(work.image, decodedImages)
+          if (!cancelled) {
+            setDecodedImages(prev => ({
+              ...prev,
+              [work.image]: decodedUrl
+            }))
+          }
+        } catch (error) {
+          console.error('解码图片失败:', error)
+        } finally {
+          setDecodingImages(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(work.image)
+            return newSet
+          })
+        }
+      }
+    }
+
+    const workers = Array.from({ length: Math.min(concurrency, queue.length) }, runWorker)
+    Promise.all(workers).catch(err => {
+      console.error('批量解码图片失败:', err)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [works, decodedImages, decodingImages])
+
+  // 获取图片显示URL
+  const getDisplayUrl = (imageUrl: string): string => {
+    if (isEncryptedImage(imageUrl)) {
+      return decodedImages[imageUrl] || imageUrl // 如果还在解码中，显示原URL（会有加载状态）
+    }
+    return imageUrl
+  }
 
   return (
     <div
@@ -142,7 +206,7 @@ export default function CommunityMasonry({
                     setActiveTapId((prev) => (prev === work.id ? null : work.id))
                     return
                   }
-                  onPreview?.(work.image)
+                  onPreview?.(getDisplayUrl(work.image))
                 }}
                 onKeyDown={(e) => {
                   if (!onPreview) return
@@ -152,19 +216,37 @@ export default function CommunityMasonry({
                       setActiveTapId((prev) => (prev === work.id ? null : work.id))
                       return
                     }
-                    onPreview(work.image)
+                    onPreview(getDisplayUrl(work.image))
                   }
                 }}
               >
-                <Image
-                  src={work.image}
-                  alt={`Community work ${work.id}`}
-                  fill
-                  className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
-                  priority={index < 2}
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                />
-                {/* 细腻的高光层，让图片更“润” */}
+                {(() => {
+                  const displayUrl = getDisplayUrl(work.image)
+                  const isEncrypted = isEncryptedImage(work.image)
+                  const isDecoding = isEncrypted && !decodedImages[work.image]
+                  
+                  // 如果正在解码，只显示加载状态，不渲染 Image
+                  if (isDecoding) {
+                    return (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                      </div>
+                    )
+                  }
+                  
+                  return (
+                    <Image
+                      src={displayUrl}
+                      alt={`Community work ${work.id}`}
+                      fill
+                      className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+                      priority={index < 2}
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      unoptimized={isEncrypted}
+                    />
+                  )
+                })()}
+                {/* 细腻的高光层，让图片更"润" */}
                 <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(900px_circle_at_25%_10%,rgba(255,255,255,0.28),transparent_45%)] opacity-70" />
               </div>
 

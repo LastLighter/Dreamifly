@@ -9,12 +9,14 @@ import { useAvatar } from '@/contexts/AvatarContext'
 import AvatarCropper from '@/components/AvatarCropper'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
+import { usePoints } from '@/contexts/PointsContext'
 
 export default function ProfilePage() {
   const t = useTranslations('auth')
   const router = useRouter()
   const { data: session, isPending } = useSession()
   const { avatar: globalAvatar, nickname: globalNickname, avatarFrameId, updateProfile, setAvatarFrameId } = useAvatar()
+  const { refreshPoints } = usePoints()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [nickname, setNickname] = useState('')
@@ -58,6 +60,18 @@ export default function ProfilePage() {
     expiresAt: string | null
   } | null>(null)
   const [subscriptionLoading, setSubscriptionLoading] = useState(false)
+
+  // Check-in state
+  const [checkedIn, setCheckedIn] = useState<boolean | null>(null)
+  const [checkInLoading, setCheckInLoading] = useState(false)
+  const [checkInStatusLoading, setCheckInStatusLoading] = useState(false)
+  const [showCheckInModal, setShowCheckInModal] = useState(false)
+  const [checkInResult, setCheckInResult] = useState<{
+    points: number
+    expiresInDays: number
+    userType: string
+    isSubscribed: boolean
+  } | null>(null)
 
   // Avatar frame selection state
   const [showAvatarFrameSelector, setShowAvatarFrameSelector] = useState(false)
@@ -183,6 +197,29 @@ export default function ProfilePage() {
     fetchSubscription()
   }, [session])
 
+  // 检查签到状态
+  useEffect(() => {
+    const fetchCheckInStatus = async () => {
+      if (!session?.user) return
+
+      setCheckInStatusLoading(true)
+      try {
+        const res = await fetch(`/api/points/check-status?t=${Date.now()}`, {
+          credentials: 'include',
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setCheckedIn(data.checkedIn || false)
+        }
+      } catch (error) {
+        console.error('Error fetching check-in status:', error)
+      } finally {
+        setCheckInStatusLoading(false)
+      }
+    }
+
+    fetchCheckInStatus()
+  }, [session])
 
   // 仅在保存成功时通过 updateProfile 同步全局昵称，输入时不实时同步
 
@@ -425,6 +462,48 @@ export default function ProfilePage() {
     router.push('/')
   }
 
+  const handleCheckIn = async () => {
+    if (checkInLoading || checkedIn) return
+
+    setCheckInLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const response = await fetch('/api/points/award-daily', {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || '签到失败')
+      }
+
+      const data = await response.json()
+      
+      if (data.awarded) {
+        setCheckInResult({
+          points: data.points,
+          expiresInDays: data.expiresInDays,
+          userType: data.userType || 'regular',
+          isSubscribed: data.isSubscribed || false,
+        })
+        setCheckedIn(true)
+        setShowCheckInModal(true)
+        await refreshPoints()
+      } else {
+        setError('今日已签到，请明天再来')
+        setCheckedIn(true)
+      }
+    } catch (err) {
+      console.error('Check-in error:', err)
+      const errorMessage = err instanceof Error ? err.message : '签到失败，请稍后重试'
+      setError(errorMessage)
+    } finally {
+      setCheckInLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-white">
       <div className="max-w-6xl mx-auto px-4 pb-16 pt-10 lg:pl-48">
@@ -486,13 +565,40 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="absolute right-5 top-5 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
-            >
-              <span className="h-2 w-2 rounded-full bg-red-300 shadow shadow-red-500/50" />
-              {t('logout')}
-            </button>
+            {/* 签到按钮 - 放在header右上角 */}
+            {quota?.isActive !== false && (
+              <button
+                onClick={handleCheckIn}
+                disabled={checkInLoading || checkInStatusLoading || checkedIn === null}
+                className={`absolute right-5 top-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium text-white transition ${
+                  checkedIn
+                    ? 'border-white/30 bg-white/10 cursor-not-allowed opacity-60'
+                    : 'border-white/20 bg-white/10 hover:bg-white/20'
+                } ${checkInLoading || checkInStatusLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={checkedIn ? '今日已签到' : '点击签到'}
+              >
+                {checkInLoading ? (
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : checkedIn ? (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>已签到</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.7 2.288a1 1 0 01.6 0l7 2.333A1 1 0 0120 5.567v6.933c0 3.831-2.82 7.612-8.423 11.334a1 1 0 01-1.154 0C4.82 20.112 2 16.33 2 12.5V5.567a1 1 0 01.7-.946l7-2.333z" />
+                    </svg>
+                    <span>签到</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </section>
 
@@ -942,6 +1048,16 @@ export default function ProfilePage() {
                 </div>
               </form>
             )}
+
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <button
+                onClick={handleLogout}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 hover:border-red-300"
+              >
+                <span className="h-2 w-2 rounded-full bg-red-500 shadow shadow-red-500/50" />
+                {t('logout')}
+              </button>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-orange-50 via-white to-white p-6 shadow-xl shadow-orange-500/5">
@@ -961,11 +1077,58 @@ export default function ProfilePage() {
       {/* 头像裁剪器 */}
       {showCropper && cropperImageSrc && (
         <AvatarCropper
-          imageSrc={cropperImageSrc}
+          imageSrc={cropperImageSrc || ''}
           onCropComplete={handleCropComplete}
           onCancel={handleCropCancel}
           isGif={isGifFile}
         />
+      )}
+
+      {/* 签到成功弹窗 */}
+      {showCheckInModal && checkInResult && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 relative">
+            <button
+              aria-label="Close"
+              onClick={() => setShowCheckInModal(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="p-3 rounded-full bg-orange-100 text-orange-600">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.7 2.288a1 1 0 01.6 0l7 2.333A1 1 0 0120 5.567v6.933c0 3.831-2.82 7.612-8.423 11.334a1 1 0 01-1.154 0C4.82 20.112 2 16.33 2 12.5V5.567a1 1 0 01.7-.946l7-2.333z" />
+                </svg>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-orange-600">
+                  {checkInResult?.isSubscribed ? '会员用户' : checkInResult?.userType === 'premium' ? '优质用户' : '欢迎回来'}
+                </p>
+                <h3 className="text-lg font-bold text-gray-900">
+                  今日签到获得 {checkInResult?.points} 积分
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {checkInResult?.isSubscribed ? '每日登录奖励（会员双倍）' : '每日登录奖励'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  有效期为 {checkInResult?.expiresInDays} 天
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowCheckInModal(false)}
+                className="px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors"
+              >
+                知道啦
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
