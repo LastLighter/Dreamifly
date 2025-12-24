@@ -188,6 +188,7 @@ const schemaDefinition = {
   points_package: {
     id: 'integer',
     name: 'text',
+    name_tag: 'text',
     points: 'integer',
     price: 'real',
     original_price: 'real',

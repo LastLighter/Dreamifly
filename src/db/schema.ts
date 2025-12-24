@@ -205,6 +205,7 @@ export const userSubscription = pgTable("user_subscription", {
 export const pointsPackage = pgTable("points_package", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  nameTag: text("name_tag"), // 套餐标题标签，用于前端展示
   points: integer("points").notNull(),
   price: real("price").notNull(), // 价格（人民币）
   originalPrice: real("original_price"), // 原价（用于显示折扣）
