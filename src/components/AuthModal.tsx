@@ -41,6 +41,17 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
     return re.test(email)
   }
 
+  // 验证163邮箱格式：只允许纯数字+@163.com
+  const validate163Email = (email: string) => {
+    const domain = email.split('@')[1]?.toLowerCase()
+    if (domain !== '163.com') {
+      return true // 不是163邮箱，不在此处验证
+    }
+    const localPart = email.split('@')[0]
+    // 检查是否只包含数字
+    return /^\d+$/.test(localPart)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -53,6 +64,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
     }
     if (!validateEmail(email)) {
       setError(t('error.invalidEmail'))
+      return
+    }
+
+    // 特殊验证163邮箱：只允许纯数字+@163.com
+    if (!validate163Email(email)) {
+      setError(t('error.163EmailNotAllowed'))
       return
     }
 
@@ -131,7 +148,12 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
           const validateData = await validateResponse.json()
           
           if (!validateData.isValid) {
-            setError(t('error.emailDomainNotAllowed'))
+            // 检查是否是163邮箱错误
+            if (validateData.error === '163_EMAIL_NOT_ALLOWED') {
+              setError(t('error.163EmailNotAllowed'))
+            } else {
+              setError(t('error.emailDomainNotAllowed'))
+            }
             return
           }
         } catch (err) {
@@ -191,6 +213,10 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
                 errorMessage.includes('24小時內最多只能註冊')) {
               // IP注册限制超出，优先显示后端返回的详细消息（包含重置时间）
               setError(errorMessage || t('error.ipRegistrationLimitExceeded'))
+            } else if (errorCode === '163_EMAIL_NOT_ALLOWED' || 
+                errorMessage === '163_EMAIL_NOT_ALLOWED' ||
+                errorMessage.includes('163_EMAIL_NOT_ALLOWED')) {
+              setError(t('error.163EmailNotAllowed'))
             } else if (errorCode === 'EMAIL_DOMAIN_NOT_ALLOWED' || 
                 errorMessage === 'EMAIL_DOMAIN_NOT_ALLOWED' ||
                 errorMessage.includes('EMAIL_DOMAIN_NOT_ALLOWED')) {

@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { isEmailDomainAllowed } from "@/utils/email-domain-validator";
+import { isEmailDomainAllowed, isValid163Email } from "@/utils/email-domain-validator";
 import { toNextJsHandler } from "better-auth/next-js";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from 'crypto';
@@ -82,6 +82,11 @@ async function ensureAllowedEmailDomain(request: NextRequest) {
 
   if (!payload.email) {
     return jsonError("邮箱地址不能为空");
+  }
+
+  // 特殊验证163邮箱：只允许纯数字+@163.com
+  if (!isValid163Email(payload.email)) {
+    return jsonError("163_EMAIL_NOT_ALLOWED", "163_EMAIL_NOT_ALLOWED");
   }
 
   const isAllowed = await isEmailDomainAllowed(payload.email);

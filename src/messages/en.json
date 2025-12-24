@@ -419,6 +419,7 @@
       "resendFailed": "Failed to send, please try again later",
       "emailQuotaExceeded": "Email sending failed: Daily sending quota limit reached. Please join the official group and contact the administrator",
       "emailDomainNotAllowed": "This email domain is not allowed for registration",
+      "163EmailNotAllowed": "163 free email is not supported. Please use another email to register",
       "emailSendFailed": "Registration successful, but verification email failed to send. Please join the official group and contact the administrator",
       "unauthorized": "Unauthorized, please refresh the page and try again",
       "ipRegistrationLimitExceeded": "You can only register up to 2 times within 24 hours. Please try again later",
