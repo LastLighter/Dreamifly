@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
 
 // 支持GET请求（用于客户端调用）
 // 注意：GET请求无法传递body，所以会被拒绝（只有新版本的手动签到POST请求才能成功）
-export async function GET(_request: NextRequest) {
+export async function GET() {
   // GET请求无法传递manual参数，直接拒绝（防止旧版本自动签到）
   return NextResponse.json({ 
     error: '请使用最新版本进行手动签到',
