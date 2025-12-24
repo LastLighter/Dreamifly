@@ -345,11 +345,11 @@ export default function HomeClient() {
                   </button>
                   <button
                     onClick={() => {
-                      document.getElementById('faq-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      document.getElementById('site-stats')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                     }}
                     className="group px-6 py-2.5 sm:px-9 sm:py-3.5 border-2 border-orange-500 text-orange-500 rounded-2xl hover:bg-gradient-to-r hover:from-orange-500/10 hover:to-amber-500/10 transition-all duration-300 text-sm sm:text-base font-medium relative overflow-hidden"
                   >
-                    <span className="relative z-10">{t('hero.faqButton')}</span>
+                    <span className="relative z-10">{t('hero.contactButton')}</span>
                     <div className="absolute inset-0 bg-orange-400/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </button>
                 </div>
