@@ -67,8 +67,8 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }: Au
       return
     }
 
-    // 特殊验证163邮箱：只允许纯数字+@163.com
-    if (!validate163Email(email)) {
+    // 特殊验证163邮箱：只允许纯数字+@163.com（仅在注册时验证）
+    if (mode === 'register' && !validate163Email(email)) {
       setError(t('error.163EmailNotAllowed'))
       return
     }
