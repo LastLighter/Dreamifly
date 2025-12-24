@@ -197,10 +197,13 @@ export default function ProfilePage() {
     fetchSubscription()
   }, [session])
 
-  // 检查签到状态
+  // 检查签到状态 - 页面加载时立即检查
   useEffect(() => {
     const fetchCheckInStatus = async () => {
-      if (!session?.user) return
+      if (!session?.user) {
+        setCheckedIn(null)
+        return
+      }
 
       setCheckInStatusLoading(true)
       try {
@@ -209,17 +212,30 @@ export default function ProfilePage() {
         })
         if (res.ok) {
           const data = await res.json()
-          setCheckedIn(data.checkedIn || false)
+          // 确保正确处理返回的checkedIn值
+          const isCheckedIn = data.checkedIn === true
+          setCheckedIn(isCheckedIn)
+          console.log('Check-in status:', isCheckedIn, data)
+        } else {
+          console.error('Failed to fetch check-in status:', res.status)
+          setCheckedIn(false)
         }
       } catch (error) {
         console.error('Error fetching check-in status:', error)
+        setCheckedIn(false)
       } finally {
         setCheckInStatusLoading(false)
       }
     }
 
-    fetchCheckInStatus()
-  }, [session])
+    // 如果session存在，立即检查；否则等待session加载
+    if (session?.user) {
+      fetchCheckInStatus()
+    } else if (session === null && !isPending) {
+      // session已确定不存在
+      setCheckedIn(null)
+    }
+  }, [session, isPending])
 
   // 仅在保存成功时通过 updateProfile 同步全局昵称，输入时不实时同步
 
@@ -472,6 +488,12 @@ export default function ProfilePage() {
     try {
       const response = await fetch('/api/points/award-daily', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          manual: true, // 标识这是手动签到请求（新版本前端）
+        }),
       })
 
       if (!response.ok) {
@@ -480,8 +502,10 @@ export default function ProfilePage() {
       }
 
       const data = await response.json()
+      console.log('Check-in response:', data)
       
-      if (data.awarded) {
+      if (data.awarded === true) {
+        // 签到成功
         setCheckInResult({
           points: data.points,
           expiresInDays: data.expiresInDays,
@@ -489,11 +513,23 @@ export default function ProfilePage() {
           isSubscribed: data.isSubscribed || false,
         })
         setCheckedIn(true)
+        // 确保弹窗显示
         setShowCheckInModal(true)
         await refreshPoints()
-      } else {
+      } else if (data.success === true && data.awarded === false) {
+        // 今日已签到
         setError('今日已签到，请明天再来')
         setCheckedIn(true)
+        // 重新检查状态以确保UI同步
+        const statusRes = await fetch(`/api/points/check-status?t=${Date.now()}`, {
+          credentials: 'include',
+        })
+        if (statusRes.ok) {
+          const statusData = await statusRes.json()
+          setCheckedIn(statusData.checkedIn === true)
+        }
+      } else {
+        throw new Error(data.error || '签到失败')
       }
     } catch (err) {
       console.error('Check-in error:', err)
@@ -569,7 +605,7 @@ export default function ProfilePage() {
             {quota?.isActive !== false && (
               <button
                 onClick={handleCheckIn}
-                disabled={checkInLoading || checkInStatusLoading || checkedIn === null}
+                disabled={checkInLoading || checkInStatusLoading || checkedIn === null || checkedIn}
                 className={`absolute right-5 top-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium text-white transition ${
                   checkedIn
                     ? 'border-white/30 bg-white/10 cursor-not-allowed opacity-60'
@@ -577,7 +613,7 @@ export default function ProfilePage() {
                 } ${checkInLoading || checkInStatusLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title={checkedIn ? '今日已签到' : '点击签到'}
               >
-                {checkInLoading ? (
+                {checkInLoading || checkInStatusLoading ? (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -585,16 +621,16 @@ export default function ProfilePage() {
                 ) : checkedIn ? (
                   <>
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span>已签到</span>
+                    <span>今日已签</span>
                   </>
                 ) : (
                   <>
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.7 2.288a1 1 0 01.6 0l7 2.333A1 1 0 0120 5.567v6.933c0 3.831-2.82 7.612-8.423 11.334a1 1 0 01-1.154 0C4.82 20.112 2 16.33 2 12.5V5.567a1 1 0 01.7-.946l7-2.333z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span>签到</span>
+                    <span>每日签到</span>
                   </>
                 )}
               </button>
@@ -1085,7 +1121,7 @@ export default function ProfilePage() {
       )}
 
       {/* 签到成功弹窗 */}
-      {showCheckInModal && checkInResult && (
+      {showCheckInModal && checkInResult && checkInResult.points > 0 && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 relative">
             <button
