@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { userGeneratedImages, user } from '@/db/schema'
-import { desc, or, isNull, inArray, eq } from 'drizzle-orm'
+import { desc, or, and, isNull, inArray, eq, notInArray } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 
@@ -9,6 +9,7 @@ import { headers } from 'next/headers'
  * 获取社区展示图片
  * 从最近100张用户生成的图片中随机选择12张
  * 过滤掉管理员和付费用户的内容
+ * 排除图生图模型（Qwen-Image-Edit、Flux-Kontext）
  * 
  * 访问控制：
  * - 如果环境变量 COMMUNITY_IMAGES_PUBLIC 为 true，则对所有用户开放
@@ -58,6 +59,9 @@ export async function GET() {
     // 获取最近100张图片（按创建时间降序）
     // 通过 user_generated_images 表中的 userRole 字段过滤掉管理员和付费用户
     // 只选择：premium（优质用户）、oldUser（首批用户）、regular（普通用户）或 null（旧数据）
+    // 排除图生图模型：Qwen-Image-Edit、Flux-Kontext
+    const i2iModels = ['Qwen-Image-Edit', 'Flux-Kontext'] // 图生图模型列表
+    
     const recentImages = await db
       .select({
         id: userGeneratedImages.id,
@@ -71,11 +75,17 @@ export async function GET() {
       })
       .from(userGeneratedImages)
       .where(
-        or(
-          // 允许的角色：premium（优质用户）、oldUser（首批用户）、regular（普通用户）
-          inArray(userGeneratedImages.userRole, ['premium', 'oldUser', 'regular']),
-          // 兼容旧数据（userRole 为 null 的情况，可能是旧数据）
-          isNull(userGeneratedImages.userRole)
+        and(
+          // 允许的角色：premium（优质用户）、oldUser（首批用户）、regular（普通用户）或 null（旧数据）
+          or(
+            inArray(userGeneratedImages.userRole, ['premium', 'oldUser', 'regular']),
+            isNull(userGeneratedImages.userRole)
+          ),
+          // 排除图生图模型
+          or(
+            notInArray(userGeneratedImages.model, i2iModels),
+            isNull(userGeneratedImages.model)
+          )
         )
       )
       .orderBy(desc(userGeneratedImages.createdAt))

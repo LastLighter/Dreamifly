@@ -69,7 +69,7 @@ const PromptInput = ({
     };
   }, [isStyleOpen, isRatioOpen]);
 
-  const ratios = ['10:3', '16:9', '3:2', '1:1', '2:3', '9:16'];
+  const ratios = ['10:3', '16:9', '3:2', '5:4', '1:1', '4:5', '2:3', '9:16'];
 
   return (
     <div>
