@@ -115,7 +115,8 @@
         "styleButton": "Style",
         "tabs": {
           "generate": "Image Generation",
-          "styleTransfer": "Style Transfer"
+          "styleTransfer": "Style Transfer",
+          "videoGeneration": "Video Generation"
         },
         "styleTransfer": {
           "title": "Style Transfer",
@@ -135,6 +136,10 @@
             "puppet": "Puppet",
             "emoji": "Emoji Icon"
           }
+        },
+        "videoGeneration": {
+          "title": "Video Generation",
+          "message": "Coming soon, stay tuned"
         },
         "progress": {
           "title": "Generation Progress",

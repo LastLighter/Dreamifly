@@ -115,7 +115,8 @@
         "styleButton": "风格",
         "tabs": {
           "generate": "图片生成",
-          "styleTransfer": "风格转换"
+          "styleTransfer": "风格转换",
+          "videoGeneration": "视频生成"
         },
         "styleTransfer": {
           "title": "风格转换",
@@ -135,6 +136,10 @@
             "puppet": "布偶风格",
             "emoji": "Emoji图标风格"
           }
+        },
+        "videoGeneration": {
+          "title": "视频生成",
+          "message": "正在开发中，敬请期待"
         },
         "progress": {
           "title": "生成进度",
