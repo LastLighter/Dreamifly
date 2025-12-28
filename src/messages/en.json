@@ -48,6 +48,8 @@
         },
         "negativePrompt": "Negative Prompt",
         "negativePromptPlaceholder": "Describe what you don't want to see (optional)",
+        "estimatedCost": "Estimated Cost",
+        "points": "points",
         "upload": {
           "label": "Upload Reference Image (Optional)",
           "clickOrDrag": "Click or drag to upload",
@@ -150,7 +152,8 @@
           "promptPlaceholder": "Describe the video effect you want, e.g., make the character move, add background animation, etc.",
           "generateButton": "Generate Video",
           "resolution": "Resolution",
-          "aspectRatio": "Aspect Ratio"
+          "aspectRatio": "Aspect Ratio",
+          "videoPreviewTitle": "Generated Video"
         },
         "progress": {
           "title": "Generation Progress",

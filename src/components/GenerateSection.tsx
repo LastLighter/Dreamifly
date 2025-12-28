@@ -75,6 +75,13 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorType, setErrorType] = useState<'concurrency' | 'daily_limit' | 'insufficient_points'>('concurrency');
   const [showLoginTip, setShowLoginTip] = useState(false);
+
+  // 关闭错误模态框
+  const closeErrorModal = () => {
+    setShowErrorModal(false);
+    setConcurrencyError(null);
+    setErrorType('concurrency');
+  };
   
   // 要设置为参考图片的生成图片 URL
   const [generatedImageToSetAsReference, setGeneratedImageToSetAsReference] = useState<string | null>(null);
@@ -891,7 +898,10 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                         setErrorModal={(show, type, message) => {
                           setShowErrorModal(show)
                           setErrorType(type as any)
-                          // 可以设置自定义错误消息
+                          // 对于积分不足错误，设置自定义错误消息
+                          if (type === 'insufficient_points' && message) {
+                            setConcurrencyError(message)
+                          }
                         }}
                       />
                     </div>
@@ -900,13 +910,37 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                   {/* 视频预览 */}
                   {generatedVideo && (
                     <div className="mt-8">
-                      <GeneratePreview
-                        images={[]}
-                        videos={[generatedVideo]}
-                        onSetAsReference={() => {}}
-                        onPreview={(url) => setZoomedImage(url)}
-                        onClose={() => setGeneratedVideo(null)}
-                      />
+                      <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-6 border border-orange-400/40">
+                        <div className="absolute inset-0 bg-gradient-to-br from-orange-100/10 to-amber-100/10 rounded-3xl"></div>
+                        <div className="relative">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                            <svg className="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l.707.707A1 1 0 0012.414 11H15m-3-3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {tVideo('videoPreviewTitle')}
+                          </h3>
+                          <div className="flex justify-center">
+                            <video
+                              src={generatedVideo}
+                              controls
+                              className="max-w-full max-h-96 rounded-xl shadow-lg border border-orange-400/30"
+                              onError={(e) => {
+                                console.error('Video load error:', e);
+                              }}
+                            >
+                              您的浏览器不支持视频播放。
+                            </video>
+                          </div>
+                          <div className="flex justify-center mt-4">
+                            <button
+                              onClick={() => setGeneratedVideo(null)}
+                              className="px-6 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-colors"
+                            >
+                              {t('form.close')}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -930,11 +964,11 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
         </div>
       </div>
 
-      {/* 错误模态框（并发限制或每日限额） */}
-      {showErrorModal && concurrencyError && (
+      {/* 错误模态框（并发限制、每日限额或积分不足） */}
+      {showErrorModal && (concurrencyError || errorType === 'insufficient_points') && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeInUp"
-          onClick={() => setShowErrorModal(false)}
+          onClick={closeErrorModal}
         >
           <div
             className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scaleIn"
@@ -987,13 +1021,13 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
               <div className="flex flex-col gap-3">
                 <Link
                   href={transferUrl('/pricing', locale)}
-                  onClick={() => setShowErrorModal(false)}
+                  onClick={closeErrorModal}
                   className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl text-center"
                 >
                   前往订阅会员
                 </Link>
                 <button
-                  onClick={() => setShowErrorModal(false)}
+                  onClick={closeErrorModal}
                   className="w-full px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-300 transition-all duration-300"
                 >
                   我知道了
@@ -1001,7 +1035,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
               </div>
             ) : (
               <button
-                onClick={() => setShowErrorModal(false)}
+                onClick={closeErrorModal}
                 className="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 shadow-lg hover:shadow-xl"
               >
                 我知道了

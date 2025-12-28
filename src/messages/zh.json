@@ -48,6 +48,8 @@
         },
         "negativePrompt": "负面提示词",
         "negativePromptPlaceholder": "描述你不想看到的内容（可选）",
+        "estimatedCost": "预估消耗",
+        "points": "积分",
         "upload": {
           "label": "上传参考图片（可选）",
           "clickOrDrag": "点击或拖拽上传",
@@ -150,7 +152,8 @@
           "promptPlaceholder": "描述你想要的视频效果，例如：让人物动起来，添加背景动画等",
           "generateButton": "生成视频",
           "resolution": "分辨率",
-          "aspectRatio": "宽高比"
+          "aspectRatio": "宽高比",
+          "videoPreviewTitle": "生成的视频"
         },
         "progress": {
           "title": "生成进度",

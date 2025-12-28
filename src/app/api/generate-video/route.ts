@@ -6,7 +6,7 @@ import { headers } from 'next/headers'
 import { createHash } from 'crypto'
 import { getModelBaseCost, checkPointsSufficient, deductPoints, getPointsBalance } from '@/utils/points'
 import { db } from '@/db'
-import { siteStats } from '@/db/schema'
+import { siteStats, user } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
 
 /**
@@ -86,6 +86,15 @@ export async function POST(request: Request) {
 
     const userId = session.user.id
 
+    // 检查管理员权限
+    const currentUser = await db
+      .select({ isAdmin: user.isAdmin })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    const isAdmin = currentUser.length > 0 && currentUser[0].isAdmin;
+
     // 解析请求体
     const body = await request.json()
     const { prompt, width, height, aspectRatio, length, fps, seed, steps, model, image, negative_prompt } = body
@@ -134,55 +143,58 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '图像到视频生成需要输入图片' }, { status: 400 })
     }
 
-    // 获取模型基础积分消耗
-    const baseCost = await getModelBaseCost(model);
-    
-    if (baseCost === null) {
-      return NextResponse.json({ 
-        error: `视频模型 ${model} 未配置积分消耗` 
-      }, { status: 400 });
-    }
-    
-    // 视频生成固定消耗基础积分（不根据分辨率或步数变化）
-    const pointsCost = baseCost;
-    
-    // 检查积分是否足够
-    const hasEnoughPoints = await checkPointsSufficient(userId, pointsCost);
-    
-    if (!hasEnoughPoints) {
-      const currentBalance = await getPointsBalance(userId);
-      return NextResponse.json({
-        error: `积分不足。本次生成需要消耗 ${pointsCost} 积分，但您的积分余额不足（当前余额：${currentBalance} 积分）。`,
-        code: 'INSUFFICIENT_POINTS',
-        requiredPoints: pointsCost,
-        currentBalance: currentBalance
-      }, { status: 402 }); // 402 Payment Required
-    }
-    
-    // 扣除积分
-    const deductSuccess = await deductPoints(
-      userId,
-      pointsCost,
-      `视频生成 - ${model} (分辨率: ${finalWidth}x${finalHeight}, 长度: ${length || modelConfig.defaultLength || 100}帧)`
-    );
-    
-    if (!deductSuccess) {
-      // 再次检查积分余额，判断是积分不足还是其他错误
-      const currentBalance = await getPointsBalance(userId);
-      if (currentBalance < pointsCost) {
-        // 积分不足
+    // 管理员不需要积分检查和扣除
+    if (!isAdmin) {
+      // 获取模型基础积分消耗
+      const baseCost = await getModelBaseCost(model);
+
+      if (baseCost === null) {
+        return NextResponse.json({
+          error: `视频模型 ${model} 未配置积分消耗`
+        }, { status: 400 });
+      }
+
+      // 视频生成固定消耗基础积分（不根据分辨率或步数变化）
+      const pointsCost = baseCost;
+
+      // 检查积分是否足够
+      const hasEnoughPoints = await checkPointsSufficient(userId, pointsCost);
+
+      if (!hasEnoughPoints) {
+        const currentBalance = await getPointsBalance(userId);
         return NextResponse.json({
           error: `积分不足。本次生成需要消耗 ${pointsCost} 积分，但您的积分余额不足（当前余额：${currentBalance} 积分）。`,
           code: 'INSUFFICIENT_POINTS',
           requiredPoints: pointsCost,
           currentBalance: currentBalance
         }, { status: 402 }); // 402 Payment Required
-      } else {
-        // 其他错误（如数据库错误）
-        return NextResponse.json({
-          error: '积分扣除失败，请稍后重试',
-          code: 'POINTS_DEDUCTION_FAILED'
-        }, { status: 500 });
+      }
+
+      // 扣除积分
+      const deductSuccess = await deductPoints(
+        userId,
+        pointsCost,
+        `视频生成 - ${model} (分辨率: ${finalWidth}x${finalHeight}, 长度: ${length || modelConfig.defaultLength || 100}帧)`
+      );
+
+      if (!deductSuccess) {
+        // 再次检查积分余额，判断是积分不足还是其他错误
+        const currentBalance = await getPointsBalance(userId);
+        if (currentBalance < pointsCost) {
+          // 积分不足
+          return NextResponse.json({
+            error: `积分不足。本次生成需要消耗 ${pointsCost} 积分，但您的积分余额不足（当前余额：${currentBalance} 积分）。`,
+            code: 'INSUFFICIENT_POINTS',
+            requiredPoints: pointsCost,
+            currentBalance: currentBalance
+          }, { status: 402 }); // 402 Payment Required
+        } else {
+          // 其他错误（如数据库错误）
+          return NextResponse.json({
+            error: '积分扣除失败，请稍后重试',
+            code: 'POINTS_DEDUCTION_FAILED'
+          }, { status: 500 });
+        }
       }
     }
 
