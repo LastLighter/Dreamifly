@@ -183,6 +183,7 @@ export const pointsConfig = pgTable("points_config", {
   zImageTurboCost: integer("z_image_turbo_cost"), // Z-Image-Turbo模型积分消耗，null表示使用环境变量
   qwenImageEditCost: integer("qwen_image_edit_cost"), // Qwen-Image-Edit模型积分消耗，null表示使用环境变量
   waiSdxlV150Cost: integer("wai_sdxl_v150_cost"), // Wai-SDXL-V150模型积分消耗，null表示使用环境变量
+  wanVideoCost: integer("wan_video_cost"), // Wan视频模型积分消耗，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

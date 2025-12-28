@@ -46,6 +46,8 @@
           "label": "Prompt",
           "placeholder": "Describe what you want to see (English recommended, Chinese only supported by HiDream model)..."
         },
+        "negativePrompt": "Negative Prompt",
+        "negativePromptPlaceholder": "Describe what you don't want to see (optional)",
         "upload": {
           "label": "Upload Reference Image (Optional)",
           "clickOrDrag": "Click or drag to upload",
@@ -64,6 +66,8 @@
           "label": "Height",
           "hint": "Image height (64-1920, multiples of 8)"
         },
+        "aspectRatio": "Aspect Ratio",
+        "resolution": "Resolution",
         "model": {
           "label": "Model",
           "hint": "Select the AI model to use",
@@ -138,8 +142,15 @@
           }
         },
         "videoGeneration": {
-          "title": "Video Generation",
-          "message": "Coming soon, stay tuned"
+          "inputImage": "Input Image",
+          "uploadImageHint": "Upload an image and the system will generate a video based on it",
+          "selectImage": "Select Image",
+          "imageRequired": "Please upload an image first",
+          "loginRequired": "Please log in to use video generation feature",
+          "promptPlaceholder": "Describe the video effect you want, e.g., make the character move, add background animation, etc.",
+          "generateButton": "Generate Video",
+          "resolution": "Resolution",
+          "aspectRatio": "Aspect Ratio"
         },
         "progress": {
           "title": "Generation Progress",

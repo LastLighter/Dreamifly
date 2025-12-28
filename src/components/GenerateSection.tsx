@@ -5,6 +5,7 @@ import Link from 'next/link'
 import GenerateForm from './GenerateForm'
 import GeneratePreview from './GeneratePreview'
 import StyleTransferForm from './StyleTransferForm'
+import VideoGenerateForm from './VideoGenerateForm'
 import TabNavigation from './TabNavigation'
 import PromptInput from './PromptInput'
 import { optimizePrompt } from '../utils/promptOptimizer'
@@ -51,6 +52,17 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'generate' | 'video-generation'>('generate');
+  // 视频生成相关状态
+  const [videoPrompt, setVideoPrompt] = useState('');
+  const [videoNegativePrompt, setVideoNegativePrompt] = useState('');
+  const [videoWidth, setVideoWidth] = useState(1280);
+  const [videoHeight, setVideoHeight] = useState(720);
+  const [videoAspectRatio, setVideoAspectRatio] = useState(16/9);
+  const [videoModel, setVideoModel] = useState('Wan2.2-I2V-Lightning');
+  const [uploadedVideoImage, setUploadedVideoImage] = useState<string | null>(null);
+  const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
+  const [isVideoGenerating, setIsVideoGenerating] = useState(false);
+  const [isVideoQueuing, setIsVideoQueuing] = useState(false);
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const [stepsError, setStepsError] = useState<string | null>(null);
   const [batchSizeError, setBatchSizeError] = useState<string | null>(null);
@@ -851,23 +863,52 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                   <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl lg:p-8 p-6 border border-orange-400/40">
                     <div className="absolute inset-0 bg-gradient-to-br from-orange-100/10 to-amber-100/10 rounded-3xl"></div>
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(249,115,22,0.1),rgba(255,255,255,0))] shadow-orange-400/20"></div>
-                    <div className="relative flex flex-col items-center justify-center py-16">
-                      <div className="text-center">
-                        <div className="mb-6">
-                          <svg className="w-20 h-20 mx-auto text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                          {t('form.videoGeneration.title')}
-                        </h3>
-                        <p className="text-gray-600 text-lg">
-                          {t('form.videoGeneration.message')}
-                        </p>
-                      </div>
+                    <div className="relative">
+                      <VideoGenerateForm
+                        prompt={videoPrompt}
+                        setPrompt={setVideoPrompt}
+                        negativePrompt={videoNegativePrompt}
+                        setNegativePrompt={setVideoNegativePrompt}
+                        width={videoWidth}
+                        setWidth={setVideoWidth}
+                        height={videoHeight}
+                        setHeight={setVideoHeight}
+                        aspectRatio={videoAspectRatio}
+                        setAspectRatio={setVideoAspectRatio}
+                        model={videoModel}
+                        setModel={setVideoModel}
+                        uploadedImage={uploadedVideoImage}
+                        setUploadedImage={setUploadedVideoImage}
+                        generatedVideo={generatedVideo}
+                        setGeneratedVideo={setGeneratedVideo}
+                        isGenerating={isVideoGenerating}
+                        setIsGenerating={setIsVideoGenerating}
+                        isQueuing={isVideoQueuing}
+                        setIsQueuing={setIsVideoQueuing}
+                        onGenerate={(videoUrl) => {
+                          // 可以在这里添加生成成功后的逻辑
+                        }}
+                        setErrorModal={(show, type, message) => {
+                          setShowErrorModal(show)
+                          setErrorType(type as any)
+                          // 可以设置自定义错误消息
+                        }}
+                      />
                     </div>
                   </div>
+
+                  {/* 视频预览 */}
+                  {generatedVideo && (
+                    <div className="mt-8">
+                      <GeneratePreview
+                        images={[]}
+                        videos={[generatedVideo]}
+                        onSetAsReference={() => {}}
+                        onPreview={(url) => setZoomedImage(url)}
+                        onClose={() => setGeneratedVideo(null)}
+                      />
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>

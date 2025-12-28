@@ -28,6 +28,7 @@ export async function getPointsConfig() {
   const envZImageTurboCost = parseInt(process.env.Z_IMAGE_TURBO_COST || '3', 10);
   const envQwenImageEditCost = parseInt(process.env.QWEN_IMAGE_EDIT_COST || '4', 10);
   const envWaiSdxlV150Cost = parseInt(process.env.WAI_SDXL_V150_COST || '2', 10);
+  const envWanVideoCost = parseInt(process.env.WAN_VIDEO_COST || '150', 10);
 
   return {
     regularUserDailyPoints: configData?.regularUserDailyPoints ?? envRegularPoints,
@@ -38,6 +39,7 @@ export async function getPointsConfig() {
     zImageTurboCost: configData?.zImageTurboCost ?? envZImageTurboCost,
     qwenImageEditCost: configData?.qwenImageEditCost ?? envQwenImageEditCost,
     waiSdxlV150Cost: configData?.waiSdxlV150Cost ?? envWaiSdxlV150Cost,
+    wanVideoCost: configData?.wanVideoCost ?? envWanVideoCost,
   };
 }
 
@@ -83,6 +85,8 @@ export async function getModelBaseCost(modelId: string): Promise<number | null> 
       return config.qwenImageEditCost;
     case 'Wai-SDXL-V150':
       return config.waiSdxlV150Cost;
+    case 'Wan2.2-I2V-Lightning':
+      return config.wanVideoCost;
     default:
       return null; // 其他模型未配置积分消耗
   }

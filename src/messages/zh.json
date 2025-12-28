@@ -46,6 +46,8 @@
           "label": "提示词",
           "placeholder": "描述你想看到的内容（推荐使用英文）"
         },
+        "negativePrompt": "负面提示词",
+        "negativePromptPlaceholder": "描述你不想看到的内容（可选）",
         "upload": {
           "label": "上传参考图片（可选）",
           "clickOrDrag": "点击或拖拽上传",
@@ -64,6 +66,8 @@
           "label": "高度",
           "hint": "图片高度（64-1920，8的倍数）"
         },
+        "aspectRatio": "宽高比",
+        "resolution": "分辨率",
         "model": {
           "label": "模型",
           "hint": "选择要使用的AI模型",
@@ -138,8 +142,15 @@
           }
         },
         "videoGeneration": {
-          "title": "视频生成",
-          "message": "正在开发中，敬请期待"
+          "inputImage": "输入图片",
+          "uploadImageHint": "上传一张图片，系统将基于此图片生成视频",
+          "selectImage": "选择图片",
+          "imageRequired": "请先上传一张图片",
+          "loginRequired": "请先登录后再使用视频生成功能",
+          "promptPlaceholder": "描述你想要的视频效果，例如：让人物动起来，添加背景动画等",
+          "generateButton": "生成视频",
+          "resolution": "分辨率",
+          "aspectRatio": "宽高比"
         },
         "progress": {
           "title": "生成进度",
