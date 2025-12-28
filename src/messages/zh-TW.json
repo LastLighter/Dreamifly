@@ -153,7 +153,8 @@
           }
         },
         "generating": "正在生成...",
-        "finalizing": "正在完成..."
+        "finalizing": "正在完成...",
+        "close": "關閉"
       },
       "preview": {
         "title": "預覽",

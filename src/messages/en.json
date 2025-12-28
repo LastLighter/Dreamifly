@@ -167,7 +167,8 @@
           }
         },
         "generating": "Generating...",
-        "finalizing": "Finalizing..."
+        "finalizing": "Finalizing...",
+        "close": "Close"
       },
       "preview": {
         "title": "Preview",
