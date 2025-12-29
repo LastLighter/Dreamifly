@@ -54,37 +54,45 @@ function validateDynamicToken(providedToken: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const requestId = Math.random().toString(36).substring(7);
+  const totalStartTime = Date.now();
+  
+  console.log(`[视频生成API] [${requestId}] 收到请求 - 时间: ${new Date().toISOString()}`);
+  
   try {
-    const totalStartTime = Date.now()
-    
     // 验证认证头
-    const authHeader = request.headers.get('Authorization')
+    const authHeader = request.headers.get('Authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Missing or invalid Authorization header' }, { status: 401 })
+      console.error(`[视频生成API] [${requestId}] 认证头缺失或无效`);
+      return NextResponse.json({ error: 'Missing or invalid Authorization header' }, { status: 401 });
     }
     
-    const providedToken = authHeader.substring(7) // 移除 "Bearer " 前缀
+    const providedToken = authHeader.substring(7); // 移除 "Bearer " 前缀
     
     // 验证动态token（支持±1分钟时间窗口）
     if (!validateDynamicToken(providedToken)) {
-      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+      console.error(`[视频生成API] [${requestId}] Token验证失败`);
+      return NextResponse.json({ error: 'Invalid API key' }, { status: 401 });
     }
+    console.log(`[视频生成API] [${requestId}] Token验证通过`);
 
     // 检查用户是否已登录
     const session = await auth.api.getSession({
       headers: await headers()
-    })
+    });
     
     // 未登录用户无法调用
     if (!session?.user) {
+      console.error(`[视频生成API] [${requestId}] 用户未登录`);
       return NextResponse.json({ 
         error: '请登录后再使用视频生成功能',
         code: 'LOGIN_REQUIRED'
-      }, { status: 401 })
+      }, { status: 401 });
     }
 
-    const userId = session.user.id
+    const userId = session.user.id;
+    console.log(`[视频生成API] [${requestId}] 用户ID: ${userId}`);
 
     // 检查管理员权限
     const currentUser = await db
@@ -96,14 +104,31 @@ export async function POST(request: Request) {
     const isAdmin = currentUser.length > 0 && currentUser[0].isAdmin;
 
     // 解析请求体
-    const body = await request.json()
-    const { prompt, width, height, aspectRatio, length, fps, seed, steps, model, image, negative_prompt } = body
+    const body = await request.json();
+    const { prompt, width, height, aspectRatio, length, fps, seed, steps, model, image, negative_prompt } = body;
+    
+    console.log(`[视频生成API] [${requestId}] 请求参数:`, {
+      model,
+      width,
+      height,
+      aspectRatio,
+      length,
+      fps,
+      steps,
+      seed,
+      hasImage: !!image,
+      imageSize: image ? image.length : 0,
+      promptLength: prompt?.length || 0,
+      hasNegativePrompt: !!negative_prompt,
+    });
     
     // 验证模型是否存在
     const modelConfig = getVideoModelById(model);
     if (!modelConfig) {
-      return NextResponse.json({ error: '视频模型不存在' }, { status: 400 })
+      console.error(`[视频生成API] [${requestId}] 模型不存在: ${model}`);
+      return NextResponse.json({ error: '视频模型不存在' }, { status: 400 });
     }
+    console.log(`[视频生成API] [${requestId}] 模型配置验证通过: ${model}`);
     
     // 计算分辨率（如果提供了aspectRatio，使用比例计算；否则使用提供的width和height）
     let finalWidth = width;
@@ -145,10 +170,13 @@ export async function POST(request: Request) {
 
     // 管理员不需要积分检查和扣除
     if (!isAdmin) {
+      console.log(`[视频生成API] [${requestId}] 开始积分检查 (非管理员)`);
+      
       // 获取模型基础积分消耗
       const baseCost = await getModelBaseCost(model);
 
       if (baseCost === null) {
+        console.error(`[视频生成API] [${requestId}] 模型未配置积分消耗: ${model}`);
         return NextResponse.json({
           error: `视频模型 ${model} 未配置积分消耗`
         }, { status: 400 });
@@ -156,12 +184,17 @@ export async function POST(request: Request) {
 
       // 视频生成固定消耗基础积分（不根据分辨率或步数变化）
       const pointsCost = baseCost;
+      console.log(`[视频生成API] [${requestId}] 积分消耗: ${pointsCost}`);
 
       // 检查积分是否足够
       const hasEnoughPoints = await checkPointsSufficient(userId, pointsCost);
 
       if (!hasEnoughPoints) {
         const currentBalance = await getPointsBalance(userId);
+        console.error(`[视频生成API] [${requestId}] 积分不足:`, {
+          required: pointsCost,
+          current: currentBalance,
+        });
         return NextResponse.json({
           error: `积分不足。本次生成需要消耗 ${pointsCost} 积分，但您的积分余额不足（当前余额：${currentBalance} 积分）。`,
           code: 'INSUFFICIENT_POINTS',
@@ -171,17 +204,24 @@ export async function POST(request: Request) {
       }
 
       // 扣除积分
+      const deductStartTime = Date.now();
       const deductSuccess = await deductPoints(
         userId,
         pointsCost,
         `视频生成 - ${model} (分辨率: ${finalWidth}x${finalHeight}, 长度: ${length || modelConfig.defaultLength || 100}帧)`
       );
+      const deductDuration = Date.now() - deductStartTime;
+      console.log(`[视频生成API] [${requestId}] 积分扣除${deductSuccess ? '成功' : '失败'} - 耗时: ${deductDuration}ms`);
 
       if (!deductSuccess) {
         // 再次检查积分余额，判断是积分不足还是其他错误
         const currentBalance = await getPointsBalance(userId);
         if (currentBalance < pointsCost) {
           // 积分不足
+          console.error(`[视频生成API] [${requestId}] 积分扣除失败 - 余额不足:`, {
+            required: pointsCost,
+            current: currentBalance,
+          });
           return NextResponse.json({
             error: `积分不足。本次生成需要消耗 ${pointsCost} 积分，但您的积分余额不足（当前余额：${currentBalance} 积分）。`,
             code: 'INSUFFICIENT_POINTS',
@@ -190,16 +230,22 @@ export async function POST(request: Request) {
           }, { status: 402 }); // 402 Payment Required
         } else {
           // 其他错误（如数据库错误）
+          console.error(`[视频生成API] [${requestId}] 积分扣除失败 - 其他错误`);
           return NextResponse.json({
             error: '积分扣除失败，请稍后重试',
             code: 'POINTS_DEDUCTION_FAILED'
           }, { status: 500 });
         }
       }
+    } else {
+      console.log(`[视频生成API] [${requestId}] 跳过积分检查 (管理员)`);
     }
 
     // 调用视频生成 API
     // 注意：视频生成可能需要较长时间，这里不设置超时限制
+    console.log(`[视频生成API] [${requestId}] 开始调用视频生成服务...`);
+    const generateStartTime = Date.now();
+    
     const videoUrl = await generateVideo({
       prompt,
       width: finalWidth,
@@ -211,10 +257,15 @@ export async function POST(request: Request) {
       model,
       image,
       negative_prompt,
-    })
+    });
+    
+    const generateDuration = Date.now() - generateStartTime;
+    console.log(`[视频生成API] [${requestId}] 视频生成完成 - 耗时: ${generateDuration}ms (${(generateDuration / 1000).toFixed(2)}秒)`);
+    console.log(`[视频生成API] [${requestId}] 视频URL长度: ${videoUrl.length}`);
 
     // 计算总响应时间（秒）
-    const responseTime = (Date.now() - totalStartTime) / 1000
+    const responseTime = (Date.now() - totalStartTime) / 1000;
+    console.log(`[视频生成API] [${requestId}] 总响应时间: ${responseTime.toFixed(2)}秒`);
 
     // 更新统计数据（如果需要）
     try {
@@ -224,24 +275,36 @@ export async function POST(request: Request) {
           dailyGenerations: sql`${siteStats.dailyGenerations} + 1`,
           updatedAt: new Date(),
         })
-        .where(eq(siteStats.id, 1))
+        .where(eq(siteStats.id, 1));
+      console.log(`[视频生成API] [${requestId}] 统计数据更新成功`);
     } catch (error) {
       // 记录统计失败不应该影响主流程
-      console.error('Failed to record video generation stats:', error)
+      console.error(`[视频生成API] [${requestId}] 统计数据更新失败:`, error);
     }
 
     // 返回视频 URL
     return NextResponse.json({ 
       videoUrl,
       responseTime: Math.round(responseTime * 100) / 100 // 保留两位小数
-    })
+    });
   } catch (error) {
-    console.error('Error generating video:', error)
+    const totalDuration = Date.now() - totalStartTime;
+    
+    console.error(`[视频生成API] [${requestId}] 视频生成失败 - 总耗时: ${totalDuration}ms (${(totalDuration / 1000).toFixed(2)}秒)`, {
+      error: error,
+      errorType: error instanceof Error ? error.constructor.name : typeof error,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      requestId: requestId,
+    });
     
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate video' },
+      { 
+        error: error instanceof Error ? error.message : 'Failed to generate video',
+        requestId: requestId, // 返回请求ID以便追踪
+      },
       { status: 500 }
-    )
+    );
   }
 }
 
