@@ -56,6 +56,9 @@
         "randomPrompt": "隨機提示詞",
         "optimizePrompt": "優化提示詞",
         "optimizingPrompt": "優化中...",
+        "promptOptimized": "提示詞優化成功",
+        "promptGenerated": "提示詞生成成功",
+        "optimizingPrompt": "優化中...",
         "width": {
           "label": "寬度",
           "hint": "圖片寬度（64-1920，8的倍數）"
@@ -139,7 +142,8 @@
         },
         "videoGeneration": {
           "title": "視頻生成",
-          "message": "正在開發中，敬請期待"
+          "message": "正在開發中，敬請期待",
+          "imageRequiredForOptimization": "請先上傳參考圖片，以便基於圖片優化提示詞"
         },
         "progress": {
           "title": "生成進度",

@@ -60,6 +60,8 @@
         "randomPrompt": "Random Prompt",
         "optimizePrompt": "Optimize Prompt",
         "optimizingPrompt": "Optimizing...",
+        "promptOptimized": "Prompt optimized successfully",
+        "promptGenerated": "Prompt generated successfully",
         "width": {
           "label": "Width",
           "hint": "Image width (64-1920, multiples of 8)"
@@ -148,6 +150,7 @@
           "uploadImageHint": "Upload an image and the system will generate a video based on it",
           "selectImage": "Select Image",
           "imageRequired": "Please upload an image first",
+          "imageRequiredForOptimization": "Please upload a reference image first to optimize the prompt based on the image",
           "loginRequired": "Please log in to use video generation feature",
           "promptPlaceholder": "Describe the video effect you want, e.g., make the character move, add background animation, etc.",
           "generateButton": "Generate Video",

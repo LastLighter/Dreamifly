@@ -60,6 +60,8 @@
         "randomPrompt": "随机提示词",
         "optimizePrompt": "优化提示词",
         "optimizingPrompt": "优化中...",
+        "promptOptimized": "提示词优化成功",
+        "promptGenerated": "提示词生成成功",
         "width": {
           "label": "宽度",
           "hint": "图片宽度（64-1920，8的倍数）"
@@ -144,6 +146,7 @@
           }
         },
         "videoGeneration": {
+          "imageRequiredForOptimization": "请先上传参考图片，以便基于图片优化提示词",
           "inputImage": "输入图片",
           "uploadImageHint": "上传一张图片，系统将基于此图片生成视频",
           "selectImage": "选择图片",

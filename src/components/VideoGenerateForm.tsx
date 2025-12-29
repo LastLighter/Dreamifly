@@ -10,6 +10,8 @@ import { getVideoModelById, calculateVideoResolution, getAllVideoModels } from '
 import { calculateEstimatedCost } from '@/utils/pointsClient'
 import { getVideoModelBaseCost } from '@/utils/videoModelConfig'
 import { transferUrl } from '@/utils/locale'
+import { optimizeVideoPrompt } from '@/utils/videoPromptOptimizer'
+import Toast from '@/components/Toast'
 
 interface VideoGenerateFormProps {
   prompt: string;
@@ -73,6 +75,8 @@ const VideoGenerateForm = ({
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isNegativePromptEnabled, setIsNegativePromptEnabled] = useState(false)
   const [isRatioOpen, setIsRatioOpen] = useState(false)
+  const [isOptimizing, setIsOptimizing] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'warning' | 'success' | 'info' } | null>(null)
   const ratioDropdownRef = useRef<HTMLDivElement>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -359,6 +363,45 @@ const VideoGenerateForm = ({
     return normalizeRatioToString(aspectRatio)
   }
 
+  // 处理优化提示词
+  const handleOptimizePrompt = async () => {
+    console.log('优化提示词按钮被点击');
+    console.log('当前提示词:', prompt);
+    console.log('当前图片:', uploadedImage ? '已上传' : '未上传');
+    
+    // 如果没有上传图片，优雅提示
+    if (!uploadedImage) {
+      setToast({
+        message: tVideo('imageRequiredForOptimization') || '请先上传参考图片，以便基于图片优化提示词',
+        type: 'info'
+      });
+      return;
+    }
+
+    // 如果没有提示词，则生成新提示词；如果有提示词，则优化现有提示词
+    const hasPrompt = prompt.trim().length > 0;
+    
+    console.log(hasPrompt ? '开始优化提示词...' : '开始生成提示词...');
+    setIsOptimizing(true);
+    try {
+      const optimizedPrompt = await optimizeVideoPrompt(hasPrompt ? prompt : '', uploadedImage);
+      console.log('成功，结果:', optimizedPrompt);
+      setPrompt(optimizedPrompt);
+      setToast({
+        message: hasPrompt ? (t('form.promptOptimized') || '提示词优化成功') : (t('form.promptGenerated') || '提示词生成成功'),
+        type: 'success'
+      });
+    } catch (error) {
+      console.error('Failed to optimize prompt:', error);
+      setToast({
+        message: error instanceof Error ? error.message : (hasPrompt ? '优化提示词失败' : '生成提示词失败'),
+        type: 'error'
+      });
+    } finally {
+      setIsOptimizing(false);
+    }
+  }
+
   return (
     <form onSubmit={(e) => { e.preventDefault(); handleGenerateVideo(); }} className="space-y-8 relative flex flex-col">
       <div className="space-y-8">
@@ -546,6 +589,17 @@ const VideoGenerateForm = ({
                     </div>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={handleOptimizePrompt}
+                  className="px-2 py-1 text-xs md:px-3 md:py-2 md:text-sm rounded-xl bg-white/95 border border-amber-400/40 text-gray-900 hover:bg-amber-50/50 hover:border-amber-400/50 transition-all duration-300 shadow-md shadow-amber-400/10 hover:shadow-lg hover:shadow-amber-400/20 whitespace-nowrap flex items-center"
+                  disabled={isGenerating || isOptimizing || !uploadedImage}
+                >
+                  <svg className="w-3 h-3 mr-1 md:w-4 md:h-4 text-amber-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                  </svg>
+                  {isOptimizing ? t('form.optimizingPrompt') || 'Optimizing...' : t('form.optimizePrompt')}
+                </button>
               </div>
             </div>
           </div>
@@ -654,6 +708,13 @@ const VideoGenerateForm = ({
           </div>
         </div>
       </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </form>
   )
 }
