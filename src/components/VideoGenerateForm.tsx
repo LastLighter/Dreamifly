@@ -71,11 +71,31 @@ const VideoGenerateForm = ({
   const [estimatedCost, setEstimatedCost] = useState<number | null>(null)
   const [showLoginTip, setShowLoginTip] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [isNegativePromptEnabled, setIsNegativePromptEnabled] = useState(false)
+  const [isRatioOpen, setIsRatioOpen] = useState(false)
+  const ratioDropdownRef = useRef<HTMLDivElement>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 用户认证状态
   const authStatus = isPending ? 'loading' : (session?.user ? 'authenticated' : 'unauthenticated')
+
+  // 点击外部关闭宽高比下拉菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ratioDropdownRef.current && !ratioDropdownRef.current.contains(event.target as Node)) {
+        setIsRatioOpen(false)
+      }
+    }
+
+    if (isRatioOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isRatioOpen])
 
   // 加载可用视频模型
   useEffect(() => {
@@ -303,6 +323,42 @@ const VideoGenerateForm = ({
     { value: 9/16, label: '9:16' },
   ]
 
+  // 将数字宽高比转换为字符串格式（如 1.777... -> "16:9"）
+  const normalizeRatioToString = (ratio: number): string => {
+    // 先尝试匹配预设选项
+    const option = aspectRatioOptions.find(opt => Math.abs(opt.value - ratio) < 0.001)
+    if (option) return option.label
+    
+    // 如果不在预设选项中，计算最接近的整数比例
+    // 使用连分数算法找到最接近的整数比例
+    const precision = 0.01
+    let bestNum = 1
+    let bestDen = 1
+    let bestError = Math.abs(ratio - bestNum / bestDen)
+    
+    for (let den = 1; den <= 100; den++) {
+      const num = Math.round(ratio * den)
+      if (num < 1) continue
+      const error = Math.abs(ratio - num / den)
+      if (error < bestError) {
+        bestError = error
+        bestNum = num
+        bestDen = den
+      }
+      if (bestError < precision) break
+    }
+    
+    // 简化分数（找最大公约数）
+    const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
+    const divisor = gcd(bestNum, bestDen)
+    return `${bestNum / divisor}:${bestDen / divisor}`
+  }
+
+  // 获取当前选中的宽高比标签
+  const getCurrentRatioLabel = () => {
+    return normalizeRatioToString(aspectRatio)
+  }
+
   return (
     <form onSubmit={(e) => { e.preventDefault(); handleGenerateVideo(); }} className="space-y-8 relative flex flex-col">
       <div className="space-y-8">
@@ -313,42 +369,56 @@ const VideoGenerateForm = ({
               <img src="/form/image.svg" alt="Image" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
               {tVideo('inputImage')}
             </label>
-            <div className="border-2 border-dashed border-orange-400/40 rounded-xl p-6 text-center hover:border-orange-400 transition-colors bg-white/50 backdrop-blur-sm">
+            <div
+              onClick={() => !uploadedImage && fileInputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                if (!uploadedImage) {
+                  const file = e.dataTransfer.files?.[0]
+                  if (file && file.type.startsWith('image/')) {
+                    const fakeEvent = {
+                      target: { files: [file] }
+                    } as React.ChangeEvent<HTMLInputElement>
+                    handleImageUpload(fakeEvent)
+                  }
+                }
+              }}
+              className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
+                uploadedImage
+                  ? 'border-orange-400/40 bg-white'
+                  : 'border-orange-400/40 bg-white hover:border-orange-400'
+              }`}
+            >
               {!uploadedImage ? (
-                <div>
-                  <svg className="mx-auto h-12 w-12 text-orange-400 mb-4" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                <div className="flex flex-col items-center justify-center">
+                  <svg className="w-16 h-16 text-orange-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <div className="text-sm text-gray-600 mb-4">
-                    {tVideo('uploadImageHint')}
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="image-upload"
-                  />
-                  <label
-                    htmlFor="image-upload"
-                    className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 cursor-pointer transition-all duration-300 transform hover:scale-105 shadow-lg"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    {tVideo('selectImage')}
-                  </label>
+                  <p className="text-sm text-gray-700">
+                    {t('form.upload.clickOrDrag')}
+                  </p>
                 </div>
               ) : (
                 <div className="relative">
                   <img
                     src={`data:image/jpeg;base64,${uploadedImage}`}
                     alt="Uploaded"
-                    className="max-w-full max-h-48 mx-auto rounded-lg shadow-lg border border-orange-400/30"
+                    className="max-w-full max-h-64 mx-auto rounded-lg shadow-lg"
                   />
                   <button
-                    onClick={handleRemoveImage}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRemoveImage()
+                    }}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-all duration-300 transform hover:scale-110 shadow-lg"
                     type="button"
                   >
@@ -358,6 +428,14 @@ const VideoGenerateForm = ({
                   </button>
                 </div>
               )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                id="image-upload"
+              />
             </div>
             {uploadError && (
               <p className="mt-2 text-sm text-red-600">{uploadError}</p>
@@ -387,28 +465,6 @@ const VideoGenerateForm = ({
           </div>
         </div>
 
-        {/* 宽高比设置区域 */}
-        <div className="border-t border-orange-400/40 pt-8">
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-900 mb-3">
-              <img src="/form/aspect-ratio.svg" alt="Aspect Ratio" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-              {t('form.aspectRatio')}
-            </label>
-            <select
-              value={aspectRatio}
-              onChange={(e) => handleAspectRatioChange(parseFloat(e.target.value))}
-              className="w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300"
-              disabled={isGenerating}
-            >
-              {aspectRatioOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
         {/* 提示词区域 */}
         <div className="border-t border-orange-400/40 pt-8">
           <div>
@@ -424,43 +480,119 @@ const VideoGenerateForm = ({
               rows={3}
               disabled={isGenerating}
             />
+            
+            {/* 宽高比选择按钮行 */}
+            <div className="flex flex-col md:flex-row md:justify-between gap-3 items-stretch md:items-center mt-4">
+              <div className="flex gap-2 md:gap-3">
+                <div
+                  onClick={() => !isGenerating && setIsRatioOpen(!isRatioOpen)}
+                  className="px-3 py-1 text-xs md:px-4 md:py-2 md:text-sm rounded-xl bg-white/95 border border-amber-400/40 text-gray-900 hover:bg-amber-50/50 hover:border-amber-400/50 transition-all duration-300 shadow-md shadow-amber-400/10 hover:shadow-lg hover:shadow-amber-400/20 whitespace-nowrap flex items-center relative cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  tabIndex={0}
+                  role="button"
+                  aria-disabled={isGenerating}
+                >
+                  <svg className="w-3 h-3 mr-1 md:w-4 md:h-4 text-orange-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5z"></path>
+                  </svg>
+                  {getCurrentRatioLabel()}
+                  {isRatioOpen && (
+                    <div ref={ratioDropdownRef} className="absolute top-full left-0 mt-2 bg-white/95 border border-amber-400/40 rounded-xl shadow-xl p-2 min-w-[150px] z-50">
+                      {(() => {
+                        // 检查当前比例是否在预设选项中
+                        const currentOption = aspectRatioOptions.find(opt => Math.abs(opt.value - aspectRatio) < 0.001);
+                        const currentLabel = getCurrentRatioLabel();
+                        const showCurrentCustom = !currentOption && currentLabel;
+                        
+                        return (
+                          <>
+                            {/* 如果当前是自定义比例，先显示它 */}
+                            {showCurrentCustom && (
+                              <div
+                                onClick={() => setIsRatioOpen(false)}
+                                className="flex items-center px-3 py-2 text-sm text-gray-900 bg-amber-100/50 w-full rounded-lg cursor-default border border-amber-400/30 mb-1"
+                              >
+                                <div className="bg-amber-400/40 mr-2" style={{
+                                  width: aspectRatio >= 1 ? '20px' : `${Math.round(20 * aspectRatio)}px`,
+                                  height: aspectRatio >= 1 ? `${Math.round(20 / aspectRatio)}px` : '20px'
+                                }}></div>
+                                {currentLabel} (当前)
+                              </div>
+                            )}
+                            {/* 预设选项 */}
+                            {aspectRatioOptions.map((option) => {
+                              const [rw, rh] = option.label.split(':').map(Number);
+                              const isHorizontal = rw >= rh;
+                              const rectWidth = 20;
+                              const rectHeight = isHorizontal ? Math.round(rectWidth * rh / rw) : Math.round(rectWidth * rw / rh);
+                              const rectStyle = isHorizontal ? {width: `${rectWidth}px`, height: `${rectHeight}px`} : {width: `${rectHeight}px`, height: `${rectWidth}px`};
+                              const isSelected = Math.abs(option.value - aspectRatio) < 0.001;
+                              return (
+                                <div
+                                  key={option.value}
+                                  onClick={() => { 
+                                    handleAspectRatioChange(option.value); 
+                                    setIsRatioOpen(false); 
+                                  }}
+                                  className={`flex items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/50 w-full rounded-lg cursor-pointer ${isSelected ? 'bg-amber-100/50' : ''}`}
+                                >
+                                  <div className="bg-amber-400/40 mr-2" style={rectStyle}></div>
+                                  {option.label}
+                                </div>
+                              );
+                            })}
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* 负面提示词区域 */}
-        <div className="border-t border-orange-400/40 pt-8">
+        <div className="pt-4">
           <div>
-            <label className="flex items-center text-sm font-medium text-gray-900 mb-3">
-              <img src="/form/negative.svg" alt="Negative Prompt" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-              {t('form.negativePrompt')}
-            </label>
-            <textarea
-              value={negativePrompt}
-              onChange={(e) => setNegativePrompt(e.target.value)}
-              placeholder={t('form.negativePromptPlaceholder')}
-              className="w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300 resize-none"
-              rows={2}
-              disabled={isGenerating}
-            />
+            <div className="flex items-center justify-between mb-3">
+              <label className="flex items-center text-sm font-medium text-gray-900">
+                <img src="/form/negative.svg" alt="Negative Prompt" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
+                {t('form.negativePrompt')}
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  const newValue = !isNegativePromptEnabled
+                  setIsNegativePromptEnabled(newValue)
+                  if (!newValue) {
+                    // 关闭时清空负面提示词
+                    setNegativePrompt('')
+                  }
+                }}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400/50 focus:ring-offset-2 ${
+                  isNegativePromptEnabled ? 'bg-orange-500' : 'bg-gray-200'
+                }`}
+                disabled={isGenerating}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    isNegativePromptEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {isNegativePromptEnabled && (
+              <textarea
+                value={negativePrompt}
+                onChange={(e) => setNegativePrompt(e.target.value)}
+                placeholder={t('form.negativePromptPlaceholder')}
+                className="w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300 resize-none"
+                rows={2}
+                disabled={isGenerating}
+              />
+            )}
           </div>
         </div>
-
-        {/* 积分消耗显示 */}
-        {estimatedCost !== null && authStatus === 'authenticated' && (
-          <div className="border-t border-orange-400/40 pt-8">
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-4 shadow-inner">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-orange-800 flex items-center">
-                  <img src="/form/points.svg" alt="Points" className="w-4 h-4 mr-2 text-orange-600 [&>path]:fill-current" />
-                  {t('form.estimatedCost')}
-                </span>
-                <span className="text-lg font-bold text-orange-600">
-                  {estimatedCost} {t('form.points')}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* 生成按钮 */}
         <div className="border-t border-orange-400/40 pt-8">
@@ -468,30 +600,55 @@ const VideoGenerateForm = ({
             <button
               type="submit"
               disabled={isGenerating || isQueuing || !prompt.trim() || !uploadedImage || !model}
-              className="px-12 py-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 flex items-center space-x-3"
+              className="relative w-full px-4 py-2 text-sm md:px-6 md:py-3 md:text-base font-semibold rounded-2xl bg-white/95 text-gray-900 hover:bg-amber-50/95 transition-all duration-500 shadow-xl shadow-amber-400/20 hover:shadow-2xl hover:shadow-amber-400/30 hover:-translate-y-0.5 transform border border-amber-400/40 overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isGenerating ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              {/* 高级光效背景 */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-out"></div>
+              
+              {/* 微妙的发光效果 */}
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-400/20 via-transparent to-orange-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              
+              <span className="relative z-10 flex items-center justify-center font-bold">
+                {isGenerating ? (
+                  isQueuing ? (
+                    <>
+                      {/* 排队中 - 黄色时钟图标 */}
+                      <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-amber-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M12 6v6l4 2"></path>
+                        <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {t('form.progress.status.queuing')}
+                    </>
+                  ) : (
+                    <>
+                      {/* 生成中 - 绿色spinner */}
+                      <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-green-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {t('form.generating')}
+                    </>
+                  )
+                ) : (
+                  <>
+                    <svg className="mr-1.5 h-4 w-4 md:mr-2 md:h-5 md:w-5 text-orange-500" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                      <path fill="currentColor" d="M640 224A138.666667 138.666667 0 0 0 778.666667 85.333333h64A138.666667 138.666667 0 0 0 981.333333 224v64A138.666667 138.666667 0 0 0 842.666667 426.666667h-64A138.666667 138.666667 0 0 0 640 288v-64zM170.666667 298.666667a85.333333 85.333333 0 0 1 85.333333-85.333334h298.666667V128H256a170.666667 170.666667 0 0 0-170.666667 170.666667v426.666666a170.666667 170.666667 0 0 0 170.666667 170.666667h512a170.666667 170.666667 0 0 0 170.666667-170.666667v-213.333333h-85.333334v213.333333a85.333333 85.333333 0 0 1-85.333333 85.333334H256a85.333333 85.333333 0 0 1-85.333333-85.333334V298.666667z"></path>
+                    </svg>
+                    {tVideo('generateButton')}
+                  </>
+                )}
+              </span>
+              
+              {/* 预计消耗积分数 - 显示在按钮右下角 */}
+              {estimatedCost !== null && authStatus === 'authenticated' && !isGenerating && !isQueuing && (
+                <div className="absolute bottom-1.5 right-2.5 flex items-center gap-0.5 bg-amber-100/90 px-1.5 py-0.5 rounded-full backdrop-blur-sm border border-amber-300/70 shadow-sm">
+                  <svg className="w-2.5 h-2.5 text-amber-700" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clipRule="evenodd" />
                   </svg>
-                  <span>{t('form.generating')}</span>
-                </>
-              ) : isQueuing ? (
-                <>
-                  <svg className="animate-pulse -ml-1 mr-3 h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>{t('form.queuing')}</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l.707.707A1 1 0 0012.414 11H15m-3-3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>{tVideo('generateButton')}</span>
-                </>
+                  <span className="text-[10px] md:text-xs text-amber-700 font-semibold">{estimatedCost}</span>
+                </div>
               )}
             </button>
           </div>

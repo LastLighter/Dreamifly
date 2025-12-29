@@ -229,4 +229,3 @@ export function generateVideoWorkflow(
 
   return workflow;
 }
-
