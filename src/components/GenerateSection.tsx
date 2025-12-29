@@ -827,11 +827,11 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
         )}
 
         {/* Form and Preview Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start">
-          {/* 左侧表单区域 */}
-          <div className="order-1 lg:order-1 lg:col-span-2 animate-fadeInUp h-fit z-10">
-            <div className="transition-all duration-500 ease-in-out">
-              {activeTab === 'generate' ? (
+        {activeTab === 'generate' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start">
+            {/* 左侧表单区域 */}
+            <div className="order-1 lg:order-1 lg:col-span-2 animate-fadeInUp h-fit z-10">
+              <div className="transition-all duration-500 ease-in-out">
                 <div className="animate-fadeInUp">
                   <GenerateForm
                     width={width}
@@ -865,7 +865,26 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                     setAspectRatio={setAspectRatio}
                   />
                 </div>
-              ) : activeTab === 'video-generation' ? (
+              </div>
+            </div>
+
+            {/* 右侧预览区域 */}
+            <div className="order-2 lg:order-2 lg:col-span-3 animate-fadeInUp animation-delay-200">
+              <GeneratePreview
+                generatedImages={generatedImages}
+                imageStatuses={imageStatuses}
+                batch_size={batch_size}
+                isGenerating={isGenerating}
+                setZoomedImage={setZoomedImage}
+                onSetAsReference={handleSetGeneratedImageAsReference}
+              />
+            </div>
+          </div>
+        ) : activeTab === 'video-generation' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start">
+            {/* 左侧表单区域 - 视频生成使用更大的宽度 */}
+            <div className="order-1 lg:order-1 lg:col-span-3 animate-fadeInUp h-fit z-10">
+              <div className="transition-all duration-500 ease-in-out">
                 <div className="animate-fadeInUp">
                   <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl lg:p-8 p-6 border border-orange-400/40">
                     <div className="absolute inset-0 bg-gradient-to-br from-orange-100/10 to-amber-100/10 rounded-3xl"></div>
@@ -906,62 +925,62 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                       />
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
 
-                  {/* 视频预览 */}
-                  {generatedVideo && (
-                    <div className="mt-8">
-                      <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl p-6 border border-orange-400/40">
-                        <div className="absolute inset-0 bg-gradient-to-br from-orange-100/10 to-amber-100/10 rounded-3xl"></div>
-                        <div className="relative">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg className="w-5 h-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l.707.707A1 1 0 0012.414 11H15m-3-3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {t('form.videoGeneration.videoPreviewTitle')}
-                          </h3>
-                          <div className="flex justify-center">
-                            <video
-                              src={generatedVideo}
-                              controls
-                              className="max-w-full max-h-96 rounded-xl shadow-lg border border-orange-400/30"
-                              onError={(e) => {
-                                console.error('Video load error:', e);
-                              }}
-                            >
-                              您的浏览器不支持视频播放。
-                            </video>
-                          </div>
-                          <div className="flex justify-center mt-4">
-                            <button
-                              onClick={() => setGeneratedVideo(null)}
-                              className="px-6 py-2 bg-gray-500 text-white rounded-xl hover:bg-gray-600 transition-colors"
-                            >
-                              {t('form.close')}
-                            </button>
-                          </div>
-                        </div>
+            {/* 右侧预览区域 */}
+            <div className="order-2 lg:order-2 lg:col-span-2 animate-fadeInUp animation-delay-200">
+              <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl lg:p-8 p-6 border border-orange-400/40">
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-100/10 to-amber-100/10 rounded-3xl"></div>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(249,115,22,0.1),rgba(255,255,255,0))] shadow-orange-400/20"></div>
+                <div className="relative">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <img src="/form/prompt.svg" alt="Preview" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
+                    {t('preview.title')}
+                  </h3>
+                  <div className="w-full aspect-video bg-gray-100/50 rounded-xl border-2 border-dashed border-orange-400/40 flex items-center justify-center min-h-[400px]">
+                    {generatedVideo ? (
+                      <video
+                        src={generatedVideo}
+                        controls
+                        className="w-full h-full rounded-xl shadow-lg border border-orange-400/30 object-contain"
+                        onError={(e) => {
+                          console.error('Video load error:', e);
+                        }}
+                      >
+                        您的浏览器不支持视频播放。
+                      </video>
+                    ) : (
+                      <div className="text-center text-gray-500">
+                        <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        <p className="text-sm">{t('preview.placeholder')}</p>
+                      </div>
+                    )}
+                  </div>
+                  {isVideoGenerating && (
+                    <div className="mt-4 text-center">
+                      <div className="inline-flex items-center px-4 py-2 bg-orange-50 rounded-lg">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-sm text-orange-700">{t('preview.generating')}</span>
                       </div>
                     </div>
                   )}
+                  {generatedVideo && (
+                    <div className="mt-4 text-center">
+                      <p className="text-xs text-gray-500 mb-2">{t('preview.hint')}</p>
+                    </div>
+                  )}
                 </div>
-              ) : null}
+              </div>
             </div>
           </div>
-
-          {/* 右侧预览区域 - 仅在图片生成tab显示 */}
-          {activeTab === 'generate' && (
-            <div className="order-2 lg:order-2 lg:col-span-3 animate-fadeInUp animation-delay-200">
-              <GeneratePreview
-                generatedImages={generatedImages}
-                imageStatuses={imageStatuses}
-                batch_size={batch_size}
-                isGenerating={isGenerating}
-                setZoomedImage={setZoomedImage}
-                onSetAsReference={handleSetGeneratedImageAsReference}
-              />
-            </div>
-          )}
-        </div>
+        ) : null}
       </div>
 
       {/* 错误模态框（并发限制、每日限额或积分不足） */}

@@ -387,37 +387,25 @@ const VideoGenerateForm = ({
           </div>
         </div>
 
-        {/* 分辨率设置区域 */}
+        {/* 宽高比设置区域 */}
         <div className="border-t border-orange-400/40 pt-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="flex items-center text-sm font-medium text-gray-900 mb-3">
-                <img src="/form/aspect-ratio.svg" alt="Aspect Ratio" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-                {t('form.aspectRatio')}
-              </label>
-              <select
-                value={aspectRatio}
-                onChange={(e) => handleAspectRatioChange(parseFloat(e.target.value))}
-                className="w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300"
-                disabled={isGenerating}
-              >
-                {aspectRatioOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="flex items-center text-sm font-medium text-gray-900 mb-3">
-                <img src="/form/resolution.svg" alt="Resolution" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-                {t('form.resolution')}
-              </label>
-              <div className="bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-gray-900 shadow-inner">
-                <span className="text-lg font-medium">{width} × {height}</span>
-                <span className="text-sm text-gray-600 ml-2">(720p)</span>
-              </div>
-            </div>
+          <div>
+            <label className="flex items-center text-sm font-medium text-gray-900 mb-3">
+              <img src="/form/aspect-ratio.svg" alt="Aspect Ratio" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
+              {t('form.aspectRatio')}
+            </label>
+            <select
+              value={aspectRatio}
+              onChange={(e) => handleAspectRatioChange(parseFloat(e.target.value))}
+              className="w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300"
+              disabled={isGenerating}
+            >
+              {aspectRatioOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
