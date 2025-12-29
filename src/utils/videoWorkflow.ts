@@ -201,7 +201,8 @@ export function generateVideoWorkflow(
     },
     "71": {
       "inputs": {
-        "image": options.imagePath || ""
+        "image": options.imagePath || "",
+        "upload": "image"
       },
       "class_type": "LoadImage",
       "_meta": {

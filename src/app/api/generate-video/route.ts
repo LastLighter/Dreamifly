@@ -9,6 +9,10 @@ import { db } from '@/db'
 import { siteStats, user } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
 
+// 设置 API 路由最大执行时间为 25 分钟（1500 秒），确保比视频生成超时时间（20 分钟）更长
+// 这样即使需要轮询获取视频，也不会因为 Next.js 的路由超时而失败
+export const maxDuration = 1500 // 25 分钟
+
 /**
  * 验证动态API token
  * 支持±1分钟时间窗口，处理时间边界问题
