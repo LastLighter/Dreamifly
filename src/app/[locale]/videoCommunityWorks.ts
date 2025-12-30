@@ -15,7 +15,7 @@ const videoCommunityWorks = [
         id: 3, 
         image: '/images/video-community/video-demo-3.png', 
         video: '/images/video-community/video-demo-3.mp4',
-        prompt: 'Rain slashes the night market—a scholar clutches his stall\'s collapsing canopy. Then, a white fox shakes itself dry under his eaves, whispering: "Your manuscript bleeds." He looks down: ink blossoms into peach petals across the drowned pages of Strange Tales.' 
+        prompt: '银发黄瞳的动漫少女，身穿白色背心与蓝色牛仔短裤，在温馨室内环境中俏皮地左右摇摆身体，双手轻握拳举至胸前，嘴角带着甜美微笑。画面采用中景镜头，柔和暖光从侧后方打来，发丝与衣物有细腻光泽与自然褶皱，整体风格为日系动漫写实风，动态流畅自然，表情生动可爱，背景虚化突出主体，超高清细节，稳定画面，流畅运动。' 
     },
     { 
         id: 4, 
@@ -33,43 +33,43 @@ const videoCommunityWorks = [
         id: 6, 
         image: '/images/video-community/video-demo-6.png', 
         video: '/images/video-community/video-demo-6.mp4',
-        prompt: 'best quality,a cute anime girl,sunshine,soft features,swing,a blue white edged dress,solo,flower,blue eyes,blush,blue flower,long hair,barefoot,sitting,looking at viewer,blue rose,blue theme,rose,light particles,pale skin,blue background,off shoulder,full body,smile,collarbone,long hair,blue hair,vines,plants,' 
+        prompt: '银发少女跪坐在卧室木地板上，身穿白色短款T恤和破洞牛仔短裤，一手轻抚发丝，一手比出“V”字手势，眼神温柔注视镜头。镜头缓慢环绕拍摄，展现她自然放松的姿态与精致妆容，背景是温馨的居家环境，光线柔和，氛围宁静。超详细、流畅运动、稳定画面。' 
     },
     { 
         id: 7, 
         image: '/images/video-community/video-demo-7.png', 
         video: '/images/video-community/video-demo-7.mp4',
-        prompt: 'The night watchman\'s clapper fades,a gas lamp hisses awake at the curb.The hunchback stirs his wrought-iron pot,herbs swirling like forgotten spells.The usual, croaks a salaryman in a loosened tie.When the broth pours, moonlight catchessomething glimmering at the bottom—half a dragon scale.' 
+        prompt: '银发少女身穿白色衬衫与蓝白格子百褶裙，站在室内柔和光线下，微微侧身，双手轻提裙摆，裙摆随动作自然扬起。镜头缓慢环绕，捕捉她清澈眼神与精致妆容，背景为简约家居环境，整体画面呈现写实风格，细节丰富，动作流畅自然，超高清动态影像。' 
     },
     { 
         id: 8, 
         image: '/images/video-community/video-demo-8.png', 
         video: '/images/video-community/video-demo-8.mp4',
-        prompt: "On a drizzly street, a couple embraces tightly under a transparent umbrella. The girl's hair is gently blown by the wind, while the boy pulls her close. They donu2019t kiss — just gaze into each otheru2019s eyes, as if the whole world has fallen silent." 
+        prompt: "一位紫发少女在卧室中自拍，她身着精致的紫色和服式cosplay服装，头戴蝴蝶发饰，手持淡紫色iPhone手机，镜头前微微一笑。画面从静止开始，镜头缓慢推近，同时她轻轻调整姿势，手指轻抚衣襟，手机轻微晃动，营造自然真实的动态感。背景是简约的白色墙壁和灰色床铺，光线柔和均匀，整体风格写实细腻，画面流畅稳定，细节丰富，色彩饱满。" 
     },
     { 
         id: 9, 
         image: '/images/video-community/video-demo-9.png', 
         video: '/images/video-community/video-demo-9.mp4',
-        prompt: 'On a spring afternoon, cherry blossom petals drift gently through the air. A girl in a sailor uniform stands beneath the sakura tree, hearing familiar footsteps behind her. She turns slightly, her eyes soft and shy, cheeks blushing — as if the whole of spring pauses in that moment.' 
+        prompt: '一个银发红瞳的小恶魔少女，跪坐在洒满阳光的木地板上，身后有白色小恶魔翅膀，头顶黑色小角，身后拖着一条蓬松的白色小恶魔尾巴，尾巴自然摆动，动作轻柔灵动，整体画面温暖治愈，光线柔和，充满动漫风格，超详细，流畅运动，稳定画面。' 
     },
     { 
         id: 10, 
         image: '/images/video-community/video-demo-10.png', 
         video: '/images/video-community/video-demo-10.mp4',
-        prompt: 'Anime-style scene.A cute anime girl in a white dress with long, flowing blue hair stands beneath a blooming sakura tree. Her cheeks are faintly blushed, and her eyes glisten with unshed tears. She gently tucks a fallen cherry blossom into the chest pocket of a boy wearing a dark school uniform. He has neatly combed black hair and a gentle, bittersweet expression. The sky behind them glows with sunset hues, and petals drift slowly through the air.' 
+        prompt: '一位穿着日系校服的少女在操场自拍，微风吹动发丝，她轻抚脸颊，嘴角带着甜美微笑，眼神温柔灵动。画面采用手持自拍视角，镜头轻微晃动，营造自然随性的氛围。背景是红色跑道与绿色草坪，远处有看台和树木，光线柔和，整体风格清新治愈，充满青春活力。视频流畅自然，细节丰富，人物表情生动，动作轻柔可爱，适合青春校园题材。' 
     },
     { 
         id: 11, 
         image: '/images/video-community/video-demo-11.png', 
         video: '/images/video-community/video-demo-11.mp4',
-        prompt: 'Anime-style scene.Under a dazzling summer fireworks display, a silver-haired girl in a pale purple yukata nervously clutches her fan. Her head is slightly lowered, heart visibly racing. Beside her stands a boy in a deep blue male yukata, his short black hair neatly styled. He turns to look at her, fireworks reflected in his calm, expectant eyes — waiting for her to say what\'s in her heart.' 
+        prompt: '雨中古风女侠，身着精致暗纹战甲与半透明长袍，腰佩长剑，湿发垂肩，单膝轻倚石阶，目光冷峻如霜。背景是飞檐斗拱的中式庭院，雨丝斜织，地面水光粼粼，灯笼微光摇曳。镜头缓慢环绕，展现她飒爽英姿与雨中孤傲之美，画面质感超细腻，动态流畅，氛围沉静而充满力量感。' 
     },
     { 
         id: 12, 
         image: '/images/video-community/video-demo-12.png', 
         video: '/images/video-community/video-demo-12.mp4',
-        prompt: 'Anime-style scene, wide aerial view of a fantasy floating city at sunrise, white-stone castle with golden spires in the center, surrounded by floating islands connected by bridges and magical rails, narrow winding streets, red-tiled roofs, soft sunlight piercing through clouds, airships flying in the distance, protective energy shield glowing around the city, cinematic wide shot, reminiscent of Studio Ghibli meets Final Fantasy background art' 
+        prompt: '一位戴眼镜的年轻女学生，身穿白色衬衫与深蓝色百褶裙，安静地倚靠在图书馆窗边书架旁阅读。窗外是秋日校园，金黄落叶飘落，阳光透过玻璃洒在她身上。她手中捧着一本打开的书，面前放着一杯热茶，袅袅热气升起。镜头缓慢推近，聚焦于她专注阅读的侧脸，书页随呼吸轻轻翻动，茶香氤氲，落叶在窗外随风轻舞。画面风格写实温柔，色调温暖柔和，光影自然，细节精致，氛围宁静致远。超详细，流畅运动，稳定画面。' 
     },
 ]
 
