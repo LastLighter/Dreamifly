@@ -1,6 +1,6 @@
 import { db } from '@/db'
 import { userGeneratedImages, user } from '@/db/schema'
-import { eq, asc, and } from 'drizzle-orm'
+import { eq, asc } from 'drizzle-orm'
 import { uploadToOSS, deleteFromOSS } from './oss'
 import { moderateGeneratedVideo } from './videoModeration'
 import { getImageStorageConfig } from './points'

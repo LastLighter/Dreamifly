@@ -11,7 +11,7 @@ import { useAvatar } from '@/contexts/AvatarContext'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
 import { getThumbnailUrl } from '@/utils/oss'
-import { isEncryptedImage, getImageDisplayUrl, getVideoDisplayUrl, getMediaDisplayUrl } from '@/utils/imageDisplay'
+import { isEncryptedImage, getImageDisplayUrl, getVideoDisplayUrl } from '@/utils/imageDisplay'
 import { filterProfanity } from '@/utils/profanityFilter'
 
 type TabType = 'approved' | 'rejected' | 'profanity'
@@ -654,7 +654,7 @@ export default function GodEyePage() {
         try {
           // 根据媒体类型选择解码函数
           const decodedUrl = image.mediaType === 'video'
-            ? await getVideoDisplayUrl(image.imageUrl, decodedApprovedImages, image.mediaType)
+            ? await getVideoDisplayUrl(image.imageUrl, decodedApprovedImages)
             : await getImageDisplayUrl(image.imageUrl, decodedApprovedImages)
           
           if (!cancelled) {
@@ -733,7 +733,7 @@ export default function GodEyePage() {
         if (!decodedApprovedImages[imageUrl]) {
           try {
             const decodedUrl = mediaType === 'video'
-              ? await getVideoDisplayUrl(imageUrl, decodedApprovedImages, mediaType)
+              ? await getVideoDisplayUrl(imageUrl, decodedApprovedImages)
               : await getImageDisplayUrl(imageUrl, decodedApprovedImages)
             setDecodedApprovedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
             setZoomedImage(decodedUrl)
@@ -759,7 +759,7 @@ export default function GodEyePage() {
           // 传入的是原始加密 URL，需要解码
           try {
             const decodedUrl = (image.mediaType === 'video')
-              ? await getVideoDisplayUrl(imageUrl, {}, image.mediaType)
+              ? await getVideoDisplayUrl(imageUrl, {})
               : await getImageDisplayUrl(imageUrl, {})
             setDecodedImages(prev => ({ ...prev, [image.id]: decodedUrl }))
             setZoomedImage(decodedUrl)

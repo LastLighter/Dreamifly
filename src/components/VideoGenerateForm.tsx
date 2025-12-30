@@ -2,14 +2,10 @@
 
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { useTranslations } from 'next-intl'
-import { useParams } from 'next/navigation'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { useSession } from '@/lib/auth-client'
 import { usePoints } from '@/contexts/PointsContext'
-import { getVideoModelById, calculateVideoResolution, getAllVideoModels } from '@/utils/videoModelConfig'
-import { calculateEstimatedCost } from '@/utils/pointsClient'
-import { getVideoModelBaseCost } from '@/utils/videoModelConfig'
-import { transferUrl } from '@/utils/locale'
+import { getVideoModelById, calculateVideoResolution } from '@/utils/videoModelConfig'
 import { optimizeVideoPrompt } from '@/utils/videoPromptOptimizer'
 import Toast from '@/components/Toast'
 
@@ -53,7 +49,8 @@ const VideoGenerateForm = ({
   setModel,
   uploadedImage,
   setUploadedImage,
-  generatedVideo,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  generatedVideo: _generatedVideo,
   setGeneratedVideo,
   isGenerating,
   setIsGenerating,
@@ -66,17 +63,16 @@ const VideoGenerateForm = ({
   const tVideo = useTranslations('home.generate.form.videoGeneration')
   const { data: session, isPending } = useSession()
   const { refreshPoints } = usePoints()
-  const params = useParams()
-  const locale = (params?.locale as string) || 'zh'
 
   const [availableModels, setAvailableModels] = useState<any[]>([])
   const [estimatedCost, setEstimatedCost] = useState<number | null>(null)
-  const [showLoginTip, setShowLoginTip] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isNegativePromptEnabled, setIsNegativePromptEnabled] = useState(false)
   const [isRatioOpen, setIsRatioOpen] = useState(false)
   const [isOptimizing, setIsOptimizing] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'warning' | 'success' | 'info' } | null>(null)
+  const [progress, setProgress] = useState(0)
+  const [estimatedTime, setEstimatedTime] = useState(280) // 预期时间280秒
   const ratioDropdownRef = useRef<HTMLDivElement>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -155,6 +151,62 @@ const VideoGenerateForm = ({
     calculateCost()
   }, [model])
 
+  // 视频生成进度条动画
+  useEffect(() => {
+    let timer: NodeJS.Timeout
+    if (isGenerating && !isQueuing) {
+      // 预期时间280秒
+      const generationTime = 280
+      setEstimatedTime(generationTime)
+      
+      // 进度条动画
+      let currentProgress = 0
+      const startTime = Date.now()
+      
+      timer = setInterval(() => {
+        const currentTime = Date.now()
+        const elapsedTime = (currentTime - startTime) / 1000 // 转换为秒
+        
+        // 计算实际生成的时间比例
+        const timeRatio = elapsedTime / generationTime
+        
+        // 计算目标进度（参考图片生成的进度计算逻辑）
+        let targetProgress
+        if (timeRatio < 0.2) {
+          // 前20%时间快速进展到30%
+          targetProgress = timeRatio * 2 * 30
+        } else if (timeRatio < 0.8) {
+          // 20%-80%时间进展到80%
+          targetProgress = 40 + (timeRatio - 0.2) * (40 / 0.6)
+        } else {
+          // 最后20%时间进展到95%
+          targetProgress = 80 + (timeRatio - 0.8) * (15 / 0.2)
+        }
+        
+        // 平滑过渡到目标进度
+        const maxStep = 0.5 // 每帧最大进度变化
+        const step = Math.min(maxStep, Math.abs(targetProgress - currentProgress))
+        
+        if (targetProgress > currentProgress) {
+          currentProgress = Math.min(95, currentProgress + step)
+        } else {
+          currentProgress = Math.max(currentProgress - step, currentProgress)
+        }
+        
+        setProgress(currentProgress)
+      }, 50) // 更频繁的更新以获得更平滑的动画
+    } else {
+      setProgress(0)
+      setEstimatedTime(280)
+    }
+
+    return () => {
+      if (timer) {
+        clearInterval(timer)
+      }
+    }
+  }, [isGenerating, isQueuing])
+
   // 获取视频模型的基础积分消耗
   const getVideoModelBaseCost = async (modelConfig: any): Promise<number | null> => {
     try {
@@ -203,9 +255,12 @@ const VideoGenerateForm = ({
             setAspectRatio(imageAspectRatio)
 
             // 根据宽高比计算视频分辨率（保持总像素不变）
-            const resolution = calculateVideoResolution(getVideoModelById(model), imageAspectRatio)
-            setWidth(resolution.width)
-            setHeight(resolution.height)
+            const modelConfig = getVideoModelById(model)
+            if (modelConfig) {
+              const resolution = calculateVideoResolution(modelConfig, imageAspectRatio)
+              setWidth(resolution.width)
+              setHeight(resolution.height)
+            }
 
             // 设置上传的图片
             setUploadedImage(base64String)
@@ -256,6 +311,8 @@ const VideoGenerateForm = ({
     setIsGenerating(true)
     setIsQueuing(false)
     setGeneratedVideo(null)
+    setProgress(0)
+    setEstimatedTime(280) // 重置预期时间为280秒
 
     try {
       const token = await generateDynamicTokenWithServerTime()
@@ -447,7 +504,7 @@ const VideoGenerateForm = ({
                   if (file && file.type.startsWith('image/')) {
                     const fakeEvent = {
                       target: { files: [file] }
-                    } as React.ChangeEvent<HTMLInputElement>
+                    } as unknown as React.ChangeEvent<HTMLInputElement>
                     handleImageUpload(fakeEvent)
                   }
                 }
@@ -723,6 +780,36 @@ const VideoGenerateForm = ({
               )}
             </button>
           </div>
+          
+          {/* 进度条信息 - 在按钮下方 */}
+          {isGenerating && !isQueuing && (
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-900">{t('form.progress.title')}</span>
+                <span className="text-gray-900">
+                  {t('form.progress.estimatedTime')}: {Math.ceil(estimatedTime)} {t('form.progress.seconds')}
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-gray-100/50 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-orange-400 to-amber-400 transition-all duration-300 relative overflow-hidden"
+                  style={{ width: `${progress}%` }}
+                >
+                  {/* 进度条内的水流效果 */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent animate-shimmer"
+                       style={{ 
+                         width: '200%', 
+                         left: '-100%'
+                       }} />
+                </div>
+              </div>
+              <div className="text-xs text-gray-600/80 text-right">
+                {progress < 20 ? t('form.progress.status.initializing') :
+                 progress < 90 ? t('form.progress.status.processing') :
+                 t('form.progress.status.finalizing')}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {toast && (

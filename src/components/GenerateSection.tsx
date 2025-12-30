@@ -4,7 +4,6 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import GenerateForm from './GenerateForm'
 import GeneratePreview from './GeneratePreview'
-import StyleTransferForm from './StyleTransferForm'
 import VideoGenerateForm from './VideoGenerateForm'
 import TabNavigation from './TabNavigation'
 import PromptInput from './PromptInput'
@@ -82,7 +81,28 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
   const [generatedVideo, setGeneratedVideo] = useState<string | null>(null);
   const [isVideoGenerating, setIsVideoGenerating] = useState(false);
   const [isVideoQueuing, setIsVideoQueuing] = useState(false);
+  const [videoGenerationStartTime, setVideoGenerationStartTime] = useState<number | null>(null);
+  const [videoGenerationDuration, setVideoGenerationDuration] = useState<number | null>(null);
   const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  // 监听视频生成状态，记录开始时间
+  useEffect(() => {
+    if (isVideoGenerating && !videoGenerationStartTime) {
+      // 开始生成时记录开始时间
+      setVideoGenerationStartTime(Date.now())
+      setVideoGenerationDuration(null)
+    } else if (!isVideoGenerating && videoGenerationStartTime) {
+      // 生成结束时，如果还没有通过 onGenerate 设置耗时，则在这里计算
+      if (generatedVideo && !videoGenerationDuration) {
+        const duration = (Date.now() - videoGenerationStartTime) / 1000
+        setVideoGenerationDuration(duration)
+      }
+      // 重置开始时间（如果生成失败）
+      if (!generatedVideo) {
+        setVideoGenerationStartTime(null)
+      }
+    }
+  }, [isVideoGenerating, videoGenerationStartTime, generatedVideo, videoGenerationDuration])
   const [stepsError, setStepsError] = useState<string | null>(null);
   const [batchSizeError, setBatchSizeError] = useState<string | null>(null);
   const [imageCountError, setImageCountError] = useState<string | null>(null);
@@ -490,140 +510,6 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
     }
   };
 
-  const handleStyleTransfer = async (stylePrompt: string) => {
-    if (uploadedImages.length === 0) return;
-    
-    setConcurrencyError(null);
-    setIsGenerating(true);
-    setGeneratedImages([]);
-    setImageStatuses([{ status: 'pending', message: t('preview.generating') }]);
-    
-    try {
-      const startTime = Date.now();
-      
-      // 获取动态token（使用服务器时间）
-      const token = await generateDynamicTokenWithServerTime()
-      
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          prompt: stylePrompt,
-          negative_prompt: negativePrompt.trim() || undefined, // 添加负面提示词
-          width: 1024,
-          height: 1024,
-          steps: 25,
-          seed: Math.floor(Math.random() * 100000000),
-          batch_size: 1,
-          model: 'Qwen-Image-Edit',
-          images: uploadedImages,
-        }),
-      });
-
-      // 检查是否是401未登录错误（图改图模型限制）
-      if (res.status === 401) {
-        const errorData = await res.json().catch(() => ({}));
-        if (errorData.code === 'LOGIN_REQUIRED_FOR_I2I') {
-          setShowLoginTip(true);
-          setIsGenerating(false);
-          setImageStatuses([{
-            status: 'error',
-            message: '需要登录'
-          }]);
-          return;
-        }
-      }
-
-      // 处理429错误（可能是并发限制或每日限额）
-      if (res.status === 429) {
-        const errorData = await res.json();
-        const errorMessage = errorData.error || '请求过多，请稍后重试';
-        const errorCode = errorData.code;
-        
-        // 根据错误代码区分错误类型
-        // 支持 DAILY_LIMIT_EXCEEDED（登录用户）和 IP_DAILY_LIMIT_EXCEEDED（未登录用户）
-        const isDailyLimit = errorCode === 'DAILY_LIMIT_EXCEEDED' || errorCode === 'IP_DAILY_LIMIT_EXCEEDED';
-        if (isDailyLimit) {
-          setErrorType('daily_limit');
-        } else {
-          setErrorType('concurrency');
-        }
-        
-        setConcurrencyError(errorMessage);
-        setShowErrorModal(true);
-        setIsGenerating(false);
-        setImageStatuses([{
-          status: 'error',
-          message: isDailyLimit ? '每日限额已满' : '并发限制'
-        }]);
-        return;
-      }
-
-      if (res.status !== 200) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
-      const data = await res.json();
-      
-      // 创建图片加载Promise来跟踪加载状态
-      const imageLoadPromise = new Promise<void>((resolve) => {
-        const img = new window.Image();
-        img.onload = () => {
-          const endTime = Date.now();
-          const duration = ((endTime - startTime) / 1000).toFixed(1);
-          setGeneratedImages([data.imageUrl]);
-          setImageStatuses([{
-            status: 'success',
-            message: `${t('preview.completed')} (${duration}s)`,
-            startTime,
-            endTime
-          }]);
-          
-          // 刷新积分显示和额度信息（如果用户已登录）
-          if (session?.user) {
-            refreshPoints().catch(err => {
-              console.error('Failed to refresh points:', err);
-            });
-            // 刷新额度信息
-            const refreshQuota = async () => {
-              try {
-                const token = await generateDynamicTokenWithServerTime();
-                const response = await fetch(`/api/user/quota?t=${Date.now()}`, {
-                  headers: {
-                    'Authorization': `Bearer ${token}`
-                  }
-                });
-                if (response.ok) {
-                  const data = await response.json();
-                  const quota = data.isAdmin ? true : (data.todayCount < (data.maxDailyRequests || 0));
-                  setHasQuota(quota);
-                }
-              } catch (error) {
-                console.error('Failed to refresh quota:', error);
-              }
-            };
-            refreshQuota();
-          }
-          
-          resolve();
-        };
-        img.src = data.imageUrl;
-      });
-      
-      await imageLoadPromise;
-    } catch (err) {
-      console.error('风格转换失败:', err);
-      setImageStatuses([{
-        status: 'error',
-        message: t('preview.error')
-      }]);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const [aspectRatio, setAspectRatio] = useState('1:1');
   // 高分辨率开关状态（独立控制，不受图片比例影响）
@@ -930,8 +816,12 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                         setIsGenerating={setIsVideoGenerating}
                         isQueuing={isVideoQueuing}
                         setIsQueuing={setIsVideoQueuing}
-                        onGenerate={(videoUrl) => {
-                          // 可以在这里添加生成成功后的逻辑
+                        onGenerate={() => {
+                          // 计算视频生成耗时
+                          if (videoGenerationStartTime) {
+                            const duration = (Date.now() - videoGenerationStartTime) / 1000 // 转换为秒
+                            setVideoGenerationDuration(duration)
+                          }
                         }}
                         setErrorModal={(show, type, message) => {
                           setShowErrorModal(show)
@@ -994,6 +884,32 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                             console.error('Video load error:', e);
                           }}
                         />
+                        
+                        {/* 右上角下载按钮 */}
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const link = document.createElement('a');
+                              link.href = generatedVideo;
+                              link.download = `generated-video-${Date.now()}.mp4`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="relative p-2.5 bg-white/90 backdrop-blur-md rounded-lg hover:bg-yellow-100/80 transition-colors duration-200 group/btn shadow-lg border border-orange-400/40"
+                            title="下载视频"
+                          >
+                            <svg className="w-4 h-4 text-yellow-500 group-hover/btn:text-yellow-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            {/* Tooltip */}
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-white/95 text-gray-900 text-xs rounded-lg opacity-0 group-hover/btn:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-30">
+                              下载视频
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white/95"></div>
+                            </div>
+                          </button>
+                        </div>
                         
                         {/* 控制栏 */}
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-3 rounded-b-xl">
@@ -1087,6 +1003,18 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         <span className="text-sm text-orange-700">{t('preview.generating')}</span>
+                      </div>
+                    </div>
+                  )}
+                  {generatedVideo && videoGenerationDuration !== null && (
+                    <div className="mt-4 text-center">
+                      <div className="inline-flex items-center px-4 py-2 bg-green-50 rounded-lg">
+                        <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm text-green-700">
+                          生成完成，耗时 {videoGenerationDuration.toFixed(1)} 秒
+                        </span>
                       </div>
                     </div>
                   )}

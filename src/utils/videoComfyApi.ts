@@ -1,4 +1,4 @@
-import { VideoModelConfig, getVideoModelById } from './videoModelConfig';
+import { getVideoModelById } from './videoModelConfig';
 import { generateVideoWorkflow } from './videoWorkflow';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';

@@ -137,8 +137,7 @@ export async function getImageDisplayUrl(
  */
 export async function getVideoDisplayUrl(
   videoUrl: string,
-  decodedCache?: { [key: string]: string },
-  mediaType?: 'image' | 'video'
+  decodedCache?: { [key: string]: string }
 ): Promise<string> {
   // 如果是普通视频文件，直接返回
   if (isNormalVideo(videoUrl)) {
@@ -177,7 +176,7 @@ export async function getMediaDisplayUrl(
 ): Promise<string> {
   // 如果指定了媒体类型，使用对应的函数
   if (mediaType === 'video') {
-    return getVideoDisplayUrl(mediaUrl, decodedCache, mediaType)
+    return getVideoDisplayUrl(mediaUrl, decodedCache)
   } else if (mediaType === 'image') {
     return getImageDisplayUrl(mediaUrl, decodedCache)
   }

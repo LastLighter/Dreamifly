@@ -89,13 +89,6 @@ async function cleanupOldMedia(userId: string, maxMedia: number): Promise<void> 
   }
 }
 
-/**
- * @deprecated 使用 cleanupOldMedia 代替
- * 保留此函数以保持向后兼容
- */
-async function cleanupOldImages(userId: string, maxImages: number): Promise<void> {
-  return cleanupOldMedia(userId, maxImages)
-}
 
 /**
  * 保存用户生成的图片（自动维护数量限制）

@@ -8,7 +8,7 @@ import { useParams } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import Link from 'next/link'
 import Image from 'next/image'
-import { isEncryptedImage, getImageDisplayUrl, getVideoDisplayUrl, getMediaDisplayUrl } from '@/utils/imageDisplay'
+import { isEncryptedImage, getImageDisplayUrl, getVideoDisplayUrl } from '@/utils/imageDisplay'
 
 interface UserImage {
   id: string
@@ -141,7 +141,7 @@ export default function MyWorksPage() {
         try {
           // 根据媒体类型选择解码函数
           const decodedUrl = media.mediaType === 'video'
-            ? await getVideoDisplayUrl(media.imageUrl, decodedImages, media.mediaType)
+            ? await getVideoDisplayUrl(media.imageUrl, decodedImages)
             : await getImageDisplayUrl(media.imageUrl, decodedImages)
           
           if (!cancelled) {
@@ -173,7 +173,8 @@ export default function MyWorksPage() {
   }, [images, decodedImages, decodingImages])
 
   // 获取媒体显示URL（支持图片和视频）
-  const getDisplayUrl = (imageUrl: string, mediaType?: string | null): string => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getDisplayUrl = (imageUrl: string, _mediaType?: string | null): string => {
     if (isEncryptedImage(imageUrl)) {
       return decodedImages[imageUrl] || imageUrl // 如果还在解码中，显示原URL（会有加载状态）
     }
@@ -287,7 +288,7 @@ export default function MyWorksPage() {
     if (isEncryptedImage(imageUrl) && !decodedImages[imageUrl]) {
       try {
         const decodedUrl = isVideo
-          ? await getVideoDisplayUrl(imageUrl, decodedImages, mediaType)
+          ? await getVideoDisplayUrl(imageUrl, decodedImages)
           : await getImageDisplayUrl(imageUrl, decodedImages)
         setDecodedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
         setZoomedImage(decodedUrl)
