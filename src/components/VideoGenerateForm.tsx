@@ -486,28 +486,6 @@ const VideoGenerateForm = ({
           </div>
         </div>
 
-        {/* 模型选择区域 */}
-        <div className="border-t border-orange-400/40 pt-8">
-          <div>
-            <label className="flex items-center text-sm font-medium text-gray-900 mb-3">
-              <img src="/form/models.svg" alt="Model" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
-              {t('form.model.label')}
-            </label>
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300"
-              disabled={isGenerating}
-            >
-              {availableModels.map((modelOption) => (
-                <option key={modelOption.id} value={modelOption.id}>
-                  {modelOption.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
         {/* 提示词区域 */}
         <div className="border-t border-orange-400/40 pt-8">
           <div>
@@ -645,6 +623,28 @@ const VideoGenerateForm = ({
                 disabled={isGenerating}
               />
             )}
+          </div>
+        </div>
+
+        {/* 模型选择区域 */}
+        <div className="border-t border-orange-400/40 pt-8">
+          <div>
+            <label className="flex items-center text-sm font-medium text-gray-900 mb-3">
+              <img src="/form/models.svg" alt="Model" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
+              {t('form.model.label')}
+            </label>
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="w-full bg-white/50 backdrop-blur-sm border border-orange-400/40 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-orange-400/50 focus:border-orange-400/50 shadow-inner transition-all duration-300"
+              disabled={isGenerating}
+            >
+              {availableModels.map((modelOption) => (
+                <option key={modelOption.id} value={modelOption.id}>
+                  {modelOption.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
