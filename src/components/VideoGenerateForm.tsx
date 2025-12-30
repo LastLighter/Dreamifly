@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useParams } from 'next/navigation'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
@@ -101,13 +101,23 @@ const VideoGenerateForm = ({
     }
   }, [isRatioOpen])
 
-  // 加载可用视频模型
-  useEffect(() => {
+  // 加载可用视频模型 - 使用 useLayoutEffect 在 DOM 更新前同步执行，提高优先级
+  useLayoutEffect(() => {
+    let cancelled = false
     const loadModels = async () => {
       try {
-        const response = await fetch('/api/video-models')
+        // 使用 fetchPriority 提示浏览器优先加载（如果支持）
+        const fetchOptions: RequestInit = {}
+        if ('priority' in Request.prototype) {
+          (fetchOptions as any).priority = 'high'
+        }
+        const response = await fetch('/api/video-models', fetchOptions)
+        if (cancelled) return
+        
         if (response.ok) {
           const data = await response.json()
+          if (cancelled) return
+          
           setAvailableModels(data.models || [])
           if (data.models && data.models.length > 0 && !model) {
             // 设置默认模型为推荐模型或第一个可用模型
@@ -116,11 +126,18 @@ const VideoGenerateForm = ({
           }
         }
       } catch (error) {
-        console.error('Failed to load video models:', error)
+        if (!cancelled) {
+          console.error('Failed to load video models:', error)
+        }
       }
     }
+    // 立即执行，不等待其他操作
     loadModels()
-  }, [model, setModel])
+    
+    return () => {
+      cancelled = true
+    }
+  }, []) // 空依赖数组，只在组件挂载时执行一次
 
   // 计算预估积分消耗
   useEffect(() => {
