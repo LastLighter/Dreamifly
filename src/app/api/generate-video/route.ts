@@ -8,6 +8,7 @@ import { getModelBaseCost, checkPointsSufficient, deductPoints, getPointsBalance
 import { db } from '@/db'
 import { siteStats, user } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
+import { saveUserGeneratedVideo } from '@/utils/userVideoStorage'
 
 // 设置 API 路由最大执行时间为 25 分钟（1500 秒），确保比视频生成超时时间（20 分钟）更长
 // 这样即使需要轮询获取视频，也不会因为 Next.js 的路由超时而失败
@@ -266,6 +267,61 @@ export async function POST(request: Request) {
     const generateDuration = Date.now() - generateStartTime;
     console.log(`[视频生成API] [${requestId}] 视频生成完成 - 耗时: ${generateDuration}ms (${(generateDuration / 1000).toFixed(2)}秒)`);
     console.log(`[视频生成API] [${requestId}] 视频URL长度: ${videoUrl.length}`);
+
+    // 计算视频元数据
+    const videoLength = length || modelConfig.defaultLength || 100;
+    const videoFps = fps || modelConfig.defaultFps || 20;
+    const videoDuration = videoLength / videoFps; // 视频时长（秒）
+
+    // 保存视频到数据库（如果用户已登录）
+    if (userId) {
+      try {
+        // 获取客户端IP地址
+        const headersList = await headers();
+        const ipAddress = headersList.get('x-forwarded-for') || 
+                        headersList.get('x-real-ip') || 
+                        'unknown';
+
+        // 提取参考图（输入图片，用于I2V）
+        let referenceImages: string[] | undefined = undefined
+        if (image) {
+          // 移除 data:image 前缀，只保留 base64 数据
+          let imageBase64 = image
+          if (imageBase64.includes(',')) {
+            imageBase64 = imageBase64.split(',')[1]
+          }
+          referenceImages = [imageBase64]
+        }
+
+        // 保存视频（包含审核流程）
+        await saveUserGeneratedVideo(
+          userId,
+          videoUrl, // base64格式的视频
+          {
+            prompt: prompt,
+            model: model,
+            width: finalWidth,
+            height: finalHeight,
+            duration: Math.round(videoDuration), // 视频时长（秒）
+            fps: videoFps,
+            frameCount: videoLength, // 总帧数
+            ipAddress: ipAddress,
+            referenceImages: referenceImages, // 参考图（输入图片，加密存储）
+          }
+        );
+        console.log(`[视频生成API] [${requestId}] 视频保存到数据库成功`);
+      } catch (error) {
+        // 保存失败不应该影响返回结果，只记录错误
+        console.error(`[视频生成API] [${requestId}] 视频保存到数据库失败:`, error);
+        // 如果是审核未通过，需要返回错误
+        if (error instanceof Error && error.message.includes('审核未通过')) {
+          return NextResponse.json({
+            error: error.message,
+            code: 'MODERATION_FAILED'
+          }, { status: 403 });
+        }
+      }
+    }
 
     // 计算总响应时间（秒）
     const responseTime = (Date.now() - totalStartTime) / 1000;

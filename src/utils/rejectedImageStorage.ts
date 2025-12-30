@@ -3,63 +3,22 @@ import { rejectedImages, user } from '@/db/schema'
 import { uploadToOSS } from './oss'
 import { eq } from 'drizzle-orm'
 import crypto from 'crypto'
+import { encodeMediaForStorage, decodeMediaFromStorage } from './mediaStorage'
 
 /**
- * 将图片Buffer编码为文本文件（避免OSS审核）
- * 使用base64编码，但改变文件扩展名为.dat，并添加混淆
+ * @deprecated 使用 encodeMediaForStorage 代替
+ * 保留此函数以保持向后兼容
  */
 export function encodeImageForStorage(buffer: Buffer): Buffer {
-  // 1. 转换为base64
-  const base64 = buffer.toString('base64')
-  
-  // 2. 添加简单的混淆（字符偏移）
-  const obfuscated = base64
-    .split('')
-    .map((char, index) => {
-      // 简单的字符偏移混淆
-      if (char >= 'A' && char <= 'Z') {
-        return String.fromCharCode(((char.charCodeAt(0) - 65 + index % 26) % 26) + 65)
-      }
-      if (char >= 'a' && char <= 'z') {
-        return String.fromCharCode(((char.charCodeAt(0) - 97 + index % 26) % 26) + 97)
-      }
-      if (char >= '0' && char <= '9') {
-        return String.fromCharCode(((char.charCodeAt(0) - 48 + index % 10) % 10) + 48)
-      }
-      return char
-    })
-    .join('')
-  
-  // 3. 转换为Buffer（作为文本文件存储）
-  return Buffer.from(obfuscated, 'utf-8')
+  return encodeMediaForStorage(buffer)
 }
 
 /**
- * 解码存储的图片数据
+ * @deprecated 使用 decodeMediaFromStorage 代替
+ * 保留此函数以保持向后兼容
  */
 export function decodeImageFromStorage(encodedBuffer: Buffer): Buffer {
-  // 1. 读取文本内容
-  const obfuscated = encodedBuffer.toString('utf-8')
-  
-  // 2. 反向混淆
-  const base64 = obfuscated
-    .split('')
-    .map((char, index) => {
-      if (char >= 'A' && char <= 'Z') {
-        return String.fromCharCode(((char.charCodeAt(0) - 65 - (index % 26) + 26) % 26) + 65)
-      }
-      if (char >= 'a' && char <= 'z') {
-        return String.fromCharCode(((char.charCodeAt(0) - 97 - (index % 26) + 26) % 26) + 97)
-      }
-      if (char >= '0' && char <= '9') {
-        return String.fromCharCode(((char.charCodeAt(0) - 48 - (index % 10) + 10) % 10) + 48)
-      }
-      return char
-    })
-    .join('')
-  
-  // 3. 转换回Buffer
-  return Buffer.from(base64, 'base64')
+  return decodeMediaFromStorage(encodedBuffer)
 }
 
 /**
@@ -70,10 +29,10 @@ function hashIP(ip: string): string {
 }
 
 /**
- * 保存未通过审核的图片
+ * 保存未通过审核的媒体（图片或视频）
  */
 export async function saveRejectedImage(
-  imageBuffer: Buffer,
+  mediaBuffer: Buffer,
   metadata: {
     userId?: string | null
     ipAddress?: string
@@ -81,6 +40,10 @@ export async function saveRejectedImage(
     model?: string
     width?: number
     height?: number
+    mediaType?: 'image' | 'video' // 媒体类型，默认为 'image'
+    duration?: number // 视频时长（秒）
+    fps?: number // 视频帧率
+    frameCount?: number // 视频总帧数
     rejectionReason: 'image' | 'prompt' | 'both'
     referenceImages?: string[] // 参考图URL数组（已上传到OSS的URL）
   }
@@ -99,8 +62,9 @@ export async function saveRejectedImage(
     }
   }
 
-  // 2. 编码图片（避免OSS审核）
-  const encodedBuffer = encodeImageForStorage(imageBuffer)
+  // 2. 编码媒体（避免OSS审核）
+  const encodedBuffer = encodeMediaForStorage(mediaBuffer)
+  const mediaType = metadata.mediaType || 'image'
 
   // 3. 生成文件路径
   const { v4: uuidv4 } = await import('uuid')
@@ -117,7 +81,9 @@ export async function saveRejectedImage(
     ? metadata.userId 
     : hashIP(metadata.ipAddress || 'unknown')
   
-  const folderPath = `rejected-images/${year}/${month}/${day}/${userType}/${userPath}`
+  // 根据媒体类型选择不同的文件夹路径
+  const mediaFolder = mediaType === 'video' ? 'rejected-videos' : 'rejected-images'
+  const folderPath = `${mediaFolder}/${year}/${month}/${day}/${userType}/${userPath}`
   
   // 4. 上传到OSS
   const imageUrl = await uploadToOSS(encodedBuffer, fileName, folderPath)
@@ -129,10 +95,14 @@ export async function saveRejectedImage(
     userId: metadata.userId || null,
     ipAddress: metadata.ipAddress || null,
     imageUrl,
+    mediaType,
     prompt: metadata.prompt || null,
     model: metadata.model || null,
     width: metadata.width || null,
     height: metadata.height || null,
+    duration: metadata.duration || null,
+    fps: metadata.fps || null,
+    frameCount: metadata.frameCount || null,
     rejectionReason: metadata.rejectionReason,
     referenceImages: metadata.referenceImages || [], // 保存参考图URL数组
     createdAt: new Date(),
@@ -143,13 +113,13 @@ export async function saveRejectedImage(
 }
 
 /**
- * 从OSS获取并解码图片
+ * 从OSS获取并解码媒体（图片或视频）
  */
 export async function getRejectedImageBuffer(imageUrl: string): Promise<Buffer> {
   // 1. 从OSS下载文件
   const response = await fetch(imageUrl)
   if (!response.ok) {
-    throw new Error('Failed to fetch image from OSS')
+    throw new Error('Failed to fetch media from OSS')
   }
   
   // 2. 获取Buffer
@@ -157,6 +127,6 @@ export async function getRejectedImageBuffer(imageUrl: string): Promise<Buffer> 
   const encodedBuffer = Buffer.from(arrayBuffer)
   
   // 3. 解码
-  return decodeImageFromStorage(encodedBuffer)
+  return decodeMediaFromStorage(encodedBuffer)
 }
 

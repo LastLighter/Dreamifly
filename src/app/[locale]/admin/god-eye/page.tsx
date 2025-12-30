@@ -11,7 +11,7 @@ import { useAvatar } from '@/contexts/AvatarContext'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
 import { getThumbnailUrl } from '@/utils/oss'
-import { isEncryptedImage, getImageDisplayUrl } from '@/utils/imageDisplay'
+import { isEncryptedImage, getImageDisplayUrl, getVideoDisplayUrl, getMediaDisplayUrl } from '@/utils/imageDisplay'
 import { filterProfanity } from '@/utils/profanityFilter'
 
 type TabType = 'approved' | 'rejected' | 'profanity'
@@ -20,10 +20,14 @@ type RoleFilter = 'all' | 'subscribed' | 'premium' | 'oldUser' | 'regular'
 interface ImageItem {
   id: string
   imageUrl: string
+  mediaType?: string | null // 'image' | 'video'
   prompt: string | null
   model: string | null
   width: number | null
   height: number | null
+  duration?: number | null
+  fps?: number | null
+  frameCount?: number | null
   userRole: string
   userAvatar: string
   userNickname: string
@@ -647,7 +651,11 @@ export default function GodEyePage() {
         setDecodingApprovedImages(prev => new Set(prev).add(image.imageUrl))
 
         try {
-          const decodedUrl = await getImageDisplayUrl(image.imageUrl, decodedApprovedImages)
+          // 根据媒体类型选择解码函数
+          const decodedUrl = image.mediaType === 'video'
+            ? await getVideoDisplayUrl(image.imageUrl, decodedApprovedImages, image.mediaType)
+            : await getImageDisplayUrl(image.imageUrl, decodedApprovedImages)
+          
           if (!cancelled) {
             setDecodedApprovedImages(prev => ({
               ...prev,
@@ -655,7 +663,7 @@ export default function GodEyePage() {
             }))
           }
         } catch (error) {
-          console.error('解码图片失败:', error)
+          console.error('解码媒体失败:', error)
         } finally {
           setDecodingApprovedImages(prev => {
             const newSet = new Set(prev)
@@ -1064,10 +1072,12 @@ export default function GodEyePage() {
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {images.map((image) => {
+                        const mediaType = image.mediaType || 'image'
+                        const isVideo = mediaType === 'video'
                         const isDecoding = isEncryptedImage(image.imageUrl) && !decodedApprovedImages[image.imageUrl]
                         const thumbnailUrl = isEncryptedImage(image.imageUrl) 
                           ? (decodedApprovedImages[image.imageUrl] || image.imageUrl)
-                          : getThumbnailUrl(image.imageUrl, 400, 400, 75)
+                          : (isVideo ? image.imageUrl : getThumbnailUrl(image.imageUrl, 400, 400, 75))
 
                         return (
                           <div
@@ -1143,15 +1153,30 @@ export default function GodEyePage() {
                                 </div>
                               )}
                               
-                              <Image
-                                src={thumbnailUrl}
-                                alt={image.prompt || '生成的图片'}
-                                fill
-                                className="object-cover cursor-zoom-in"
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                onClick={(e) => handleImageClick(image.imageUrl, e)}
-                                unoptimized={isEncryptedImage(image.imageUrl) || image.imageUrl.startsWith('http')}
-                              />
+                              {isVideo ? (
+                                <video
+                                  src={thumbnailUrl}
+                                  className="w-full h-full object-cover cursor-pointer"
+                                  controls
+                                  loop
+                                  muted
+                                  playsInline
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleImageClick(image.imageUrl, e)
+                                  }}
+                                />
+                              ) : (
+                                <Image
+                                  src={thumbnailUrl}
+                                  alt={image.prompt || '生成的图片'}
+                                  fill
+                                  className="object-cover cursor-zoom-in"
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                  onClick={(e) => handleImageClick(image.imageUrl, e)}
+                                  unoptimized={isEncryptedImage(image.imageUrl) || image.imageUrl.startsWith('http')}
+                                />
+                              )}
 
                             {/* 用户信息覆盖层 */}
                             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 via-black/50 to-transparent backdrop-blur-sm">

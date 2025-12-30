@@ -971,11 +971,9 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                       </div>
                     </div>
                   )}
-                  {generatedVideo && (
-                    <div className="mt-4 text-center">
-                      <p className="text-xs text-gray-500 mb-2">{t('preview.hint')}</p>
-                    </div>
-                  )}
+                  <div className="mt-6 text-center text-sm text-gray-600/80">
+                    {t('preview.hint')}
+                  </div>
                 </div>
               </div>
             </div>
