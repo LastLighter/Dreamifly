@@ -63,6 +63,7 @@ export default function GodEyePage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
+  const [zoomedMediaType, setZoomedMediaType] = useState<'image' | 'video' | null>(null)
   const [clickedPromptId, setClickedPromptId] = useState<string | null>(null)
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
   const promptPopoverRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
@@ -691,6 +692,9 @@ export default function GodEyePage() {
     // 标记为已查看
     setViewedReferenceImages(prev => new Set(prev).add(refUrl))
     
+    // 参考图都是图片类型
+    setZoomedMediaType('image')
+    
     // 如果是加密图片，确保已解码
     if (isEncryptedImage(refUrl)) {
       if (!decodedReferenceImages[refUrl]) {
@@ -719,49 +723,61 @@ export default function GodEyePage() {
     }
   }
 
-  // 处理图片点击预览
-  const handleImageClick = async (imageUrl: string, e: React.MouseEvent) => {
+  // 处理图片/视频点击预览
+  const handleImageClick = async (imageUrl: string, e: React.MouseEvent, mediaType?: 'image' | 'video') => {
     e.stopPropagation()
     
-    // 如果是加密图片，确保已解码
+    // 如果是加密媒体，确保已解码
     if (isEncryptedImage(imageUrl)) {
       if (activeTab === 'approved') {
         if (!decodedApprovedImages[imageUrl]) {
           try {
-            const decodedUrl = await getImageDisplayUrl(imageUrl, decodedApprovedImages)
+            const decodedUrl = mediaType === 'video'
+              ? await getVideoDisplayUrl(imageUrl, decodedApprovedImages, mediaType)
+              : await getImageDisplayUrl(imageUrl, decodedApprovedImages)
             setDecodedApprovedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
             setZoomedImage(decodedUrl)
+            setZoomedMediaType(mediaType || 'image')
           } catch (error) {
-            console.error('解码图片失败:', error)
+            console.error('解码媒体失败:', error)
             setZoomedImage(imageUrl)
+            setZoomedMediaType(mediaType || 'image')
           }
         } else {
           setZoomedImage(decodedApprovedImages[imageUrl])
+          setZoomedMediaType(mediaType || 'image')
         }
       } else {
-        // 未通过审核的图片：传入的 imageUrl 已经是解码后的 URL（从 decodedImages[image.id]）
+        // 未通过审核的媒体：传入的 imageUrl 已经是解码后的 URL（从 decodedImages[image.id]）
         // 如果是加密的原始 URL，需要查找对应的 image.id 并解码
         const image = rejectedImages.find(img => img.imageUrl === imageUrl)
         if (image && decodedImages[image.id]) {
           // 传入的是解码后的 URL，直接使用
           setZoomedImage(decodedImages[image.id])
+          setZoomedMediaType((image.mediaType as 'image' | 'video') || 'image')
         } else if (image) {
           // 传入的是原始加密 URL，需要解码
           try {
-            const decodedUrl = await getImageDisplayUrl(imageUrl, {})
+            const decodedUrl = (image.mediaType === 'video')
+              ? await getVideoDisplayUrl(imageUrl, {}, image.mediaType)
+              : await getImageDisplayUrl(imageUrl, {})
             setDecodedImages(prev => ({ ...prev, [image.id]: decodedUrl }))
             setZoomedImage(decodedUrl)
+            setZoomedMediaType((image.mediaType as 'image' | 'video') || 'image')
           } catch (error) {
-            console.error('解码图片失败:', error)
+            console.error('解码媒体失败:', error)
             setZoomedImage(imageUrl)
+            setZoomedMediaType((image.mediaType as 'image' | 'video') || 'image')
           }
         } else {
           // 直接使用传入的 URL（可能是已解码的）
           setZoomedImage(imageUrl)
+          setZoomedMediaType(mediaType || 'image')
         }
       }
     } else {
       setZoomedImage(imageUrl)
+      setZoomedMediaType(mediaType || 'image')
     }
   }
 
@@ -1157,13 +1173,13 @@ export default function GodEyePage() {
                                 <video
                                   src={thumbnailUrl}
                                   className="w-full h-full object-cover cursor-pointer"
-                                  controls
+                                  autoPlay
                                   loop
                                   muted
                                   playsInline
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    handleImageClick(image.imageUrl, e)
+                                    handleImageClick(image.imageUrl, e, 'video')
                                   }}
                                 />
                               ) : (
@@ -1173,7 +1189,7 @@ export default function GodEyePage() {
                                   fill
                                   className="object-cover cursor-zoom-in"
                                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                  onClick={(e) => handleImageClick(image.imageUrl, e)}
+                                  onClick={(e) => handleImageClick(image.imageUrl, e, 'image')}
                                   unoptimized={isEncryptedImage(image.imageUrl) || image.imageUrl.startsWith('http')}
                                 />
                               )}
@@ -1522,7 +1538,11 @@ export default function GodEyePage() {
                 ) : (
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {rejectedImages.map((image) => (
+                      {rejectedImages.map((image) => {
+                        const mediaType = image.mediaType || 'image'
+                        const isVideo = mediaType === 'video'
+                        
+                        return (
                         <div
                           key={image.id}
                           className="group relative rounded-xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-all"
@@ -1622,20 +1642,36 @@ export default function GodEyePage() {
                                 </div>
                               )}
                               
-                              {/* 图片 */}
+                              {/* 图片/视频 */}
                               {decodedImages[image.id] ? (
-                                <Image
-                                  src={decodedImages[image.id]}
-                                  alt={image.prompt || '未通过审核的图片'}
-                                  fill
-                                  className={`object-cover cursor-zoom-in ${!unmaskedImages.has(image.id) ? 'blur-sm' : ''}`}
-                                  onClick={(e) => {
-                                    if (unmaskedImages.has(image.id)) {
-                                      handleImageClick(decodedImages[image.id], e)
-                                    }
-                                  }}
-                                  unoptimized
-                                />
+                                isVideo ? (
+                                  <video
+                                    src={decodedImages[image.id]}
+                                    className={`w-full h-full object-cover cursor-pointer ${!unmaskedImages.has(image.id) ? 'blur-sm' : ''}`}
+                                    autoPlay
+                                    loop
+                                    muted
+                                    playsInline
+                                    onClick={(e) => {
+                                      if (unmaskedImages.has(image.id)) {
+                                        handleImageClick(decodedImages[image.id], e, 'video')
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <Image
+                                    src={decodedImages[image.id]}
+                                    alt={image.prompt || '未通过审核的图片'}
+                                    fill
+                                    className={`object-cover cursor-zoom-in ${!unmaskedImages.has(image.id) ? 'blur-sm' : ''}`}
+                                    onClick={(e) => {
+                                      if (unmaskedImages.has(image.id)) {
+                                        handleImageClick(decodedImages[image.id], e, 'image')
+                                      }
+                                    }}
+                                    unoptimized
+                                  />
+                                )
                               ) : (
                                 <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                                   <div className="text-center">
@@ -1737,7 +1773,8 @@ export default function GodEyePage() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
 
                     {/* 分页 */}
@@ -1944,23 +1981,40 @@ export default function GodEyePage() {
               </div>
             )}
 
-            {/* 图片预览模态框 */}
+            {/* 图片/视频预览模态框 */}
             {zoomedImage && (
               <div
                 className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center p-4"
-                onClick={() => setZoomedImage(null)}
+                onClick={() => {
+                  setZoomedImage(null)
+                  setZoomedMediaType(null)
+                }}
               >
                 <div className="relative max-w-7xl max-h-full">
-                  <Image
-                    src={zoomedImage}
-                    alt="预览图片"
-                    width={1200}
-                    height={1200}
-                    className="max-w-full max-h-[90vh] object-contain rounded-lg"
-                    unoptimized
-                  />
+                  {zoomedMediaType === 'video' ? (
+                    <video
+                      src={zoomedImage}
+                      controls
+                      className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                      autoPlay
+                      loop
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <Image
+                      src={zoomedImage}
+                      alt="预览图片"
+                      width={1200}
+                      height={1200}
+                      className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                      unoptimized
+                    />
+                  )}
                   <button
-                    onClick={() => setZoomedImage(null)}
+                    onClick={() => {
+                      setZoomedImage(null)
+                      setZoomedMediaType(null)
+                    }}
                     className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-md rounded-lg hover:bg-white/30 transition-colors"
                   >
                     <svg

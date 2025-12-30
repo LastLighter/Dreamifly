@@ -7,9 +7,10 @@ import { headers } from 'next/headers'
 
 /**
  * 获取社区展示图片
- * 从最近100张用户生成的图片中随机选择12张
+ * 从最近300张用户生成的图片中随机选择12张
  * 过滤掉管理员和付费用户的内容
  * 排除图生图模型（Qwen-Image-Edit、Flux-Kontext）
+ * 排除视频类型，只展示图片
  * 
  * 访问控制：
  * - 如果环境变量 COMMUNITY_IMAGES_PUBLIC 为 true，则对所有用户开放
@@ -18,7 +19,7 @@ import { headers } from 'next/headers'
  * 处理逻辑：
  * - 如果数据库中有0张图片，返回空数组（前端会用默认图片填充）
  * - 如果数据库中有1-12张图片，返回所有图片（前端会用默认图片填充到12张）
- * - 如果数据库中有13-100张图片，随机选择12张返回
+ * - 如果数据库中有13-300张图片，随机选择12张返回
  */
 export async function GET() {
   try {
@@ -56,10 +57,11 @@ export async function GET() {
         )
       }
     }
-    // 获取最近100张图片（按创建时间降序）
+    // 获取最近300张图片（按创建时间降序）
     // 通过 user_generated_images 表中的 userRole 字段过滤掉管理员和付费用户
     // 只选择：premium（优质用户）、oldUser（首批用户）、regular（普通用户）或 null（旧数据）
     // 排除图生图模型：Qwen-Image-Edit、Flux-Kontext
+    // 排除视频类型，只展示图片
     const i2iModels = ['Qwen-Image-Edit', 'Flux-Kontext'] // 图生图模型列表
     
     const recentImages = await db
@@ -76,6 +78,8 @@ export async function GET() {
       .from(userGeneratedImages)
       .where(
         and(
+          // 只选择图片类型，排除视频
+          eq(userGeneratedImages.mediaType, 'image'),
           // 允许的角色：premium（优质用户）、oldUser（首批用户）、regular（普通用户）或 null（旧数据）
           or(
             inArray(userGeneratedImages.userRole, ['premium', 'oldUser', 'regular']),
@@ -89,7 +93,7 @@ export async function GET() {
         )
       )
       .orderBy(desc(userGeneratedImages.createdAt))
-      .limit(100)
+      .limit(300)
 
     // 处理图片数量
     let selectedImages = recentImages

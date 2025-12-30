@@ -40,7 +40,8 @@ async function cleanupOldMedia(userId: string, maxMedia: number): Promise<void> 
     .select({ 
       id: userGeneratedImages.id, 
       imageUrl: userGeneratedImages.imageUrl,
-      mediaType: userGeneratedImages.mediaType
+      mediaType: userGeneratedImages.mediaType,
+      referenceImages: userGeneratedImages.referenceImages
     })
     .from(userGeneratedImages)
     .where(eq(userGeneratedImages.userId, userId))
@@ -51,12 +52,27 @@ async function cleanupOldMedia(userId: string, maxMedia: number): Promise<void> 
     const mediaToDelete = allMedia.slice(0, allMedia.length - maxMedia) // 保留最后 maxMedia 个
     
     for (const media of mediaToDelete) {
+      // 先删除参考图片（如果有）
+      if (media.referenceImages && Array.isArray(media.referenceImages) && media.referenceImages.length > 0) {
+        for (const refImageUrl of media.referenceImages) {
+          if (refImageUrl && typeof refImageUrl === 'string') {
+            try {
+              await deleteFromOSS(refImageUrl)
+              console.log(`已自动删除参考图片: ${refImageUrl}`)
+            } catch (error) {
+              console.error(`删除参考图片失败: ${refImageUrl}`, error)
+              // 继续删除其他文件，不中断流程
+            }
+          }
+        }
+      }
+      
       // 从数据库删除记录
       await db
         .delete(userGeneratedImages)
         .where(eq(userGeneratedImages.id, media.id))
       
-      // 从OSS删除文件
+      // 从OSS删除主媒体文件
       try {
         await deleteFromOSS(media.imageUrl)
         const mediaTypeLabel = media.mediaType === 'video' ? '视频' : '图片'
@@ -412,12 +428,27 @@ export async function deleteUserGeneratedImage(
     return false
   }
   
+  // 先删除参考图片（如果有）
+  if (image[0].referenceImages && Array.isArray(image[0].referenceImages) && image[0].referenceImages.length > 0) {
+    for (const refImageUrl of image[0].referenceImages) {
+      if (refImageUrl && typeof refImageUrl === 'string') {
+        try {
+          await deleteFromOSS(refImageUrl)
+          console.log(`已删除参考图片: ${refImageUrl}`)
+        } catch (error) {
+          console.error(`删除参考图片失败: ${refImageUrl}`, error)
+          // 继续删除其他文件，不中断流程
+        }
+      }
+    }
+  }
+  
   // 从数据库删除
   await db
     .delete(userGeneratedImages)
     .where(eq(userGeneratedImages.id, imageId))
   
-  // 从OSS删除
+  // 从OSS删除主媒体文件
   try {
     await deleteFromOSS(image[0].imageUrl)
   } catch (error) {
