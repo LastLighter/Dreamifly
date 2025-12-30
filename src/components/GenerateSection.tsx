@@ -882,8 +882,8 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
           </div>
         ) : activeTab === 'video-generation' ? (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-start">
-            {/* 左侧表单区域 - 视频生成使用更大的宽度 */}
-            <div className="order-1 lg:order-1 lg:col-span-3 animate-fadeInUp h-fit z-10">
+            {/* 左侧表单区域 - 视频生成使用更窄的宽度 */}
+            <div className="order-1 lg:order-1 lg:col-span-2 animate-fadeInUp h-fit z-10">
               <div className="transition-all duration-500 ease-in-out">
                 <div className="animate-fadeInUp">
                   <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl lg:p-8 p-6 border border-orange-400/40">
@@ -929,8 +929,8 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
               </div>
             </div>
 
-            {/* 右侧预览区域 */}
-            <div className="order-2 lg:order-2 lg:col-span-2 animate-fadeInUp animation-delay-200">
+            {/* 右侧预览区域 - 视频生成使用更宽的宽度 */}
+            <div className="order-2 lg:order-2 lg:col-span-3 animate-fadeInUp animation-delay-200">
               <div className="relative bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl lg:p-8 p-6 border border-orange-400/40">
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-100/10 to-amber-100/10 rounded-3xl"></div>
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(249,115,22,0.1),rgba(255,255,255,0))] shadow-orange-400/20"></div>
