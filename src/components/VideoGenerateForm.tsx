@@ -406,7 +406,7 @@ const VideoGenerateForm = ({
     <form onSubmit={(e) => { e.preventDefault(); handleGenerateVideo(); }} className="space-y-8 relative flex flex-col">
       <div className="space-y-8">
         {/* 上传图片区域 */}
-        <div className="border-t border-orange-400/40 pt-8">
+        <div className="pt-0">
           <div>
             <label className="flex items-center text-sm font-medium text-gray-900 mb-3">
               <img src="/form/image.svg" alt="Image" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
