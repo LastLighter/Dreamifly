@@ -14,11 +14,13 @@ import { getModelThresholds, getAllModels } from '@/utils/modelConfig'
 import { usePoints } from '@/contexts/PointsContext'
 import { calculateEstimatedCost } from '@/utils/pointsClient'
 import { transferUrl } from '@/utils/locale'
+import { getVideoModelById, calculateVideoResolution } from '@/utils/videoModelConfig'
 
 interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
   initialPrompt?: string;
   initialModel?: string;
+  onTabChange?: (tab: 'generate' | 'video-generation') => void;
 }
 
 // 格式化时间（秒转为 MM:SS 或 HH:MM:SS）
@@ -34,7 +36,7 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${String(secs).padStart(2, '0')}`
 }
 
-const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: GenerateSectionProps) => {
+const GenerateSection = ({ communityWorks, initialPrompt, initialModel, onTabChange }: GenerateSectionProps) => {
   const t = useTranslations('home.generate')
   const tHome = useTranslations('home')
   const { data: session, isPending } = useSession()
@@ -103,6 +105,85 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
       }
     }
   }, [isVideoGenerating, videoGenerationStartTime, generatedVideo, videoGenerationDuration])
+
+  // 使用 ref 存储最新的 videoModel，避免在 useEffect 依赖中包含它
+  const videoModelRef = useRef(videoModel)
+  useEffect(() => {
+    videoModelRef.current = videoModel
+  }, [videoModel])
+
+  // 监听视频参考图片就绪事件
+  useEffect(() => {
+    const handleVideoReferenceImageReady = (event: CustomEvent) => {
+      if (activeTab === 'video-generation') {
+        const { base64, prompt } = event.detail
+        if (base64) {
+          // 先清除旧图片
+          setUploadedVideoImage(null)
+          
+          // 使用 setTimeout 确保清除操作完成后再设置新图片
+          setTimeout(() => {
+            // 创建图片对象以获取尺寸并计算宽高比
+            const img = new window.Image()
+            img.onload = () => {
+              // 计算宽高比
+              const imageAspectRatio = img.width / img.height
+              setVideoAspectRatio(imageAspectRatio)
+
+              // 根据宽高比计算视频分辨率（保持总像素不变）
+              const modelConfig = getVideoModelById(videoModelRef.current)
+              if (modelConfig) {
+                const resolution = calculateVideoResolution(modelConfig, imageAspectRatio)
+                setVideoWidth(resolution.width)
+                setVideoHeight(resolution.height)
+              }
+
+              // 设置上传的图片
+              setUploadedVideoImage(base64)
+            }
+            // 使用 data URL 格式加载图片
+            img.src = `data:image/jpeg;base64,${base64}`
+          }, 0)
+          
+          if (prompt) {
+            setVideoPrompt(prompt)
+          }
+        }
+      }
+    }
+
+    window.addEventListener('videoReferenceImageReady', handleVideoReferenceImageReady as EventListener)
+    
+    // 检查sessionStorage中是否有存储的参考图片
+    const storedImage = sessionStorage.getItem('videoReferenceImage')
+    if (storedImage && activeTab === 'video-generation') {
+      // 创建图片对象以获取尺寸并计算宽高比
+      const img = new window.Image()
+      img.onload = () => {
+        // 计算宽高比
+        const imageAspectRatio = img.width / img.height
+        setVideoAspectRatio(imageAspectRatio)
+
+        // 根据宽高比计算视频分辨率（保持总像素不变）
+        const modelConfig = getVideoModelById(videoModelRef.current)
+        if (modelConfig) {
+          const resolution = calculateVideoResolution(modelConfig, imageAspectRatio)
+          setVideoWidth(resolution.width)
+          setVideoHeight(resolution.height)
+        }
+
+        // 设置上传的图片
+        setUploadedVideoImage(storedImage)
+      }
+      // 使用 data URL 格式加载图片
+      img.src = `data:image/jpeg;base64,${storedImage}`
+      sessionStorage.removeItem('videoReferenceImage')
+    }
+
+    return () => {
+      window.removeEventListener('videoReferenceImageReady', handleVideoReferenceImageReady as EventListener)
+    }
+  }, [activeTab])
   const [stepsError, setStepsError] = useState<string | null>(null);
   const [batchSizeError, setBatchSizeError] = useState<string | null>(null);
   const [imageCountError, setImageCountError] = useState<string | null>(null);
@@ -695,7 +776,10 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
         {/* Tab Navigation */}
         <TabNavigation 
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={(tab) => {
+            setActiveTab(tab);
+            onTabChange?.(tab);
+          }}
         />
 
         {/* Prompt Input Section - Only show for generate tab */}
@@ -885,8 +969,8 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                           }}
                         />
                         
-                        {/* 右上角下载按钮 */}
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                        {/* 右上角下载按钮 - 常驻显示 */}
+                        <div className="absolute top-2 right-2 z-20">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -913,30 +997,6 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                         
                         {/* 控制栏 */}
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-3 rounded-b-xl">
-                          {/* 进度条 */}
-                          <div 
-                            className="relative h-1.5 bg-white/20 rounded-full mb-3 cursor-pointer"
-                            onClick={(e) => {
-                              if (videoRef.current && videoRef.current.duration) {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                const clickX = e.clientX - rect.left;
-                                const percentage = clickX / rect.width;
-                                const newTime = percentage * videoRef.current.duration;
-                                videoRef.current.currentTime = newTime;
-                              }
-                            }}
-                          >
-                            <div 
-                              className="absolute left-0 top-0 h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full transition-all duration-100"
-                              style={{ width: `${videoProgress}%` }}
-                            />
-                            {/* 进度条拖拽点 */}
-                            <div 
-                              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                              style={{ left: `calc(${videoProgress}% - 6px)` }}
-                            />
-                          </div>
-                          
                           {/* 控制按钮和时间 */}
                           <div className="flex items-center justify-between">
                             {/* 播放/暂停按钮 */}
@@ -1003,18 +1063,6 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                         <span className="text-sm text-orange-700">{t('preview.generating')}</span>
-                      </div>
-                    </div>
-                  )}
-                  {generatedVideo && videoGenerationDuration !== null && (
-                    <div className="mt-4 text-center">
-                      <div className="inline-flex items-center px-4 py-2 bg-green-50 rounded-lg">
-                        <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="text-sm text-green-700">
-                          生成完成，耗时 {videoGenerationDuration.toFixed(1)} 秒
-                        </span>
                       </div>
                     </div>
                   )}

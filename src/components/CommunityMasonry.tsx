@@ -13,6 +13,7 @@ export type CommunityWork = {
   userAvatar?: string
   userNickname?: string
   avatarFrameId?: string | number | null
+  video?: string // 视频URL（可选）
 }
 
 function hashToIndex(input: string, mod: number) {
@@ -38,7 +39,7 @@ export default function CommunityMasonry({
   generateSameText,
 }: {
   works: CommunityWork[]
-  onGenerateSame: (prompt: string, model?: string) => void
+  onGenerateSame: (prompt: string, model?: string, imageUrl?: string) => void
   onPreview?: (imageUrl: string) => void
   generateSameText: string
 }) {
@@ -221,6 +222,32 @@ export default function CommunityMasonry({
                 }}
               >
                 {(() => {
+                  // 如果有视频，显示视频
+                  if (work.video) {
+                    return (
+                      <video
+                        src={work.video}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        controls={false}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
+                        style={{
+                          pointerEvents: 'none',
+                        }}
+                        onLoadedData={(e) => {
+                          // 确保视频自动播放
+                          const video = e.currentTarget
+                          video.play().catch(() => {
+                            // 忽略自动播放失败的错误（某些浏览器策略）
+                          })
+                        }}
+                      />
+                    )
+                  }
+                  
+                  // 否则显示图片
                   const displayUrl = getDisplayUrl(work.image)
                   const isEncrypted = isEncryptedImage(work.image)
                   const isDecoding = isEncrypted && !decodedImages[work.image]
@@ -306,7 +333,9 @@ export default function CommunityMasonry({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        onGenerateSame(work.prompt, model)
+                        // 传递图片URL以便自动上传
+                        const imageUrl = work.video ? work.image : getDisplayUrl(work.image)
+                        onGenerateSame(work.prompt, model, imageUrl)
                       }}
                       className="mt-2.5 sm:mt-5 w-full rounded-xl sm:rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 px-2.5 py-1.5 sm:px-4 sm:py-3 text-[11px] sm:text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:from-orange-400 hover:to-amber-400 active:scale-[0.99]"
                     >
