@@ -22,6 +22,19 @@ interface GenerateSectionProps {
   initialModel?: string;
 }
 
+// 格式化时间（秒转为 MM:SS 或 HH:MM:SS）
+const formatTime = (seconds: number): string => {
+  if (!isFinite(seconds) || isNaN(seconds)) return '0:00'
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+  
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  }
+  return `${minutes}:${String(secs).padStart(2, '0')}`
+}
+
 const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: GenerateSectionProps) => {
   const t = useTranslations('home.generate')
   const tHome = useTranslations('home')
@@ -51,6 +64,12 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [zoomedVideo, setZoomedVideo] = useState<string | null>(null);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [activeTab, setActiveTab] = useState<'generate' | 'video-generation'>('generate');
   // 视频生成相关状态
   const [videoPrompt, setVideoPrompt] = useState('');
@@ -939,18 +958,118 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                     <img src="/form/prompt.svg" alt="Preview" className="w-5 h-5 mr-2 text-gray-900 [&>path]:fill-current" />
                     {t('preview.title')}
                   </h3>
-                  <div className="w-full aspect-video bg-gray-100/50 rounded-xl border-2 border-dashed border-orange-400/40 flex items-center justify-center min-h-[400px]">
+                  <div className="w-full aspect-video bg-gray-100/50 rounded-xl border-2 border-dashed border-orange-400/40 flex items-center justify-center min-h-[400px] relative overflow-hidden">
                     {generatedVideo ? (
-                      <video
-                        src={generatedVideo}
-                        controls
-                        className="w-full h-full rounded-xl shadow-lg border border-orange-400/30 object-contain"
-                        onError={(e) => {
-                          console.error('Video load error:', e);
-                        }}
-                      >
-                        您的浏览器不支持视频播放。
-                      </video>
+                      <div className="relative w-full h-full group">
+                        <video
+                          ref={videoRef}
+                          src={generatedVideo}
+                          className="w-full h-full rounded-xl shadow-lg border border-orange-400/30 object-contain"
+                          autoPlay
+                          muted
+                          playsInline
+                          onTimeUpdate={(e) => {
+                            const video = e.currentTarget;
+                            if (video.duration) {
+                              const progress = (video.currentTime / video.duration) * 100;
+                              setVideoProgress(progress);
+                              setVideoCurrentTime(video.currentTime);
+                            }
+                          }}
+                          onLoadedMetadata={(e) => {
+                            const video = e.currentTarget;
+                            if (video.duration) {
+                              setVideoDuration(video.duration);
+                            }
+                          }}
+                          onEnded={() => {
+                            setIsVideoPlaying(false);
+                            if (videoRef.current) {
+                              videoRef.current.pause();
+                            }
+                          }}
+                          onPlay={() => setIsVideoPlaying(true)}
+                          onPause={() => setIsVideoPlaying(false)}
+                          onError={(e) => {
+                            console.error('Video load error:', e);
+                          }}
+                        />
+                        
+                        {/* 控制栏 */}
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent p-3 rounded-b-xl">
+                          {/* 进度条 */}
+                          <div 
+                            className="relative h-1.5 bg-white/20 rounded-full mb-3 cursor-pointer"
+                            onClick={(e) => {
+                              if (videoRef.current && videoRef.current.duration) {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const clickX = e.clientX - rect.left;
+                                const percentage = clickX / rect.width;
+                                const newTime = percentage * videoRef.current.duration;
+                                videoRef.current.currentTime = newTime;
+                              }
+                            }}
+                          >
+                            <div 
+                              className="absolute left-0 top-0 h-full bg-gradient-to-r from-orange-400 to-amber-400 rounded-full transition-all duration-100"
+                              style={{ width: `${videoProgress}%` }}
+                            />
+                            {/* 进度条拖拽点 */}
+                            <div 
+                              className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ left: `calc(${videoProgress}% - 6px)` }}
+                            />
+                          </div>
+                          
+                          {/* 控制按钮和时间 */}
+                          <div className="flex items-center justify-between">
+                            {/* 播放/暂停按钮 */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (videoRef.current) {
+                                  if (isVideoPlaying) {
+                                    videoRef.current.pause();
+                                  } else {
+                                    videoRef.current.play();
+                                  }
+                                }
+                              }}
+                              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all"
+                            >
+                              {isVideoPlaying ? (
+                                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M8 5v14l11-7z"/>
+                                </svg>
+                              )}
+                            </button>
+                            
+                            {/* 时间显示 */}
+                            <div className="flex items-center gap-2 text-white text-xs font-medium">
+                              <span>{formatTime(videoCurrentTime)}</span>
+                              <span className="text-white/60">/</span>
+                              <span className="text-white/60">{formatTime(videoDuration)}</span>
+                            </div>
+                            
+                            {/* 全屏按钮 */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setZoomedVideo(generatedVideo);
+                              }}
+                              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all"
+                            >
+                              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     ) : (
                       <div className="text-center text-gray-500">
                         <svg className="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1132,6 +1251,51 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel }: Genera
                 className="max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain rounded-lg shadow-2xl border border-orange-400/30 animate-scaleIn"
                 onClick={(e) => e.stopPropagation()}
               />
+            </div>
+          </div>
+
+          {/* 底部提示 */}
+          <div className="w-full max-w-[1400px] mt-4 text-center text-sm text-orange-200/60">
+            <p>{tHome('preview.closeHint')}</p>
+          </div>
+        </div>
+      )}
+
+      {/* 视频预览模态框 */}
+      {zoomedVideo && (
+        <div
+          className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center p-4 animate-fadeInUp"
+          onClick={() => setZoomedVideo(null)}
+        >
+          {/* 顶部控制栏 */}
+          <div className="w-full max-w-[1400px] flex justify-end mb-4">
+            <button
+              className="p-2 text-orange-300 hover:text-orange-100 transition-colors hover:scale-110 transform duration-300 bg-orange-800/50 rounded-full hover:bg-orange-700/50"
+              onClick={(e) => {
+                e.stopPropagation();
+                setZoomedVideo(null);
+              }}
+              aria-label={tHome('banner.closeButton')}
+            >
+              <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* 视频容器 */}
+          <div className="relative w-full h-full flex items-center justify-center">
+            <div className="relative w-full max-w-[1400px] max-h-[calc(100vh-8rem)] flex items-center justify-center">
+              <video
+                src={zoomedVideo}
+                controls
+                autoPlay
+                loop
+                className="max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain rounded-lg shadow-2xl border border-orange-400/30 animate-scaleIn"
+                onClick={(e) => e.stopPropagation()}
+              >
+                您的浏览器不支持视频播放。
+              </video>
             </div>
           </div>
 
