@@ -58,8 +58,8 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
 
   // 检查 baseUrl 是否配置
   if (!baseUrl) {
-    console.error(`[视频生成] 服务URL未配置 - 模型: ${params.model}, 环境变量: WAN_I2V_URL`);
-    throw new Error(`视频模型 ${params.model} 的服务URL未配置，请检查环境变量 WAN_I2V_URL`);
+    console.error(`[视频生成] 服务URL未配置 - 模型: ${params.model}`);
+    throw new Error(`视频模型 ${params.model} 未配置服务URL，请联系管理员检查服务配置`);
   }
 
   // 规范化 baseUrl（移除末尾斜杠）
@@ -132,10 +132,8 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
       
       // 如果是 404 错误，提供更详细的提示
       if (response.status === 404) {
-        const error = new Error(`API 端点不存在 (404): ${apiEndpoint}。请检查 ${params.model} 的服务URL配置是否正确，确保指向正确的 ComfyUI 服务地址`);
+        const error = new Error(`API 端点不存在 (404): 请联系管理员检查 ${params.model} 的服务配置`);
         console.error(`[视频生成] 404错误 - 端点不存在:`, {
-          endpoint: apiEndpoint,
-          baseUrl: baseUrl,
           model: params.model,
         });
         throw error;
@@ -143,20 +141,17 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
       
       // 如果是 503 错误，提供连接相关的提示
       if (response.status === 503) {
-        const error = new Error(`ComfyUI服务不可用 (503): ${errorText || '无法连接到服务'}。请检查 ${params.model} 的服务是否正在运行，以及环境变量 WAN_I2V_URL 配置是否正确`);
+        const error = new Error(`ComfyUI服务暂时不可用 (503): 请稍后重试或联系管理员`);
         console.error(`[视频生成] 503错误 - 服务不可用:`, {
-          errorText: errorText.substring(0, 500),
-          baseUrl: baseUrl,
           model: params.model,
         });
         throw error;
       }
       
-      const error = new Error(`ComfyUI服务错误 (${response.status}): ${errorText || '未知错误'}`);
+      const error = new Error(`ComfyUI服务错误 (${response.status}): 请稍后重试或联系管理员`);
       console.error(`[视频生成] HTTP错误 (${response.status}):`, {
         status: response.status,
         statusText: response.statusText,
-        errorText: errorText.substring(0, 500),
       });
       throw error;
     }
@@ -179,12 +174,8 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
 
       // 检查响应是否为"no healthy upstream"错误
       if (text.includes('no healthy upstream') || text.includes('upstream')) {
-        console.error(`[视频生成] 检测到上游服务错误:`, {
-          text: text.substring(0, 500),
-          hasUpstream: text.includes('upstream'),
-          hasNoHealthy: text.includes('no healthy upstream'),
-        });
-        throw new Error(`ComfyUI服务不可用: ${text.substring(0, 200)}。请检查服务是否正常运行`);
+        console.error(`[视频生成] 检测到上游服务错误`);
+        throw new Error(`ComfyUI服务暂时不可用: 请稍后重试或联系管理员`);
       }
 
       const jsonParseStartTime = Date.now();
@@ -316,7 +307,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
         throw new Error(errorMsg);
       }
       
-      throw new Error(`无法连接到ComfyUI服务 (${baseUrl})。请检查服务是否正常运行`);
+      throw new Error(`无法连接到ComfyUI服务。请检查服务是否正常运行或联系管理员`);
     }
     
     // 如果是 AbortError (超时)
