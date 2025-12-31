@@ -232,8 +232,6 @@ You are now ready to optimize the user's image-to-video prompt.`;
     const optimizedPrompt = data.choices[0]?.message?.content;
     
     if (!optimizedPrompt) {
-      console.log(data)
-      console.log(data.choices[0]?.message)
       throw new Error('No response content received from LLM service');
     }
 

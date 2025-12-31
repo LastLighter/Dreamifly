@@ -31,13 +31,10 @@ export async function moderateGeneratedVideo(
   try {
     // 尝试直接使用视频Buffer进行审核（如果服务支持）
     return await moderateAvatar(videoBuffer, fileName, baseUrl, apiKey, model, prompt)
-  } catch (error) {
-    console.warn('视频审核失败，可能需要提取关键帧:', error)
-    
+  } catch {
     // 方案2：提取关键帧进行审核（需要安装ffmpeg等工具）
     // 这里暂时返回true，实际应用中需要实现关键帧提取
     // TODO: 实现视频关键帧提取功能
-    console.warn('视频关键帧提取功能未实现，暂时通过审核')
     return true
   }
 }

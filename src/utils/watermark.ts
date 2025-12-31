@@ -72,7 +72,6 @@ export async function addWatermark(
     const strokeWidth = Math.max(1, fontSize / 20)
     
     // 使用系统字体（字体已在 Docker 中安装到系统字体目录）
-    console.log(`✓ 使用系统字体生成水印: ${SYSTEM_FONT_NAME}`)
     
     // 创建SVG水印（包含圆角矩形边框和文本）
     // 直接使用系统字体名称，字体已在 Docker 中安装到系统字体目录

@@ -6,7 +6,6 @@
  */
 export async function optimizeVideoPrompt(prompt: string, image: string): Promise<string> {
   try {
-    console.log('Calling local API to optimize video prompt with image...');
     
     // 调用我们的本地API端点
     const response = await fetch('/api/optimize-video-prompt', {
@@ -28,7 +27,6 @@ export async function optimizeVideoPrompt(prompt: string, image: string): Promis
       throw new Error('Invalid response from optimization API');
     }
 
-    console.log('Video prompt optimization successful');
     return data.optimizedPrompt;
 
   } catch (error) {

@@ -41,7 +41,7 @@ export default function CreateClient() {
   )
   
   // 视频社区作品数据状态
-  const [videoWorks, setVideoWorks] = useState<CommunityWork[]>(
+  const [videoWorks] = useState<CommunityWork[]>(
     videoCommunityWorks.map(work => ({
       id: work.id,
       image: work.image,

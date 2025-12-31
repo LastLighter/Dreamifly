@@ -67,7 +67,6 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [zoomedVideo, setZoomedVideo] = useState<string | null>(null);
-  const [videoProgress, setVideoProgress] = useState(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
@@ -566,23 +565,16 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
   };
 
   const handleOptimizePrompt = async () => {
-    console.log('优化提示词按钮被点击');
-    console.log('当前提示词:', prompt);
-    console.log('当前模型:', model);
-    
     if (!prompt.trim()) {
-      console.log('提示词为空，无法优化');
       // 如果没有提示词，可以显示提示信息
       return;
     }
 
     // 移除优化检查，允许用户随时优化提示词
     // 这样用户可以多次优化，尝试不同的效果
-    console.log('开始优化提示词...');
     setIsOptimizing(true);
     try {
       const optimizedPrompt = await optimizePrompt(prompt, model);
-      console.log('优化成功，结果:', optimizedPrompt);
       setPrompt(optimizedPrompt);
     } catch (error) {
       console.error('Failed to optimize prompt:', error);
@@ -945,8 +937,6 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
                           onTimeUpdate={(e) => {
                             const video = e.currentTarget;
                             if (video.duration) {
-                              const progress = (video.currentTime / video.duration) * 100;
-                              setVideoProgress(progress);
                               setVideoCurrentTime(video.currentTime);
                             }
                           }}

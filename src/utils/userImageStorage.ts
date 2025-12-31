@@ -58,7 +58,6 @@ async function cleanupOldMedia(userId: string, maxMedia: number): Promise<void> 
           if (refImageUrl && typeof refImageUrl === 'string') {
             try {
               await deleteFromOSS(refImageUrl)
-              console.log(`已自动删除参考图片: ${refImageUrl}`)
             } catch (error) {
               console.error(`删除参考图片失败: ${refImageUrl}`, error)
               // 继续删除其他文件，不中断流程
@@ -75,17 +74,12 @@ async function cleanupOldMedia(userId: string, maxMedia: number): Promise<void> 
       // 从OSS删除主媒体文件
       try {
         await deleteFromOSS(media.imageUrl)
-        const mediaTypeLabel = media.mediaType === 'video' ? '视频' : '图片'
-        console.log(`已自动删除旧${mediaTypeLabel}: ${media.imageUrl}`)
       } catch (error) {
         console.error(`删除OSS文件失败: ${media.imageUrl}`, error)
         // 继续删除其他文件，不中断流程
       }
     }
     
-    const imageCount = mediaToDelete.filter(m => m.mediaType === 'image' || !m.mediaType).length
-    const videoCount = mediaToDelete.filter(m => m.mediaType === 'video').length
-    console.log(`用户 ${userId} 自动清理了 ${mediaToDelete.length} 个旧媒体（${imageCount} 张图片，${videoCount} 个视频），保留最新 ${maxMedia} 个`)
   }
 }
 
@@ -427,7 +421,6 @@ export async function deleteUserGeneratedImage(
       if (refImageUrl && typeof refImageUrl === 'string') {
         try {
           await deleteFromOSS(refImageUrl)
-          console.log(`已删除参考图片: ${refImageUrl}`)
         } catch (error) {
           console.error(`删除参考图片失败: ${refImageUrl}`, error)
           // 继续删除其他文件，不中断流程

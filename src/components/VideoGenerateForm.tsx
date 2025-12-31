@@ -439,10 +439,6 @@ const VideoGenerateForm = ({
 
   // 处理优化提示词
   const handleOptimizePrompt = async () => {
-    console.log('优化提示词按钮被点击');
-    console.log('当前提示词:', prompt);
-    console.log('当前图片:', uploadedImage ? '已上传' : '未上传');
-    
     // 如果没有上传图片，优雅提示
     if (!uploadedImage) {
       setToast({
@@ -454,12 +450,10 @@ const VideoGenerateForm = ({
 
     // 如果没有提示词，则生成新提示词；如果有提示词，则优化现有提示词
     const hasPrompt = prompt.trim().length > 0;
-    
-    console.log(hasPrompt ? '开始优化提示词...' : '开始生成提示词...');
+
     setIsOptimizing(true);
     try {
       const optimizedPrompt = await optimizeVideoPrompt(hasPrompt ? prompt : '', uploadedImage);
-      console.log('成功，结果:', optimizedPrompt);
       setPrompt(optimizedPrompt);
       setToast({
         message: hasPrompt ? (t('form.promptOptimized') || '提示词优化成功') : (t('form.promptGenerated') || '提示词生成成功'),

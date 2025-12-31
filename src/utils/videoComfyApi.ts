@@ -1,7 +1,5 @@
 import { getVideoModelById } from './videoModelConfig';
 import { generateVideoWorkflow } from './videoWorkflow';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { Agent, fetch as undiciFetch } from 'undici';
 
 /**
@@ -30,19 +28,13 @@ interface GenerateVideoParams {
 
 export async function generateVideo(params: GenerateVideoParams): Promise<string> {
   const requestStartTime = Date.now();
-  console.log(`[视频生成] 开始生成视频 - 模型: ${params.model}, 时间: ${new Date().toISOString()}`);
-  
+
   // 获取模型配置
   const modelConfig = getVideoModelById(params.model);
   if (!modelConfig) {
     console.error(`[视频生成] 模型配置未找到: ${params.model}`);
     throw new Error(`视频模型 ${params.model} 未找到`);
   }
-  console.log(`[视频生成] 模型配置加载成功:`, {
-    model: params.model,
-    defaultLength: modelConfig.defaultLength,
-    defaultFps: modelConfig.defaultFps,
-  });
 
   // 生成工作流
   const workflow = generateVideoWorkflow(modelConfig, {
@@ -56,21 +48,11 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
     steps: params.steps || 4,
     imagePath: params.image, // 如果是 base64，ComfyUI 可能需要特殊处理
   });
-  console.log(`[视频生成] 工作流生成完成, 参数:`, {
-    width: params.width,
-    height: params.height,
-    length: params.length || modelConfig.defaultLength || 100,
-    fps: params.fps || modelConfig.defaultFps || 20,
-    steps: params.steps || 4,
-    hasImage: !!params.image,
-    promptLength: params.prompt?.length || 0,
-  });
 
   // 获取模型对应的 ComfyUI 服务 URL
   let baseUrl = '';
   if (params.model === 'Wan2.2-I2V-Lightning') {
     baseUrl = process.env.WAN_I2V_URL || '';
-    console.log(`[视频生成] 环境变量 WAN_I2V_URL:`, baseUrl ? `${baseUrl.substring(0, 30)}...` : '未配置');
   }
   // 可以添加更多模型的环境变量映射
 
@@ -82,11 +64,10 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
 
   // 规范化 baseUrl（移除末尾斜杠）
   baseUrl = baseUrl.replace(/\/+$/, '');
-  console.log(`[视频生成] 使用服务URL: ${baseUrl}`);
 
   // 视频生成需要较长时间，设置20分钟超时（1200000ms）
   const VIDEO_GENERATION_TIMEOUT = 20 * 60 * 1000; // 20分钟
-  
+
   // 配置 Undici Agent 以支持长超时时间
   // Undici 默认的头部超时是 300 秒（5分钟），需要增加到 20 分钟
   const agent = new Agent({
@@ -102,11 +83,10 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
     if (imageBase64.includes(',')) {
       imageBase64 = imageBase64.split(',')[1];
     }
-    
+
     // 更新工作流中的图片（LoadImage节点会自动处理upload: "image"）
     if (workflow['71'] && workflow['71'].inputs) {
       workflow['71'].inputs.image = imageBase64;
-      console.log(`[视频生成] 工作流图片已设置（base64格式，ComfyUI将自动处理上传）`);
     }
   }
 
@@ -116,20 +96,13 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
     const requestBody = { prompt: workflow };
     const requestBodyString = JSON.stringify(requestBody);
     const requestBodySize = requestBodyString.length;
-    const fetchStartTime = Date.now();
-    
-    console.log(`[视频生成] 准备发送请求到: ${apiEndpoint}`);
-    console.log(`[视频生成] 请求体大小: ${requestBodySize} 字节 (${(requestBodySize / 1024).toFixed(2)} KB)`);
-    
+
     // 如果请求体过大，给出警告
     if (requestBodySize > 10 * 1024 * 1024) { // 10MB
       console.warn(`[视频生成] 警告: 请求体过大 (${(requestBodySize / 1024 / 1024).toFixed(2)} MB)，可能导致服务器超时或连接关闭`);
     } else if (requestBodySize > 5 * 1024 * 1024) { // 5MB
       console.warn(`[视频生成] 提示: 请求体较大 (${(requestBodySize / 1024 / 1024).toFixed(2)} MB)，如果遇到连接问题，请尝试减小输入图片大小`);
     }
-    
-    console.log(`[视频生成] 设置请求超时时间: ${VIDEO_GENERATION_TIMEOUT / 1000}秒 (${VIDEO_GENERATION_TIMEOUT / 60000}分钟)`);
-    console.log(`[视频生成] Undici Agent 配置: headersTimeout=${VIDEO_GENERATION_TIMEOUT}ms, bodyTimeout=${VIDEO_GENERATION_TIMEOUT}ms`);
     
     // 使用 undici 的 fetch 以支持自定义超时配置
     // 这样可以避免默认的 300 秒头部超时限制
@@ -143,8 +116,6 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
       dispatcher: agent,
     });
     
-    const fetchDuration = Date.now() - fetchStartTime;
-    console.log(`[视频生成] 收到响应 - 状态: ${response.status} ${response.statusText}, 耗时: ${fetchDuration}ms`);
 
     // 检查HTTP响应状态
     if (!response.ok) {
@@ -159,7 +130,6 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
         baseUrl: baseUrl,
         errorText: errorText.substring(0, 500), // 限制错误文本长度
         errorTextLength: errorText.length,
-        fetchDuration: `${fetchDuration}ms`,
         totalDuration: `${totalDuration}ms`,
         headers: Object.fromEntries(response.headers.entries()),
       });
@@ -198,29 +168,8 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
     let videoUrl: string = '';
     let text = '';
     try {
-      const textStartTime = Date.now();
       text = await response.text();
-      const textDuration = Date.now() - textStartTime;
-      console.log(`[视频生成] 响应文本获取完成 - 大小: ${text.length} 字节, 耗时: ${textDuration}ms`);
-      
-      // 将响应内容保存到文件
-      try {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const fileName = `video-response-${timestamp}-${params.model.replace(/[^a-zA-Z0-9]/g, '_')}.json`;
-        const logsDir = join(process.cwd(), 'logs', 'video-responses');
-        
-        // 确保目录存在
-        await mkdir(logsDir, { recursive: true });
-        
-        // 保存响应内容到文件
-        const filePath = join(logsDir, fileName);
-        await writeFile(filePath, text, 'utf-8');
-        console.log(`[视频生成] 响应内容已保存到文件: ${filePath}`);
-      } catch (fileError) {
-        // 文件保存失败不影响主流程，只记录警告
-        console.warn(`[视频生成] 保存响应内容到文件失败:`, fileError);
-      }
-      
+
       // 检查响应是否为"no healthy upstream"错误
       if (text.includes('no healthy upstream') || text.includes('upstream')) {
         console.error(`[视频生成] 检测到上游服务错误:`, {
@@ -230,19 +179,8 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
         });
         throw new Error(`ComfyUI服务不可用: ${text.substring(0, 200)}。请检查服务是否正常运行`);
       }
-      
-      console.log(`[视频生成] 开始解析JSON响应...`);
-      const parseStartTime = Date.now();
+
       const data = JSON.parse(text) as ComfyUIResponse;
-      const parseDuration = Date.now() - parseStartTime;
-      console.log(`[视频生成] JSON解析完成 - 耗时: ${parseDuration}ms`);
-      console.log(`[视频生成] 响应数据结构:`, {
-        hasId: !!data.id,
-        hasImages: !!data.images,
-        imagesCount: data.images?.length || 0,
-        hasFilenames: !!data.filenames,
-        filenamesCount: data.filenames?.length || 0,
-      });
       
       // comfyui-api 直接返回视频的 base64 数据在 images 数组中
       if (data.images && data.images.length > 0) {
@@ -255,12 +193,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
         
         // 添加 data URI 前缀
         videoUrl = `data:video/mp4;base64,${videoBase64}`;
-        
-        console.log(`[视频生成] 视频数据提取成功 - base64长度: ${videoBase64.length} 字符`);
-        
-        if (data.filenames && data.filenames.length > 0) {
-          console.log(`[视频生成] 生成的文件名: ${data.filenames[0]}`);
-        }
+
       } else {
         console.error(`[视频生成] 响应格式无效 - 缺少 images 数据:`, {
           dataKeys: Object.keys(data),
@@ -268,9 +201,6 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
         });
         throw new Error(`无效的响应格式: comfyui-api 应返回包含 images 数组的响应`);
       }
-      
-      const totalDuration = Date.now() - requestStartTime;
-      console.log(`[视频生成] 视频生成成功 - 总耗时: ${totalDuration}ms (${(totalDuration / 1000).toFixed(2)}秒)`);
     } catch (parseError) {
       const totalDuration = Date.now() - requestStartTime;
       console.error(`[视频生成] 响应解析错误:`, {
