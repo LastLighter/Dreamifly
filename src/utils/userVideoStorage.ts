@@ -206,14 +206,14 @@ export async function saveUserGeneratedVideo(
   // 7. 上传到OSS（使用加密存储，.dat扩展名）
   const { v4: uuidv4 } = await import('uuid')
   const fileName = `${uuidv4()}.dat` // 使用.dat扩展名，统一使用加密存储
-  
+
   // 按日期生成文件夹路径：YYYY/MM/DD
   const now = new Date()
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   const dateFolder = `${year}/${month}/${day}`
-  
+
   // 构建完整路径：user-generated-videos/YYYY/MM/DD
   const folderPath = `user-generated-videos/${dateFolder}`
   const videoUrl = await uploadToOSS(encodedBuffer, fileName, folderPath) // 使用加密后的buffer
@@ -301,7 +301,7 @@ export async function saveUserGeneratedVideo(
       createdAt: new Date(),
       updatedAt: new Date(),
     })
-    
+
     // 10. 自动清理超出数量的旧媒体（图片+视频，从前往后删除，保留最新的）
     // 无论会员是否过期，都会自动维护对应的上限
     await cleanupOldMedia(userId, maxMedia)

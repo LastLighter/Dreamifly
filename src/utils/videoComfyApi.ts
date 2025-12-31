@@ -1,6 +1,5 @@
 import { getVideoModelById } from './videoModelConfig';
 import { generateVideoWorkflow } from './videoWorkflow';
-import { Agent, fetch as undiciFetch } from 'undici';
 
 /**
  * comfyui-api 返回格式
@@ -65,16 +64,8 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
   // 规范化 baseUrl（移除末尾斜杠）
   baseUrl = baseUrl.replace(/\/+$/, '');
 
-  // 视频生成需要较长时间，设置20分钟超时（1200000ms）
-  const VIDEO_GENERATION_TIMEOUT = 20 * 60 * 1000; // 20分钟
-
-  // 配置 Undici Agent 以支持长超时时间
-  // Undici 默认的头部超时是 300 秒（5分钟），需要增加到 20 分钟
-  const agent = new Agent({
-    headersTimeout: VIDEO_GENERATION_TIMEOUT, // 头部超时：20分钟
-    bodyTimeout: VIDEO_GENERATION_TIMEOUT, // 请求体超时：20分钟
-    connectTimeout: 30000, // 连接超时：30秒
-  });
+  // 视频生成需要较长时间，设置25分钟超时（1500000ms），留出缓冲时间给响应处理
+  const VIDEO_GENERATION_TIMEOUT = 25 * 60 * 1000; // 25分钟
 
   // 如果有输入图片，直接设置到工作流中（ComfyUI会自动处理base64上传）
   if (params.image) {
@@ -103,19 +94,22 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
     } else if (requestBodySize > 5 * 1024 * 1024) { // 5MB
       console.warn(`[视频生成] 提示: 请求体较大 (${(requestBodySize / 1024 / 1024).toFixed(2)} MB)，如果遇到连接问题，请尝试减小输入图片大小`);
     }
+
+    const comfyUIRequestStartTime = Date.now();
     
-    // 使用 undici 的 fetch 以支持自定义超时配置
-    // 这样可以避免默认的 300 秒头部超时限制
-    const response = await undiciFetch(apiEndpoint, {
+    // 使用原生 fetch 处理请求
+    // 原生 fetch 在处理响应体解码时通常比 Undici 更快
+    const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: requestBodyString,
       signal: AbortSignal.timeout(VIDEO_GENERATION_TIMEOUT),
-      dispatcher: agent,
     });
     
+
+    console.log(`[视频生成] ComfyUI请求完成 - HTTP状态: ${response.status}, 总耗时: ${Date.now() - comfyUIRequestStartTime}ms`);
 
     // 检查HTTP响应状态
     if (!response.ok) {
@@ -170,6 +164,11 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
     try {
       text = await response.text();
 
+      // 如果响应体过大，给出警告
+      if (text.length > 50 * 1024 * 1024) { // 50MB
+        console.warn(`[视频生成] 警告: 响应体过大 (${(text.length / 1024 / 1024).toFixed(2)} MB)，可能导致内存压力和处理延迟`);
+      }
+
       // 检查响应是否为"no healthy upstream"错误
       if (text.includes('no healthy upstream') || text.includes('upstream')) {
         console.error(`[视频生成] 检测到上游服务错误:`, {
@@ -181,16 +180,16 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
       }
 
       const data = JSON.parse(text) as ComfyUIResponse;
-      
+
       // comfyui-api 直接返回视频的 base64 数据在 images 数组中
       if (data.images && data.images.length > 0) {
         // 取第一个视频（通常只有一个）
         const videoBase64 = data.images[0];
-        
+
         if (!videoBase64 || typeof videoBase64 !== 'string') {
           throw new Error(`无效的视频数据格式: images[0] 不是有效的 base64 字符串`);
         }
-        
+
         // 添加 data URI 前缀
         videoUrl = `data:video/mp4;base64,${videoBase64}`;
 
