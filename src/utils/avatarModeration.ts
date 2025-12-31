@@ -71,15 +71,13 @@ export async function moderateAvatar(
 
     // 根据媒体类型选择正确的消息格式
     const isVideo = mimeType.startsWith('video/')
-    const mediaContent = isVideo ? [
-      { type: 'text' as const, text: prompt },
-      {
-        type: 'video_url' as any, // QwenVL支持video_url类型
-        video_url: {
-          url: `data:${mimeType};base64,${base64Media}`,
-        },
-      },
-    ] : [
+
+    // OpenAI API不支持视频审核，直接返回允许
+    if (isVideo) {
+      return true
+    }
+
+    const mediaContent = [
       { type: 'text' as const, text: prompt },
       {
         type: 'image_url' as const,
