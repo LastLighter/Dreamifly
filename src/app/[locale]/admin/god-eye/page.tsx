@@ -550,9 +550,11 @@ export default function GodEyePage() {
   }
 
   // 解码未通过审核的图片（使用统一的解密函数）
-  const decodeRejectedImage = async (imageId: string, imageUrl: string) => {
+  const decodeRejectedImage = async (imageId: string, imageUrl: string, mediaType?: string) => {
     try {
-      const decodedUrl = await getImageDisplayUrl(imageUrl, decodedImages)
+      const decodedUrl = mediaType === 'video'
+        ? await getVideoDisplayUrl(imageUrl, decodedImages)
+        : await getImageDisplayUrl(imageUrl, decodedImages)
       setDecodedImages((prev) => {
         if (prev[imageId]) return prev
         return { ...prev, [imageId]: decodedUrl }
@@ -580,7 +582,7 @@ export default function GodEyePage() {
       while (queue.length && !cancelled) {
         const next = queue.shift()
         if (next) {
-          await decodeRejectedImage(next.id, next.imageUrl)
+          await decodeRejectedImage(next.id, next.imageUrl, next.mediaType)
         }
       }
     }

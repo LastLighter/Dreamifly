@@ -21,21 +21,20 @@ export async function moderateGeneratedVideo(
   model: string,
   prompt: string
 ): Promise<boolean> {
-  // 目前使用与图片审核相同的方式
-  // 如果审核服务支持视频输入，可以直接使用视频Buffer
-  // 否则需要提取关键帧进行审核
-  
-  // 方案1：如果审核服务支持视频，直接使用视频Buffer
-  // 这里先尝试使用视频Buffer，如果失败再提取关键帧
-  
+  // 使用QwenVL进行视频审核
+  // QwenVL支持直接处理视频内容，无需提取关键帧
+
   try {
-    // 尝试直接使用视频Buffer进行审核（如果服务支持）
-    return await moderateAvatar(videoBuffer, fileName, baseUrl, apiKey, model, prompt)
-  } catch {
-    // 方案2：提取关键帧进行审核（需要安装ffmpeg等工具）
-    // 这里暂时返回true，实际应用中需要实现关键帧提取
-    // TODO: 实现视频关键帧提取功能
-    return true
+    // 直接使用视频Buffer进行审核（QwenVL支持视频输入）
+    console.log(`开始审核视频文件: ${fileName}, 大小: ${videoBuffer.length} bytes`)
+    const result = await moderateAvatar(videoBuffer, fileName, baseUrl, apiKey, model, prompt)
+    console.log(`视频审核完成: ${fileName}, 结果: ${result ? '通过' : '未通过'}`)
+    return result
+  } catch (error) {
+    console.error('视频审核失败:', error)
+    // 审核服务出错时，为了安全起见，默认不通过
+    // 在生产环境中可以根据需求调整策略
+    return false
   }
 }
 

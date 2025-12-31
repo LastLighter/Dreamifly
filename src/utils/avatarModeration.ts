@@ -12,6 +12,21 @@ function encodeImageToBase64(buffer: Buffer): string {
  */
 function getMimeType(fileName: string): string {
   const lowerName = fileName.toLowerCase()
+
+  // 视频格式
+  if (lowerName.endsWith('.mp4')) {
+    return 'video/mp4'
+  } else if (lowerName.endsWith('.avi')) {
+    return 'video/avi'
+  } else if (lowerName.endsWith('.mov')) {
+    return 'video/quicktime'
+  } else if (lowerName.endsWith('.mkv')) {
+    return 'video/x-matroska'
+  } else if (lowerName.endsWith('.webm')) {
+    return 'video/webm'
+  }
+
+  // 图片格式
   if (lowerName.endsWith('.png')) {
     return 'image/png'
   } else if (lowerName.endsWith('.webp')) {
@@ -19,13 +34,15 @@ function getMimeType(fileName: string): string {
   } else if (lowerName.endsWith('.gif')) {
     return 'image/gif'
   }
+
   // 默认为jpeg
   return 'image/jpeg'
 }
 
 /**
- * 使用兼容OpenAI API的第三方服务审核头像图片
- * @param imageBuffer 图片Buffer
+ * 使用兼容OpenAI API的第三方服务审核媒体内容（图片或视频）
+ * 支持QwenVL等多模态模型进行内容审核
+ * @param mediaBuffer 媒体Buffer（图片或视频）
  * @param fileName 文件名（用于推断MIME类型）
  * @param baseUrl API基础URL
  * @param apiKey API密钥
@@ -34,7 +51,7 @@ function getMimeType(fileName: string): string {
  * @returns 审核结果（true表示通过，false表示不通过）
  */
 export async function moderateAvatar(
-  imageBuffer: Buffer,
+  mediaBuffer: Buffer,
   fileName: string,
   baseUrl: string,
   apiKey: string,
@@ -42,9 +59,9 @@ export async function moderateAvatar(
   prompt: string
 ): Promise<boolean> {
   try {
-    // 编码图片为base64
+    // 获取媒体类型和编码内容
     const mimeType = getMimeType(fileName)
-    const base64Image = encodeImageToBase64(imageBuffer)
+    const base64Media = encodeImageToBase64(mediaBuffer)
 
     // 创建OpenAI客户端
     const client = new OpenAI({
@@ -52,21 +69,33 @@ export async function moderateAvatar(
       apiKey: apiKey || 'dummy-key', // 某些服务可能不需要key，但SDK要求非空值
     })
 
+    // 根据媒体类型选择正确的消息格式
+    const isVideo = mimeType.startsWith('video/')
+    const mediaContent = isVideo ? [
+      { type: 'text' as const, text: prompt },
+      {
+        type: 'video_url' as any, // QwenVL支持video_url类型
+        video_url: {
+          url: `data:${mimeType};base64,${base64Media}`,
+        },
+      },
+    ] : [
+      { type: 'text' as const, text: prompt },
+      {
+        type: 'image_url' as const,
+        image_url: {
+          url: `data:${mimeType};base64,${base64Media}`,
+        },
+      },
+    ]
+
     // 调用API进行审核
     const response = await client.chat.completions.create({
       model: model,
       messages: [
         {
           role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:${mimeType};base64,${base64Image}`,
-              },
-            },
-          ],
+          content: mediaContent,
         },
       ],
     })

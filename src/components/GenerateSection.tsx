@@ -195,6 +195,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorType, setErrorType] = useState<'concurrency' | 'daily_limit' | 'insufficient_points'>('concurrency');
   const [showLoginTip, setShowLoginTip] = useState(false);
+  const [loginTipMessage, setLoginTipMessage] = useState('');
 
   // 关闭错误模态框
   const closeErrorModal = () => {
@@ -900,11 +901,22 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
                           }
                         }}
                         setErrorModal={(show, type, message) => {
-                          setShowErrorModal(show)
-                          setErrorType(type as any)
-                          // 对于积分不足错误，设置自定义错误消息
-                          if (type === 'insufficient_points' && message) {
-                            setConcurrencyError(message)
+                          console.log('GenerateSection - setErrorModal called:', { show, type, message })
+                          if (type === 'login_required') {
+                            // 对于登录要求错误，使用专门的登录提示框
+                            console.log('GenerateSection - setting showLoginTip:', show)
+                            setShowLoginTip(show)
+                            if (show && message) {
+                              console.log('GenerateSection - setting login message:', message)
+                              setLoginTipMessage(message)
+                            }
+                          } else {
+                            setShowErrorModal(show)
+                            setErrorType(type as any)
+                            // 对于积分不足错误，设置自定义错误消息
+                            if (type === 'insufficient_points' && message) {
+                              setConcurrencyError(message)
+                            }
                           }
                         }}
                       />
@@ -1153,7 +1165,10 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
           <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 relative">
             <button
               aria-label="Close"
-              onClick={() => setShowLoginTip(false)}
+              onClick={() => {
+                setShowLoginTip(false)
+                setLoginTipMessage('')
+              }}
               className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1171,12 +1186,15 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
               <div className="space-y-2">
                 <h3 className="text-lg font-bold text-gray-900">该功能仅限登录用户使用</h3>
                 <p className="text-sm text-gray-600">
-                  请先登录后再使用图改图功能
+                  {loginTipMessage || '请先登录后再使用此功能'}
                 </p>
               </div>
 
               <button
-                onClick={() => setShowLoginTip(false)}
+                onClick={() => {
+                  setShowLoginTip(false)
+                  setLoginTipMessage('')
+                }}
                 className="px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors"
               >
                 知道啦

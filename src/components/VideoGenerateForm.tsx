@@ -303,7 +303,9 @@ const VideoGenerateForm = ({
     }
 
     // 检查用户是否登录
+    console.log('Video generation - auth status:', authStatus)
     if (authStatus !== 'authenticated') {
+      console.log('Video generation - user not authenticated, showing login modal')
       setErrorModal(true, 'login_required', tVideo('loginRequired'))
       return
     }
