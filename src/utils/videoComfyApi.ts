@@ -27,6 +27,7 @@ interface GenerateVideoParams {
 
 export async function generateVideo(params: GenerateVideoParams): Promise<string> {
   const requestStartTime = Date.now();
+  console.log(`[视频生成] 开始处理视频生成请求 - 时间戳: ${new Date().toISOString()}, 模型: ${params.model}`);
 
   // 获取模型配置
   const modelConfig = getVideoModelById(params.model);
@@ -96,7 +97,8 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
     }
 
     const comfyUIRequestStartTime = Date.now();
-    
+    console.log(`[视频生成] 发送ComfyUI请求 - 端点: ${apiEndpoint}, 请求体大小: ${(requestBodySize / 1024 / 1024).toFixed(2)} MB`);
+
     // 使用原生 fetch 处理请求
     // 原生 fetch 在处理响应体解码时通常比 Undici 更快
     const response = await fetch(apiEndpoint, {
@@ -107,9 +109,9 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
       body: requestBodyString,
       signal: AbortSignal.timeout(VIDEO_GENERATION_TIMEOUT),
     });
-    
 
-    console.log(`[视频生成] ComfyUI请求完成 - HTTP状态: ${response.status}, 总耗时: ${Date.now() - comfyUIRequestStartTime}ms`);
+    const requestDuration = Date.now() - comfyUIRequestStartTime;
+    console.log(`[视频生成] ComfyUI请求完成 - HTTP状态: ${response.status}, 请求耗时: ${requestDuration}ms (${(requestDuration / 1000).toFixed(2)}秒)`);
 
     // 检查HTTP响应状态
     if (!response.ok) {
@@ -161,8 +163,14 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
 
     let videoUrl: string = '';
     let text = '';
+    const responseReceiveStartTime = Date.now();
+
     try {
+      console.log(`[视频生成] 开始接收响应体...`);
       text = await response.text();
+      const responseReceiveTime = Date.now() - responseReceiveStartTime;
+
+      console.log(`[视频生成] 响应体接收完成 - 大小: ${(text.length / 1024 / 1024).toFixed(2)} MB, 耗时: ${responseReceiveTime}ms`);
 
       // 如果响应体过大，给出警告
       if (text.length > 50 * 1024 * 1024) { // 50MB
@@ -179,7 +187,11 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
         throw new Error(`ComfyUI服务不可用: ${text.substring(0, 200)}。请检查服务是否正常运行`);
       }
 
+      const jsonParseStartTime = Date.now();
       const data = JSON.parse(text) as ComfyUIResponse;
+      const jsonParseTime = Date.now() - jsonParseStartTime;
+
+      console.log(`[视频生成] JSON解析完成 - 耗时: ${jsonParseTime}ms`);
 
       // comfyui-api 直接返回视频的 base64 数据在 images 数组中
       if (data.images && data.images.length > 0) {
@@ -190,13 +202,25 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
           throw new Error(`无效的视频数据格式: images[0] 不是有效的 base64 字符串`);
         }
 
+        console.log(`[视频生成] 视频数据处理 - base64长度: ${(videoBase64.length / 1024 / 1024).toFixed(2)} MB`);
+
         // 添加 data URI 前缀
+        const dataUriStartTime = Date.now();
         videoUrl = `data:video/mp4;base64,${videoBase64}`;
+        const dataUriTime = Date.now() - dataUriStartTime;
+
+        console.log(`[视频生成] data URI组装完成 - 耗时: ${dataUriTime}ms, 总大小: ${(videoUrl.length / 1024 / 1024).toFixed(2)} MB`);
 
       } else {
+        const processingDuration = Date.now() - requestStartTime;
         console.error(`[视频生成] 响应格式无效 - 缺少 images 数据:`, {
           dataKeys: Object.keys(data),
           dataPreview: JSON.stringify(data).substring(0, 500),
+          processingDuration: `${processingDuration}ms`,
+          hasImages: !!data.images,
+          imagesLength: data.images?.length || 0,
+          hasFilenames: !!data.filenames,
+          filenamesLength: data.filenames?.length || 0,
         });
         throw new Error(`无效的响应格式: comfyui-api 应返回包含 images 数组的响应`);
       }
@@ -219,6 +243,9 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
       // 否则包装为错误
       throw new Error(`无法解析ComfyUI响应: ${text.substring(0, 200)}`);
     }
+
+    const totalProcessingTime = Date.now() - requestStartTime;
+    console.log(`[视频生成] 视频生成完成 - 总耗时: ${totalProcessingTime}ms (${(totalProcessingTime / 1000).toFixed(2)}秒)`);
 
     return videoUrl;
   } catch (error) {
