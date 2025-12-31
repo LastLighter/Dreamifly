@@ -582,7 +582,7 @@ export default function GodEyePage() {
       while (queue.length && !cancelled) {
         const next = queue.shift()
         if (next) {
-          await decodeRejectedImage(next.id, next.imageUrl, next.mediaType)
+          await decodeRejectedImage(next.id, next.imageUrl, next.mediaType ?? undefined)
         }
       }
     }

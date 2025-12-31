@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from '@/lib/auth-client'
 import {
   PieChart,
@@ -12,7 +12,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts'
 
@@ -50,7 +49,7 @@ export default function PointsConsumeDistribution({ timeRange }: Props) {
   const [loading, setLoading] = useState(true)
   const { data: session } = useSession()
 
-  const fetchDistribution = async () => {
+  const fetchDistribution = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch(
@@ -67,15 +66,14 @@ export default function PointsConsumeDistribution({ timeRange }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [timeRange])
 
   // 首次加载 & 时间范围变化时刷新
   useEffect(() => {
     if (session?.user) {
       fetchDistribution()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user, timeRange])
+  }, [session?.user, fetchDistribution])
 
   // 自动刷新 - 每30秒
   useEffect(() => {
@@ -86,7 +84,7 @@ export default function PointsConsumeDistribution({ timeRange }: Props) {
     }, 30000) // 30秒
 
     return () => clearInterval(interval)
-  }, [session?.user, timeRange])
+  }, [session?.user, fetchDistribution])
 
   const getTimeRangeLabel = () => {
     switch (timeRange) {
