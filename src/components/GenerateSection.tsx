@@ -20,6 +20,7 @@ interface GenerateSectionProps {
   communityWorks: { prompt: string }[];
   initialPrompt?: string;
   initialModel?: string;
+  activeTab?: 'generate' | 'video-generation';
   onTabChange?: (tab: 'generate' | 'video-generation') => void;
 }
 
@@ -36,7 +37,7 @@ const formatTime = (seconds: number): string => {
   return `${minutes}:${String(secs).padStart(2, '0')}`
 }
 
-const GenerateSection = ({ communityWorks, initialPrompt, initialModel, onTabChange }: GenerateSectionProps) => {
+const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTab: externalActiveTab, onTabChange }: GenerateSectionProps) => {
   const t = useTranslations('home.generate')
   const tHome = useTranslations('home')
   const { data: session, isPending } = useSession()
@@ -71,7 +72,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, onTabCha
   const [videoDuration, setVideoDuration] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [activeTab, setActiveTab] = useState<'generate' | 'video-generation'>('generate');
+  const activeTab = externalActiveTab || 'generate';
   // 视频生成相关状态
   const [videoPrompt, setVideoPrompt] = useState('');
   const [videoNegativePrompt, setVideoNegativePrompt] = useState('');
@@ -777,7 +778,6 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, onTabCha
         <TabNavigation 
           activeTab={activeTab}
           onTabChange={(tab) => {
-            setActiveTab(tab);
             onTabChange?.(tab);
           }}
         />

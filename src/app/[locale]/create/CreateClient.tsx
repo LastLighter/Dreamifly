@@ -17,13 +17,15 @@ export default function CreateClient() {
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
 
-  const initialTab = useMemo(() => {
-    const tabParam = searchParams.get('tab')
-    return tabParam === 'video' ? 'video-generation' : 'generate'
-  }, [searchParams])
-
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'generate' | 'video-generation'>(initialTab)
+  const [activeTab, setActiveTab] = useState<'generate' | 'video-generation'>('generate')
+
+  // 当URL参数改变时，更新activeTab状态
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    const newTab = tabParam === 'video' ? 'video-generation' : 'generate'
+    setActiveTab(newTab)
+  }, [searchParams])
 
   const initialPrompt = useMemo(() => {
     return searchParams.get('prompt') || ''
@@ -177,6 +179,10 @@ export default function CreateClient() {
     if (modelId && modelId.trim() !== '' && modelId !== '默认') {
       params.set('model', modelId)
     }
+    // 如果当前是视频生成模式，保持tab参数
+    if (activeTab === 'video-generation') {
+      params.set('tab', 'video')
+    }
     const query = params.toString()
     router.push(transferUrl(`/create${query ? `?${query}` : ''}`, locale))
 
@@ -247,6 +253,7 @@ export default function CreateClient() {
           communityWorks={activeTab === 'video-generation' ? videoWorks : communityWorks}
           initialPrompt={initialPrompt}
           initialModel={initialModel}
+          activeTab={activeTab}
           onTabChange={setActiveTab}
         />
 
