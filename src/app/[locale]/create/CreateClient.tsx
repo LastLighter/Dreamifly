@@ -16,8 +16,22 @@ export default function CreateClient() {
   const searchParams = useSearchParams()
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
+
+  const initialTab = useMemo(() => {
+    const tabParam = searchParams.get('tab')
+    return tabParam === 'video' ? 'video-generation' : 'generate'
+  }, [searchParams])
+
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'generate' | 'video-generation'>('generate')
+  const [activeTab, setActiveTab] = useState<'generate' | 'video-generation'>(initialTab)
+
+  const initialPrompt = useMemo(() => {
+    return searchParams.get('prompt') || ''
+  }, [searchParams])
+
+  const initialModel = useMemo(() => {
+    return searchParams.get('model') || ''
+  }, [searchParams])
   
   // 社区作品数据状态
   const [communityWorks, setCommunityWorks] = useState<CommunityWork[]>(
@@ -129,14 +143,6 @@ export default function CreateClient() {
 
     fetchCommunityImages()
   }, [activeTab])
-
-  const initialPrompt = useMemo(() => {
-    return searchParams.get('prompt') || ''
-  }, [searchParams])
-
-  const initialModel = useMemo(() => {
-    return searchParams.get('model') || ''
-  }, [searchParams])
 
   // 将图片URL转换为base64
   const imageUrlToBase64 = async (imageUrl: string): Promise<string | null> => {

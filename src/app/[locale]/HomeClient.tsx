@@ -11,6 +11,7 @@ import { transferUrl } from '@/utils/locale'
 import { getAvailableModels } from '@/utils/modelConfig'
 import { getAvailableWorkflows } from '@/utils/workflowConfig'
 import AIPlazaCard from '@/components/AIPlazaCard'
+import VideoToVideoPlazaCard from '@/components/VideoToVideoPlazaCard'
 import { ModelConfig } from '@/utils/modelConfig'
 import { WorkflowConfig } from '@/utils/workflowConfig'
 import CommunityMasonry, { type CommunityWork } from '@/components/CommunityMasonry'
@@ -443,9 +444,18 @@ export default function HomeClient() {
                     <AIPlazaCard item={model} type="model" />
                   </div>
                 ))}
+                {/* 图生视频卡片 - 放在文生图模型后面 */}
+                <div className="animate-fadeInUp" style={{ animationDelay: `${availableModels.length * 100}ms` }}>
+                  <VideoToVideoPlazaCard
+                    name="Wan 2.2 I2V Lightning"
+                    description="Wan 2.2 图像到视频模型，支持快速生成高质量视频，采用 Lightning 架构，4步即可生成视频。"
+                    videoSrc="/images/video-community/video-demo-8.mp4"
+                    thumbnailSrc="/images/video-community/video-demo-8.png"
+                  />
+                </div>
                 {/* 显示所有可用的工作流 */}
                 {availableWorkflows.map((workflow, index) => (
-                  <div key={`workflow-${workflow.id}`} className="animate-fadeInUp" style={{ animationDelay: `${(availableModels.length + index) * 100}ms` }}>
+                  <div key={`workflow-${workflow.id}`} className="animate-fadeInUp" style={{ animationDelay: `${(availableModels.length + 1 + index) * 100}ms` }}>
                     <AIPlazaCard item={workflow} type="workflow" />
                   </div>
                 ))}
