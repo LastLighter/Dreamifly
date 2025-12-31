@@ -2,7 +2,6 @@ import { db } from '@/db'
 import { userGeneratedImages, user } from '@/db/schema'
 import { eq, asc } from 'drizzle-orm'
 import { uploadToOSS, deleteFromOSS } from './oss'
-import { moderateGeneratedVideo } from './videoModeration'
 import { getImageStorageConfig } from './points'
 import { encodeMediaForStorage } from './mediaStorage'
 
@@ -133,63 +132,15 @@ export async function saveUserGeneratedVideo(
   // 4.5 编码视频（统一使用加密存储，避免OSS审核）
   const encodedBuffer = encodeMediaForStorage(buffer)
   
-  // 5. 审核（视频和提示词都需要通过）
+  // 5. 审核（仅提示词审核）
   const moderationBaseUrl = process.env.AVATAR_MODERATION_BASE_URL
   const moderationApiKey = process.env.AVATAR_MODERATION_API_KEY || ''
   const moderationModel = process.env.AVATAR_MODERATION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct-FP8'
-  const videoModerationPrompt = process.env.GENERATED_VIDEO_MODERATION_PROMPT || 
-    '请判断视频的内容与文字是否可以在公共场所展示，评判标准包括但不限于不应该包含"黄色"、"血腥"、"过于夸张的暴力场景"，你只需输出是或者否即可'
   const promptModerationPrompt = process.env.PROMPT_MODERATION_PROMPT || 
     '请判断以下视频生成提示词是否可以在公共场所使用，评判标准包括但不限于不应该包含"黄色"、"血腥"、"暴力"、"政治敏感"等内容，你只需输出是或者否即可。提示词：{prompt}'
   
   if (moderationBaseUrl) {
-    // 5.1 视频审核
-    const videoApproved = await moderateGeneratedVideo(
-      buffer,
-      'generated-video.mp4',
-      moderationBaseUrl,
-      moderationApiKey,
-      moderationModel,
-      videoModerationPrompt
-    )
-    
-    if (!videoApproved) {
-      // 保存未通过审核的视频
-      try {
-        const { saveRejectedImage } = await import('./rejectedImageStorage')
-        
-        // 先保存参考图（如果有）
-        let referenceImageUrls: string[] = []
-        if (metadata?.referenceImages && metadata.referenceImages.length > 0) {
-          try {
-            const { saveReferenceImages } = await import('./referenceImageStorage')
-            referenceImageUrls = await saveReferenceImages(metadata.referenceImages)
-          } catch (error) {
-            console.error('保存未通过审核视频的参考图失败:', error)
-          }
-        }
-        
-        await saveRejectedImage(buffer, {
-          userId: userId || null,
-          ipAddress: metadata?.ipAddress,
-          prompt: metadata?.prompt,
-          model: metadata?.model,
-          width: metadata?.width,
-          height: metadata?.height,
-          mediaType: 'video',
-          duration: metadata?.duration,
-          fps: metadata?.fps,
-          frameCount: metadata?.frameCount,
-          rejectionReason: 'image', // 视频审核未通过
-          referenceImages: referenceImageUrls,
-        })
-      } catch (error) {
-        console.error('保存未通过审核视频失败:', error)
-      }
-      throw new Error('视频审核未通过，无法保存')
-    }
-    
-    // 5.2 提示词审核（如果提供了提示词）
+    // 5.1 提示词审核（如果提供了提示词）
     let promptApproved = true
     if (metadata?.prompt && metadata.prompt.trim()) {
       const { moderatePrompt } = await import('./imageModeration')
