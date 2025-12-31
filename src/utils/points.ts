@@ -195,7 +195,7 @@ export async function deductPoints(
   userId: string,
   amount: number,
   description: string = '积分消费'
-): Promise<boolean> {
+): Promise<string | null> {
   // 使用事务确保原子性
   return await db.transaction(async (tx) => {
     const now = new Date();
@@ -233,7 +233,7 @@ export async function deductPoints(
 
     // 检查积分是否足够（使用锁定的数据）
     if (totalAvailable < amount) {
-      return false;
+      return null;
     }
 
     let remaining = amount;
@@ -300,9 +300,10 @@ export async function deductPoints(
       }
     }
 
-    // 创建消费记录
+    // 创建消费记录 - 生成ID并返回
+    const spentRecordId = randomUUID();
     await tx.insert(userPoints).values({
-      id: randomUUID(),
+      id: spentRecordId,
       userId,
       points: -amount,
       type: 'spent',
@@ -311,10 +312,10 @@ export async function deductPoints(
       expiresAt: null,
     });
 
-    return true;
+    return spentRecordId;
   }).catch((error) => {
     console.error('Error deducting points:', error);
-    return false;
+    return null;
   });
 }
 
@@ -371,5 +372,71 @@ export async function hasAwardedToday(userId: string): Promise<boolean> {
 
   // 如果最后签到时间 >= 今天凌晨4点（东八区对应的UTC时间），说明今天已签到
   return lastAwardDate >= gmt8Today4AMUtc;
+}
+
+/**
+ * 返还积分（通过消费记录ID）
+ * 当服务调用失败时，用于返还已扣除的积分
+ * 返还的积分将设置为一个月后过期
+ * @param spentRecordId 消费记录ID
+ * @param reason 返还原因描述
+ * @returns 是否返还成功
+ */
+export async function refundPoints(
+  spentRecordId: string,
+  reason: string = '服务调用失败，积分返还'
+): Promise<boolean> {
+  try {
+    // 首先验证消费记录存在
+    const spentRecord = await db
+      .select()
+      .from(userPoints)
+      .where(eq(userPoints.id, spentRecordId))
+      .limit(1);
+
+    if (spentRecord.length === 0) {
+      console.error('返还积分失败：消费记录不存在', { spentRecordId });
+      return false;
+    }
+
+    const record = spentRecord[0];
+
+    // 确保这是消费记录（负数积分）
+    if (record.points >= 0 || record.type !== 'spent') {
+      console.error('返还积分失败：记录不是有效的消费记录', {
+        spentRecordId,
+        points: record.points,
+        type: record.type
+      });
+      return false;
+    }
+
+    // 创建返还记录（正数积分）
+    // 返还的积分设置为一个月后过期
+    const refundExpiryDate = new Date();
+    refundExpiryDate.setMonth(refundExpiryDate.getMonth() + 1);
+
+    await db.insert(userPoints).values({
+      id: randomUUID(),
+      userId: record.userId,
+      points: Math.abs(record.points), // 转为正数
+      type: 'earned',
+      description: `${record.description} - ${reason}`,
+      earnedAt: new Date(),
+      expiresAt: refundExpiryDate, // 返还的积分一个月后过期
+    });
+
+    console.log('积分返还成功', {
+      spentRecordId,
+      userId: record.userId,
+      refundedPoints: Math.abs(record.points),
+      reason
+    });
+
+    return true;
+  } catch (error) {
+    console.error('返还积分失败：', error);
+    return false;
+  }
 }
 

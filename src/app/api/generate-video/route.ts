@@ -4,7 +4,7 @@ import { getVideoModelById, calculateVideoResolution } from '@/utils/videoModelC
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { createHash } from 'crypto'
-import { getModelBaseCost, checkPointsSufficient, deductPoints, getPointsBalance } from '@/utils/points'
+import { getModelBaseCost, checkPointsSufficient, deductPoints, refundPoints, getPointsBalance } from '@/utils/points'
 import { db } from '@/db'
 import { siteStats, user } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
@@ -61,6 +61,7 @@ function validateDynamicToken(providedToken: string): boolean {
 export async function POST(request: Request) {
   const requestId = Math.random().toString(36).substring(7);
   const totalStartTime = Date.now();
+  let spentRecordId: string | null = null; // 跟踪消费记录ID
 
   try {
     // 验证认证头
@@ -187,13 +188,13 @@ export async function POST(request: Request) {
       }
 
       // 扣除积分
-      const deductSuccess = await deductPoints(
+      spentRecordId = await deductPoints(
         userId,
         pointsCost,
         `视频生成 - ${model} (分辨率: ${finalWidth}x${finalHeight}, 长度: ${length || modelConfig.defaultLength || 100}帧)`
       );
 
-      if (!deductSuccess) {
+      if (!spentRecordId) {
         // 再次检查积分余额，判断是积分不足还是其他错误
         const currentBalance = await getPointsBalance(userId);
         if (currentBalance < pointsCost) {
@@ -314,17 +315,34 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const totalDuration = Date.now() - totalStartTime;
-    
+
+    // 如果积分已被扣除且视频生成失败，则返还积分
+    if (spentRecordId) {
+      console.log(`[视频生成API] [${requestId}] 视频生成失败，开始返还积分`, { spentRecordId });
+
+      const refundSuccess = await refundPoints(
+        spentRecordId,
+        `视频生成失败 - ${error instanceof Error ? error.message : '未知错误'}`
+      );
+
+      if (refundSuccess) {
+        console.log(`[视频生成API] [${requestId}] 积分返还成功`, { spentRecordId });
+      } else {
+        console.error(`[视频生成API] [${requestId}] 积分返还失败`, { spentRecordId });
+      }
+    }
+
     console.error(`[视频生成API] [${requestId}] 视频生成失败 - 总耗时: ${totalDuration}ms (${(totalDuration / 1000).toFixed(2)}秒)`, {
       error: error,
       errorType: error instanceof Error ? error.constructor.name : typeof error,
       errorMessage: error instanceof Error ? error.message : String(error),
       errorStack: error instanceof Error ? error.stack : undefined,
+      spentRecordId,
       requestId: requestId,
     });
-    
+
     return NextResponse.json(
-      { 
+      {
         error: error instanceof Error ? error.message : 'Failed to generate video',
         requestId: requestId, // 返回请求ID以便追踪
       },
