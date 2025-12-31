@@ -153,7 +153,7 @@ export default function PointsConsumeDistribution({ timeRange }: Props) {
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={distribution}
+                    data={distribution as any}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -175,7 +175,7 @@ export default function PointsConsumeDistribution({ timeRange }: Props) {
             <div className="bg-white rounded-lg border border-gray-200 p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">消耗积分对比</h3>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={distribution}>
+                <BarChart data={distribution as any}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="type"
