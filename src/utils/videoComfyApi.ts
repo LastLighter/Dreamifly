@@ -1,6 +1,8 @@
 import { getVideoModelById } from './videoModelConfig';
 import { generateVideoWorkflow } from './videoWorkflow';
 import axios from 'axios';
+import https from 'https';
+import http from 'http';
 
 /**
  * comfyui-api 返回格式
@@ -69,6 +71,9 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
   // 视频生成需要较长时间，设置25分钟超时（1500000ms），留出缓冲时间给响应处理
   const VIDEO_GENERATION_TIMEOUT = 25 * 60 * 1000; // 25分钟
 
+  // 构建 API 端点（在 try 块外定义，以便在 catch 块中也能访问）
+  const apiEndpoint = `${baseUrl}/prompt`;
+
   // 如果有输入图片，直接设置到工作流中（ComfyUI会自动处理base64上传）
   if (params.image) {
     // 移除data:image前缀，只保留base64数据（如果包含前缀）
@@ -85,7 +90,6 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
 
   try {
     // 发送提示请求并等待响应
-    const apiEndpoint = `${baseUrl}/prompt`;
     const requestBody = { prompt: workflow };
     const requestBodyString = JSON.stringify(requestBody);
     const requestBodySize = requestBodyString.length;
@@ -100,6 +104,20 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
     const comfyUIRequestStartTime = Date.now();
     console.log(`[视频生成] 发送ComfyUI请求 - 端点: ${apiEndpoint}, 请求体大小: ${(requestBodySize / 1024 / 1024).toFixed(2)} MB`);
 
+    // 创建自定义的 HTTP Agent，禁用连接复用
+    // 这样可以避免复用已失效的连接导致 "socket hang up" 错误
+    // 视频生成请求通常耗时较长，不需要连接复用
+    const httpAgent = new http.Agent({
+      keepAlive: false, // 禁用连接复用，每次请求都创建新连接
+      maxSockets: 1,    // 限制每个主机的连接数
+    });
+    
+    const httpsAgent = new https.Agent({
+      keepAlive: false, // 禁用连接复用，每次请求都创建新连接
+      maxSockets: 1,    // 限制每个主机的连接数
+      rejectUnauthorized: true, // 验证 SSL 证书
+    });
+
     // 使用 axios 处理请求，避免 Undici 的 300 秒默认超时限制
     const response = await axios.post(apiEndpoint, requestBody, {
       headers: {
@@ -111,6 +129,9 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
       maxBodyLength: Infinity,
       // 设置响应类型为 JSON（axios 会自动解析）
       responseType: 'json',
+      // 使用自定义 Agent，禁用连接复用，避免 socket hang up 错误
+      httpAgent: apiEndpoint.startsWith('https') ? undefined : httpAgent,
+      httpsAgent: apiEndpoint.startsWith('https') ? httpsAgent : undefined,
     });
 
     const requestDuration = Date.now() - comfyUIRequestStartTime;
