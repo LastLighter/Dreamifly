@@ -182,10 +182,18 @@ export async function saveUserGeneratedVideo(
             rejectionReason: 'prompt',
             referenceImages: referenceImageUrls,
           })
+          
+          // 记录审核未通过，但不抛出错误
+          // 这样视频仍然可以返回给用户，但会被保存到 rejectedImageStorage
+          console.warn(`[视频保存] 提示词审核未通过，视频已保存到 rejectedImageStorage:`, {
+            userId: userId || 'anonymous',
+            prompt: metadata?.prompt?.substring(0, 50),
+          })
         } catch (error) {
           console.error('保存未通过审核视频失败:', error)
         }
-        throw new Error('提示词审核未通过，无法保存')
+        // 不再抛出错误，允许继续执行，视频可以返回给用户
+        // throw new Error('提示词审核未通过，无法保存')
       }
     }
   }

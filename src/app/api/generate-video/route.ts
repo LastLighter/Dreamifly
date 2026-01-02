@@ -241,58 +241,59 @@ export async function POST(request: Request) {
     const videoFps = fps || modelConfig.defaultFps || 20;
     const videoDuration = videoLength / videoFps; // 视频时长（秒）
 
-    // 保存视频到数据库（如果用户已登录）
-    if (userId) {
-      try {
-
-        // 获取客户端IP地址
-        const headersList = await headers();
-        const ipAddress = headersList.get('x-forwarded-for') ||
-                        headersList.get('x-real-ip') ||
-                        'unknown';
-
-        // 提取参考图（输入图片，用于I2V）
-        let referenceImages: string[] | undefined = undefined
-        if (image) {
-          // 移除 data:image 前缀，只保留 base64 数据
-          let imageBase64 = image
-          if (imageBase64.includes(',')) {
-            imageBase64 = imageBase64.split(',')[1]
-          }
-          referenceImages = [imageBase64]
-        }
-
-        // 保存视频（包含审核流程）
-        await saveUserGeneratedVideo(
-          userId,
-          videoUrl, // base64格式的视频
-          {
-            prompt: prompt,
-            model: model,
-            width: finalWidth,
-            height: finalHeight,
-            duration: Math.round(videoDuration), // 视频时长（秒）
-            fps: videoFps,
-            frameCount: videoLength, // 总帧数
-            ipAddress: ipAddress,
-            referenceImages: referenceImages, // 参考图（输入图片，加密存储）
-          }
-        );
-      } catch (error) {
-        // 保存失败不应该影响返回结果，只记录错误
-        console.error(`[视频生成API] [${requestId}] 视频保存到数据库失败:`, error);
-        // 如果是审核未通过，需要返回错误
-        if (error instanceof Error && error.message.includes('审核未通过')) {
-          return NextResponse.json({
-            error: error.message,
-            code: 'MODERATION_FAILED'
-          }, { status: 403 });
-        }
-      }
-    }
-
-    // 计算总响应时间（秒）
+    // 先计算总响应时间（秒）
     const responseTime = (Date.now() - totalStartTime) / 1000;
+
+    // 先返回视频URL给用户，不等待保存和审核完成
+    // 保存和审核在后台异步进行，无论审核结果如何，用户都能看到视频
+    if (userId) {
+      // 异步保存视频到数据库，不阻塞响应
+      // 使用立即执行的异步函数，不等待完成
+      (async () => {
+        try {
+          // 获取客户端IP地址
+          const headersList = await headers();
+          const ipAddress = headersList.get('x-forwarded-for') ||
+                          headersList.get('x-real-ip') ||
+                          'unknown';
+
+          // 提取参考图（输入图片，用于I2V）
+          let referenceImages: string[] | undefined = undefined
+          if (image) {
+            // 移除 data:image 前缀，只保留 base64 数据
+            let imageBase64 = image
+            if (imageBase64.includes(',')) {
+              imageBase64 = imageBase64.split(',')[1]
+            }
+            referenceImages = [imageBase64]
+          }
+
+          // 保存视频（包含审核流程）
+          // 即使审核失败也不会影响用户看到视频
+          await saveUserGeneratedVideo(
+            userId,
+            videoUrl, // base64格式的视频
+            {
+              prompt: prompt,
+              model: model,
+              width: finalWidth,
+              height: finalHeight,
+              duration: Math.round(videoDuration), // 视频时长（秒）
+              fps: videoFps,
+              frameCount: videoLength, // 总帧数
+              ipAddress: ipAddress,
+              referenceImages: referenceImages, // 参考图（输入图片，加密存储）
+            }
+          );
+        } catch (error) {
+          // 保存失败只记录错误，不影响用户
+          console.error(`[视频生成API] [${requestId}] 视频保存到数据库失败:`, error);
+        }
+      })().catch(error => {
+        // 捕获异步任务中的未处理错误
+        console.error(`[视频生成API] [${requestId}] 后台保存任务失败:`, error);
+      });
+    }
 
     // 更新统计数据（如果需要）
     try {
