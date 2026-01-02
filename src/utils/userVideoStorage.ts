@@ -192,8 +192,10 @@ export async function saveUserGeneratedVideo(
         } catch (error) {
           console.error('保存未通过审核视频失败:', error)
         }
-        // 不再抛出错误，允许继续执行，视频可以返回给用户
-        // throw new Error('提示词审核未通过，无法保存')
+        // 审核失败时，直接返回，不继续执行正常的保存流程
+        // 返回空字符串，因为调用方是异步后台任务，不关心返回值
+        // 这样视频只会保存到 rejectedImageStorage，不会保存到正常数据库
+        return ''
       }
     }
   }
