@@ -1,5 +1,6 @@
 import { getVideoModelById } from './videoModelConfig';
 import { generateVideoWorkflow } from './videoWorkflow';
+import axios from 'axios';
 
 /**
  * comfyui-api 返回格式
@@ -99,90 +100,51 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
     const comfyUIRequestStartTime = Date.now();
     console.log(`[视频生成] 发送ComfyUI请求 - 端点: ${apiEndpoint}, 请求体大小: ${(requestBodySize / 1024 / 1024).toFixed(2)} MB`);
 
-    // 使用原生 fetch 处理请求
-    // 原生 fetch 在处理响应体解码时通常比 Undici 更快
-    const response = await fetch(apiEndpoint, {
-      method: 'POST',
+    // 使用 axios 处理请求，避免 Undici 的 300 秒默认超时限制
+    const response = await axios.post(apiEndpoint, requestBody, {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: requestBodyString,
-      signal: AbortSignal.timeout(VIDEO_GENERATION_TIMEOUT),
+      timeout: VIDEO_GENERATION_TIMEOUT,
+      // 支持大文件传输
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      // 设置响应类型为 JSON（axios 会自动解析）
+      responseType: 'json',
     });
 
     const requestDuration = Date.now() - comfyUIRequestStartTime;
     console.log(`[视频生成] ComfyUI请求完成 - HTTP状态: ${response.status}, 请求耗时: ${requestDuration}ms (${(requestDuration / 1000).toFixed(2)}秒)`);
 
-    // 检查HTTP响应状态
-    if (!response.ok) {
-      const errorText = await response.text();
-      const totalDuration = Date.now() - requestStartTime;
-      
-      console.error(`[视频生成] API 错误响应详情:`, {
-        model: params.model,
-        status: response.status,
-        statusText: response.statusText,
-        url: apiEndpoint,
-        baseUrl: baseUrl,
-        errorText: errorText.substring(0, 500), // 限制错误文本长度
-        errorTextLength: errorText.length,
-        totalDuration: `${totalDuration}ms`,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-      
-      // 如果是 404 错误，提供更详细的提示
-      if (response.status === 404) {
-        const error = new Error(`API 端点不存在 (404): 请联系管理员检查 ${params.model} 的服务配置`);
-        console.error(`[视频生成] 404错误 - 端点不存在:`, {
-          model: params.model,
-        });
-        throw error;
-      }
-      
-      // 如果是 503 错误，提供连接相关的提示
-      if (response.status === 503) {
-        const error = new Error(`ComfyUI服务暂时不可用 (503): 请稍后重试或联系管理员`);
-        console.error(`[视频生成] 503错误 - 服务不可用:`, {
-          model: params.model,
-        });
-        throw error;
-      }
-      
-      const error = new Error(`ComfyUI服务错误 (${response.status}): 请稍后重试或联系管理员`);
-      console.error(`[视频生成] HTTP错误 (${response.status}):`, {
-        status: response.status,
-        statusText: response.statusText,
-      });
-      throw error;
-    }
-
+    // axios 会自动处理响应状态，非 2xx 状态码会抛出错误
+    // 所以这里直接处理响应数据
     let videoUrl: string = '';
-    let text = '';
     const responseReceiveStartTime = Date.now();
 
     try {
-      console.log(`[视频生成] 开始接收响应体...`);
-      text = await response.text();
+      console.log(`[视频生成] 开始处理响应数据...`);
+      
+      // axios 已经自动解析 JSON，直接使用 response.data
+      const data = response.data as ComfyUIResponse;
       const responseReceiveTime = Date.now() - responseReceiveStartTime;
 
-      console.log(`[视频生成] 响应体接收完成 - 大小: ${(text.length / 1024 / 1024).toFixed(2)} MB, 耗时: ${responseReceiveTime}ms`);
+      // 计算响应体大小（估算）
+      const responseSize = JSON.stringify(data).length;
+      console.log(`[视频生成] 响应数据处理完成 - 大小: ${(responseSize / 1024 / 1024).toFixed(2)} MB, 耗时: ${responseReceiveTime}ms`);
 
       // 如果响应体过大，给出警告
-      if (text.length > 50 * 1024 * 1024) { // 50MB
-        console.warn(`[视频生成] 警告: 响应体过大 (${(text.length / 1024 / 1024).toFixed(2)} MB)，可能导致内存压力和处理延迟`);
+      if (responseSize > 50 * 1024 * 1024) { // 50MB
+        console.warn(`[视频生成] 警告: 响应体过大 (${(responseSize / 1024 / 1024).toFixed(2)} MB)，可能导致内存压力和处理延迟`);
       }
 
       // 检查响应是否为"no healthy upstream"错误
-      if (text.includes('no healthy upstream') || text.includes('upstream')) {
+      const dataString = JSON.stringify(data);
+      if (dataString.includes('no healthy upstream') || dataString.includes('upstream')) {
         console.error(`[视频生成] 检测到上游服务错误`);
         throw new Error(`ComfyUI服务暂时不可用: 请稍后重试或联系管理员`);
       }
 
-      const jsonParseStartTime = Date.now();
-      const data = JSON.parse(text) as ComfyUIResponse;
-      const jsonParseTime = Date.now() - jsonParseStartTime;
-
-      console.log(`[视频生成] JSON解析完成 - 耗时: ${jsonParseTime}ms`);
+      console.log(`[视频生成] JSON解析完成 - 数据已自动解析`);
 
       // comfyui-api 直接返回视频的 base64 数据在 images 数组中
       if (data.images && data.images.length > 0) {
@@ -222,8 +184,6 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
         errorType: parseError instanceof Error ? parseError.constructor.name : typeof parseError,
         errorMessage: parseError instanceof Error ? parseError.message : String(parseError),
         errorStack: parseError instanceof Error ? parseError.stack : undefined,
-        textPreview: text.substring(0, 500),
-        textLength: text.length,
         totalDuration: `${totalDuration}ms`,
       });
       
@@ -232,7 +192,7 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
         throw parseError;
       }
       // 否则包装为错误
-      throw new Error(`无法解析ComfyUI响应: ${text.substring(0, 200)}`);
+      throw new Error(`无法解析ComfyUI响应: ${String(parseError)}`);
     }
 
     const totalProcessingTime = Date.now() - requestStartTime;
@@ -261,57 +221,70 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
       },
     });
     
-    // 如果是网络错误，提供更友好的错误信息
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      // 检查是否是连接被关闭的错误
-      const errorCause = (error as any).cause;
-      const isSocketError = errorCause?.code === 'UND_ERR_SOCKET' || 
-                           errorCause?.message?.includes('other side closed') ||
-                           errorCause?.message?.includes('socket');
-      
-      const requestSize = JSON.stringify({ prompt: workflow }).length;
-      const bytesWritten = errorCause?.socket?.bytesWritten || 0;
-      const bytesRead = errorCause?.socket?.bytesRead || 0;
-      
-      console.error(`[视频生成] 网络连接错误详情:`, {
-        errorName: error.name,
-        errorMessage: error.message,
-        errorCode: errorCause?.code,
-        errorCause: errorCause?.message,
-        baseUrl: baseUrl,
-        apiEndpoint: `${baseUrl}/prompt`,
-        requestSize: `${requestSize} 字节`,
-        bytesWritten: bytesWritten > 0 ? `${bytesWritten} 字节` : '未知',
-        bytesRead: bytesRead > 0 ? `${bytesRead} 字节` : '未知',
-        isSocketError: isSocketError,
-        possibleCauses: isSocketError ? [
-          '服务器在处理请求时关闭了连接',
-          '请求体过大导致服务器超时',
-          '服务器或代理/负载均衡器的超时设置过短',
-          '服务器在处理过程中崩溃或重启',
-          '网络不稳定导致连接中断',
-        ] : [
-          '服务URL配置错误',
-          'ComfyUI服务未运行',
-          '网络连接问题',
-          '防火墙阻止连接',
-          'DNS解析失败',
-        ],
-      });
-      
-      if (isSocketError) {
-        // 连接被服务器关闭，可能是请求体太大或处理时间太长
-        const errorMsg = bytesWritten > 0 && bytesRead === 0
-          ? `服务器在处理请求时关闭了连接（已发送 ${bytesWritten} 字节，未收到响应）。这通常是因为：1) 请求体过大（当前 ${requestSize} 字节），2) 服务器处理超时，3) 服务器或代理的超时设置过短。建议：检查服务器日志，或尝试减小输入图片大小。`
-          : `服务器在处理请求时关闭了连接。请检查 ComfyUI 服务是否正常运行，或查看服务器日志获取更多信息。`;
-        throw new Error(errorMsg);
+    // 处理 axios 错误
+    if (axios.isAxiosError(error)) {
+      // HTTP 错误响应（4xx, 5xx）
+      if (error.response) {
+        const status = error.response.status;
+        const statusText = error.response.statusText;
+        const errorData = error.response.data;
+        const errorText = typeof errorData === 'string' ? errorData : JSON.stringify(errorData);
+        
+        console.error(`[视频生成] API 错误响应详情:`, {
+          model: params.model,
+          status: status,
+          statusText: statusText,
+          url: apiEndpoint,
+          baseUrl: baseUrl,
+          errorText: errorText.substring(0, 500), // 限制错误文本长度
+          errorTextLength: errorText.length,
+          totalDuration: `${totalDuration}ms`,
+          headers: error.response.headers,
+        });
+        
+        // 如果是 404 错误，提供更详细的提示
+        if (status === 404) {
+          throw new Error(`API 端点不存在 (404): 请联系管理员检查 ${params.model} 的服务配置`);
+        }
+        
+        // 如果是 503 错误，提供连接相关的提示
+        if (status === 503) {
+          throw new Error(`ComfyUI服务暂时不可用 (503): 请稍后重试或联系管理员`);
+        }
+        
+        throw new Error(`ComfyUI服务错误 (${status}): 请稍后重试或联系管理员`);
       }
       
-      throw new Error(`无法连接到ComfyUI服务。请检查服务是否正常运行或联系管理员`);
+      // 网络错误（连接失败、超时等）
+      if (error.request) {
+        const isTimeout = error.code === 'ECONNABORTED' || error.message.includes('timeout');
+        
+        if (isTimeout) {
+          const timeoutMinutes = VIDEO_GENERATION_TIMEOUT / 60000;
+          console.error(`[视频生成] 请求超时:`, {
+            baseUrl: baseUrl,
+            totalDuration: `${totalDuration}ms (${(totalDuration / 1000).toFixed(2)}秒)`,
+            timeoutLimit: `${timeoutMinutes}分钟`,
+            errorCode: error.code,
+            errorMessage: error.message,
+          });
+          throw new Error(`视频生成超时: 请求在${timeoutMinutes}分钟内未完成。视频生成可能需要更长时间，请稍后重试或检查ComfyUI服务状态`);
+        }
+        
+        // 其他网络错误
+        console.error(`[视频生成] 网络连接错误:`, {
+          errorName: error.name,
+          errorMessage: error.message,
+          errorCode: error.code,
+          baseUrl: baseUrl,
+          apiEndpoint: `${baseUrl}/prompt`,
+        });
+        throw new Error(`无法连接到ComfyUI服务: ${error.message}。请检查服务是否正常运行或联系管理员`);
+      }
     }
     
-    // 如果是 AbortError (超时)
-    if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('timeout') || error.message.includes('Timeout'))) {
+    // 如果是超时错误（非 axios 错误）
+    if (error instanceof Error && (error.message.includes('timeout') || error.message.includes('Timeout'))) {
       const timeoutMinutes = VIDEO_GENERATION_TIMEOUT / 60000;
       console.error(`[视频生成] 请求超时:`, {
         baseUrl: baseUrl,
@@ -321,19 +294,6 @@ export async function generateVideo(params: GenerateVideoParams): Promise<string
         errorMessage: error.message,
       });
       throw new Error(`视频生成超时: 请求在${timeoutMinutes}分钟内未完成。视频生成可能需要更长时间，请稍后重试或检查ComfyUI服务状态`);
-    }
-    
-    // 检查是否是 HeadersTimeoutError
-    if (error instanceof Error && (error.message.includes('Headers Timeout') || error.message.includes('UND_ERR_HEADERS_TIMEOUT'))) {
-      const timeoutMinutes = VIDEO_GENERATION_TIMEOUT / 60000;
-      console.error(`[视频生成] 头部超时错误:`, {
-        baseUrl: baseUrl,
-        totalDuration: `${totalDuration}ms (${(totalDuration / 1000).toFixed(2)}秒)`,
-        timeoutLimit: `${timeoutMinutes}分钟`,
-        errorName: error.name,
-        errorMessage: error.message,
-      });
-      throw new Error(`视频生成超时: 服务器响应头部超时（${timeoutMinutes}分钟）。视频生成可能需要更长时间，请稍后重试`);
     }
     
     throw error;
