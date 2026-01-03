@@ -105,6 +105,16 @@ export async function POST(request: Request) {
 
     const isAdmin = currentUser.length > 0 && currentUser[0].isAdmin;
 
+    // 检查视频生成维护模式
+    const maintenanceMode = process.env.VIDEO_GENERATION_MAINTENANCE_MODE === 'true';
+    if (maintenanceMode && !isAdmin) {
+      console.error(`[视频生成API] [${requestId}] 视频生成功能维护中，非管理员用户无法使用`);
+      return NextResponse.json({
+        error: '视频生成功能维护中',
+        code: 'MAINTENANCE_MODE'
+      }, { status: 503 }); // 503 Service Unavailable
+    }
+
     // 解析请求体
     const body = await request.json();
     const { prompt, width, height, aspectRatio, length, fps, seed, steps, model, image, negative_prompt } = body;

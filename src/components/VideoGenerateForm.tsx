@@ -31,7 +31,7 @@ interface VideoGenerateFormProps {
   isQueuing: boolean;
   setIsQueuing: (queuing: boolean) => void;
   onGenerate: (videoUrl: string) => void;
-  setErrorModal: (show: boolean, type: 'concurrency' | 'daily_limit' | 'insufficient_points' | 'login_required', message?: string) => void;
+  setErrorModal: (show: boolean, type: 'concurrency' | 'daily_limit' | 'insufficient_points' | 'login_required' | 'maintenance_mode', message?: string) => void;
 }
 
 const VideoGenerateForm = ({
@@ -354,6 +354,11 @@ const VideoGenerateForm = ({
             return
           } else if (errorData.code === 'IP_CONCURRENCY_LIMIT_EXCEEDED') {
             setErrorModal(true, 'concurrency', errorData.error)
+            return
+          }
+        } else if (response.status === 503) {
+          if (errorData.code === 'MAINTENANCE_MODE') {
+            setErrorModal(true, 'maintenance_mode', errorData.error)
             return
           }
         }

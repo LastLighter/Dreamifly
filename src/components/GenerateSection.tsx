@@ -193,7 +193,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
   const [isQueuing, setIsQueuing] = useState(false);
   const [concurrencyError, setConcurrencyError] = useState<string | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorType, setErrorType] = useState<'concurrency' | 'daily_limit' | 'insufficient_points'>('concurrency');
+  const [errorType, setErrorType] = useState<'concurrency' | 'daily_limit' | 'insufficient_points' | 'maintenance_mode'>('concurrency');
   const [showLoginTip, setShowLoginTip] = useState(false);
   const [loginTipMessage, setLoginTipMessage] = useState('');
 
@@ -916,6 +916,8 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
                             // 对于积分不足错误，设置自定义错误消息
                             if (type === 'insufficient_points' && message) {
                               setConcurrencyError(message)
+                            } else if (type === 'maintenance_mode' && message) {
+                              setConcurrencyError(message)
                             }
                           }
                         }}
@@ -1078,8 +1080,8 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
         ) : null}
       </div>
 
-      {/* 错误模态框（并发限制、每日限额或积分不足） */}
-      {showErrorModal && (concurrencyError || errorType === 'insufficient_points') && (
+      {/* 错误模态框（并发限制、每日限额、积分不足或维护模式） */}
+      {showErrorModal && (concurrencyError || errorType === 'insufficient_points' || errorType === 'maintenance_mode') && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeInUp"
           onClick={closeErrorModal}
@@ -1101,6 +1103,8 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
                 ? '每日限额已满' 
                 : errorType === 'insufficient_points'
                 ? '积分不足'
+                : errorType === 'maintenance_mode'
+                ? '功能维护中'
                 : '并发限制'}
             </h3>
             
@@ -1120,6 +1124,12 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
               <div className="bg-orange-50 border-l-4 border-orange-500 p-3 mb-6 rounded">
                 <p className="text-sm text-orange-800">
                   💡 提示：订阅会员可享受更多积分和权益
+                </p>
+              </div>
+            ) : errorType === 'maintenance_mode' ? (
+              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-3 mb-6 rounded">
+                <p className="text-sm text-yellow-800">
+                  💡 提示：功能维护中，请加入官方QQ群获取最新信息
                 </p>
               </div>
             ) : (
