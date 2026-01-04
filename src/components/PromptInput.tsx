@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl'
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { styleOptions } from './StyleTransferForm';
 import LoginHint from './LoginHint';
 
@@ -69,7 +70,7 @@ const PromptInput = ({
     };
   }, [isStyleOpen, isRatioOpen]);
 
-  const ratios = ['10:3', '16:9', '3:2', '1:1', '2:3', '9:16'];
+  const ratios = ['10:3', '16:9', '3:2', '5:4', '1:1', '4:5', '2:3', '9:16'];
 
   return (
     <div>
@@ -146,25 +147,40 @@ const PromptInput = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
               </svg>
               {selectedStyle || t('form.styleButton')}
-              {isStyleOpen && (
-                <div ref={styleDropdownRef} className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white/95 border border-amber-400/40 rounded-xl shadow-xl p-4 grid grid-cols-3 gap-x-2 gap-y-4 min-w-[450px] z-50 justify-items-center">
-                  {styleOptions.map(style => (
-                    <div
-                      key={style.id}
-                      onClick={() => {
-                        onStyleChange(style.name);
-                        setIsStyleOpen(false);
-                      }}
-                      className="cursor-pointer relative w-24 h-24 hover:opacity-90 transition-opacity rounded-lg overflow-hidden"
-                    >
-                      <img src={style.previewImage} alt={style.name} className="w-full h-full object-cover" />
-                      <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm py-1 text-center">
-                        <p className="text-xs text-gray-900">{t(`form.styleTransfer.styles.${style.name}`)}</p>
-                      </div>
+              <div 
+                ref={styleDropdownRef} 
+                className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white/95 border border-amber-400/40 rounded-xl shadow-xl p-2 md:p-4 grid grid-cols-3 gap-2 md:gap-3 md:gap-y-4 w-[280px] md:w-auto md:min-w-[450px] z-50 justify-items-center max-h-[70vh] overflow-y-auto custom-scrollbar transition-all duration-200 ${
+                  isStyleOpen ? 'opacity-100 visible pointer-events-auto' : 'opacity-0 invisible pointer-events-none'
+                }`}
+              >
+                {styleOptions.map(style => (
+                  <div
+                    key={style.id}
+                    onClick={() => {
+                      onStyleChange(style.name);
+                      setIsStyleOpen(false);
+                    }}
+                    className="cursor-pointer relative w-full aspect-square max-w-[70px] md:max-w-[120px] hover:opacity-90 transition-opacity rounded-lg overflow-hidden group"
+                  >
+                    <Image 
+                      src={style.previewImage} 
+                      alt={style.name} 
+                      fill
+                      sizes="(max-width: 768px) 70px, 120px"
+                      className="object-cover"
+                      loading="eager"
+                      unoptimized
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm py-0.5 md:py-1 text-center rounded-b-lg">
+                      <p className="text-[10px] md:text-xs text-gray-900 font-medium">{t(`form.styleTransfer.styles.${style.name}`)}</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                    {/* 选中状态指示 */}
+                    {selectedStyle === style.name && (
+                      <div className="absolute inset-0 border-2 border-amber-500 rounded-lg pointer-events-none" />
+                    )}
+                  </div>
+                ))}
+              </div>
             </button>
             <div
               onClick={() => setIsRatioOpen(!isRatioOpen)}

@@ -30,24 +30,20 @@ async function calculateMaxConcurrency(
 
   // 如果当前用户是管理员，返回null（不限）
   if (isAdmin) {
-    console.log(`[IPConcurrency] IP ${ipAddress}: 当前请求用户是管理员，返回null（不限）`)
     return null
   }
 
   // 如果当前用户是会员，返回null（不限）
   if (isSubscribed) {
-    console.log(`[IPConcurrency] IP ${ipAddress}: 当前请求用户是会员，返回null（不限）`)
     return null
   }
 
   // 如果当前用户已登录（非管理员、非会员），使用环境变量
   if (currentUserId) {
-    console.log(`[IPConcurrency] IP ${ipAddress}: 当前请求用户是已登录用户（${isPremium ? '优质' : '普通'}），返回${maxConcurrentFromEnv}`)
     return maxConcurrentFromEnv
   }
 
   // 未登录用户，返回1
-  console.log(`[IPConcurrency] IP ${ipAddress}: 当前请求用户未登录，返回1`)
   return 1
 }
 

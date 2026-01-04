@@ -182,7 +182,6 @@ export async function GET(request: NextRequest) {
             const dbPremiumLimit = configData.premiumUserDailyLimit;
             const envPremiumLimit = parseInt(process.env.PREMIUM_USER_DAILY_LIMIT || '300', 10);
             maxDailyRequests = dbPremiumLimit ?? envPremiumLimit;
-            console.log(`[Quota API] Premium user limit - DB: ${dbPremiumLimit}, Env: ${envPremiumLimit}, Final: ${maxDailyRequests}`);
           } else {
             // 首批用户 & 新用户额度：数据库 > 环境变量 > 默认
             if (isOldUser) {

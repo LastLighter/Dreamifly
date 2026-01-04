@@ -4,7 +4,7 @@ import { eq, asc, desc, sql, and } from 'drizzle-orm'
 import { uploadToOSS, deleteFromOSS } from './oss'
 import { moderateGeneratedImage } from './imageModeration'
 import { getImageStorageConfig } from './points'
-import { encodeImageForStorage } from './rejectedImageStorage'
+import { encodeMediaForStorage } from './mediaStorage'
 
 /**
  * 检查用户是否为订阅用户（实时检查）
@@ -30,44 +30,59 @@ async function isSubscribedUser(userId: string): Promise<boolean> {
 }
 
 /**
- * 清理超出数量的旧图片（从前往后删除，保留最新的）
+ * 清理超出数量的旧媒体（图片+视频，从前往后删除，保留最新的）
  * @param userId 用户ID
- * @param maxImages 最大图片数量
+ * @param maxMedia 最大媒体数量（图片+视频总数）
  */
-async function cleanupOldImages(userId: string, maxImages: number): Promise<void> {
-  // 获取用户的所有图片，按创建时间升序排列（最旧的在前）
-  const allImages = await db
+async function cleanupOldMedia(userId: string, maxMedia: number): Promise<void> {
+  // 获取用户的所有媒体（图片+视频），按创建时间升序排列（最旧的在前）
+  const allMedia = await db
     .select({ 
       id: userGeneratedImages.id, 
-      imageUrl: userGeneratedImages.imageUrl 
+      imageUrl: userGeneratedImages.imageUrl,
+      mediaType: userGeneratedImages.mediaType,
+      referenceImages: userGeneratedImages.referenceImages
     })
     .from(userGeneratedImages)
     .where(eq(userGeneratedImages.userId, userId))
     .orderBy(asc(userGeneratedImages.createdAt)) // 按创建时间升序：最旧的在前
   
-  // 如果超出数量，删除最旧的图片（从前往后删除）
-  if (allImages.length > maxImages) {
-    const imagesToDelete = allImages.slice(0, allImages.length - maxImages) // 保留最后 maxImages 张
+  // 如果超出数量，删除最旧的媒体（从前往后删除）
+  if (allMedia.length > maxMedia) {
+    const mediaToDelete = allMedia.slice(0, allMedia.length - maxMedia) // 保留最后 maxMedia 个
     
-    for (const image of imagesToDelete) {
+    for (const media of mediaToDelete) {
+      // 先删除参考图片（如果有）
+      if (media.referenceImages && Array.isArray(media.referenceImages) && media.referenceImages.length > 0) {
+        for (const refImageUrl of media.referenceImages) {
+          if (refImageUrl && typeof refImageUrl === 'string') {
+            try {
+              await deleteFromOSS(refImageUrl)
+            } catch (error) {
+              console.error(`删除参考图片失败: ${refImageUrl}`, error)
+              // 继续删除其他文件，不中断流程
+            }
+          }
+        }
+      }
+      
       // 从数据库删除记录
       await db
         .delete(userGeneratedImages)
-        .where(eq(userGeneratedImages.id, image.id))
+        .where(eq(userGeneratedImages.id, media.id))
       
-      // 从OSS删除文件
+      // 从OSS删除主媒体文件
       try {
-        await deleteFromOSS(image.imageUrl)
-        console.log(`已自动删除旧图片: ${image.imageUrl}`)
+        await deleteFromOSS(media.imageUrl)
       } catch (error) {
-        console.error(`删除OSS文件失败: ${image.imageUrl}`, error)
+        console.error(`删除OSS文件失败: ${media.imageUrl}`, error)
         // 继续删除其他文件，不中断流程
       }
     }
     
-    console.log(`用户 ${userId} 自动清理了 ${imagesToDelete.length} 张旧图片，保留最新 ${maxImages} 张`)
   }
 }
+
 
 /**
  * 保存用户生成的图片（自动维护数量限制）
@@ -114,7 +129,7 @@ export async function saveUserGeneratedImage(
   const buffer = Buffer.from(base64Data, 'base64')
   
   // 4.5 编码图片（统一使用加密存储，避免OSS审核）
-  const encodedBuffer = encodeImageForStorage(buffer)
+  const encodedBuffer = encodeMediaForStorage(buffer)
   
   // 5. 审核（图片和提示词都需要通过）
   const moderationBaseUrl = process.env.AVATAR_MODERATION_BASE_URL
@@ -325,16 +340,16 @@ export async function saveUserGeneratedImage(
       updatedAt: new Date(),
     })
     
-    // 10. 自动清理超出数量的旧图片（从前往后删除，保留最新的）
+    // 10. 自动清理超出数量的旧媒体（图片+视频，从前往后删除，保留最新的）
     // 无论会员是否过期，都会自动维护对应的上限
-    await cleanupOldImages(userId, maxImages)
+    await cleanupOldMedia(userId, maxImages)
   }
   
   return imageUrl
 }
 
 /**
- * 获取用户的所有保存的图片（最新的在前）
+ * 获取用户的所有保存的媒体（图片和视频，最新的在前）
  */
 export async function getUserGeneratedImages(
   userId: string,
@@ -342,14 +357,30 @@ export async function getUserGeneratedImages(
 ): Promise<Array<{
   id: string
   imageUrl: string
+  mediaType?: string | null
   prompt?: string | null
   model?: string | null
   width?: number | null
   height?: number | null
+  duration?: number | null
+  fps?: number | null
+  frameCount?: number | null
   createdAt: Date
 }>> {
   const images = await db
-    .select()
+    .select({
+      id: userGeneratedImages.id,
+      imageUrl: userGeneratedImages.imageUrl,
+      mediaType: userGeneratedImages.mediaType,
+      prompt: userGeneratedImages.prompt,
+      model: userGeneratedImages.model,
+      width: userGeneratedImages.width,
+      height: userGeneratedImages.height,
+      duration: userGeneratedImages.duration,
+      fps: userGeneratedImages.fps,
+      frameCount: userGeneratedImages.frameCount,
+      createdAt: userGeneratedImages.createdAt,
+    })
     .from(userGeneratedImages)
     .where(eq(userGeneratedImages.userId, userId))
     .orderBy(desc(userGeneratedImages.createdAt)) // 按创建时间降序，最新的在前
@@ -384,12 +415,26 @@ export async function deleteUserGeneratedImage(
     return false
   }
   
+  // 先删除参考图片（如果有）
+  if (image[0].referenceImages && Array.isArray(image[0].referenceImages) && image[0].referenceImages.length > 0) {
+    for (const refImageUrl of image[0].referenceImages) {
+      if (refImageUrl && typeof refImageUrl === 'string') {
+        try {
+          await deleteFromOSS(refImageUrl)
+        } catch (error) {
+          console.error(`删除参考图片失败: ${refImageUrl}`, error)
+          // 继续删除其他文件，不中断流程
+        }
+      }
+    }
+  }
+  
   // 从数据库删除
   await db
     .delete(userGeneratedImages)
     .where(eq(userGeneratedImages.id, imageId))
   
-  // 从OSS删除
+  // 从OSS删除主媒体文件
   try {
     await deleteFromOSS(image[0].imageUrl)
   } catch (error) {
@@ -400,7 +445,7 @@ export async function deleteUserGeneratedImage(
 }
 
 /**
- * 获取用户图片存储状态信息
+ * 获取用户媒体存储状态信息（图片+视频）
  */
 export async function getUserImageStorageInfo(userId: string): Promise<{
   currentCount: number
@@ -410,13 +455,13 @@ export async function getUserImageStorageInfo(userId: string): Promise<{
   canAddMore: boolean
   message?: string
 }> {
-  // 获取图片存储配置（数据库 > 环境变量 > 默认值）
+  // 获取存储配置（数据库 > 环境变量 > 默认值）
   const imageConfig = await getImageStorageConfig()
   
   const isSubscribed = await isSubscribedUser(userId)
   const maxImages = isSubscribed ? imageConfig.subscribedUserMaxImages : imageConfig.regularUserMaxImages
   
-  // 获取当前图片数量
+  // 获取当前媒体数量（图片+视频）
   const countResult = await db
     .select({ count: sql<number>`count(*)` })
     .from(userGeneratedImages)
@@ -439,11 +484,11 @@ export async function getUserImageStorageInfo(userId: string): Promise<{
   // 生成提示信息
   let message: string | undefined
   if (!isSubscribed && currentCount >= imageConfig.regularUserMaxImages) {
-    message = `您的会员已过期，当前保存了 ${currentCount} 张图片。继续添加新图片时，系统会自动保留最新的 ${imageConfig.regularUserMaxImages} 张。`
+    message = `您的会员已过期，当前保存了 ${currentCount} 个作品（图片+视频）。继续添加新作品时，系统会自动保留最新的 ${imageConfig.regularUserMaxImages} 个。`
   } else if (isSubscribed && currentCount >= imageConfig.subscribedUserMaxImages - 5) {
-    message = `您已保存 ${currentCount}/${imageConfig.subscribedUserMaxImages} 张图片，接近上限。继续添加新图片时，系统会自动保留最新的 ${imageConfig.subscribedUserMaxImages} 张。`
+    message = `您已保存 ${currentCount}/${imageConfig.subscribedUserMaxImages} 个作品（图片+视频），接近上限。继续添加新作品时，系统会自动保留最新的 ${imageConfig.subscribedUserMaxImages} 个。`
   } else if (!isSubscribed) {
-    message = `普通用户最多保存 ${imageConfig.regularUserMaxImages} 张图片。订阅会员可保存最多 ${imageConfig.subscribedUserMaxImages} 张。`
+    message = `普通用户最多保存 ${imageConfig.regularUserMaxImages} 个作品（图片+视频）。订阅会员可保存最多 ${imageConfig.subscribedUserMaxImages} 个。`
   }
   
   return {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isEmailDomainAllowed } from '@/utils/email-domain-validator';
+import { isEmailDomainAllowed, isValid163Email } from '@/utils/email-domain-validator';
 import { createHash } from 'crypto';
 
 /**
@@ -74,6 +74,15 @@ export async function GET(request: NextRequest) {
         { error: '邮箱地址不能为空' },
         { status: 400 }
       );
+    }
+
+    // 特殊验证163邮箱：只允许纯数字+@163.com
+    if (!isValid163Email(email)) {
+      return NextResponse.json({
+        isValid: false,
+        email,
+        error: '163_EMAIL_NOT_ALLOWED',
+      });
     }
 
     const isValid = await isEmailDomainAllowed(email);

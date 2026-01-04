@@ -159,15 +159,19 @@ export async function GET(request: NextRequest) {
 
     const total = totalResult[0]?.count || 0
 
-    // 查询图片列表（使用LEFT JOIN获取实时用户信息）
+    // 查询媒体列表（使用LEFT JOIN获取实时用户信息）
     const images = await db
       .select({
         id: rejectedImages.id,
         imageUrl: rejectedImages.imageUrl,
+        mediaType: rejectedImages.mediaType,
         prompt: rejectedImages.prompt,
         model: rejectedImages.model,
         width: rejectedImages.width,
         height: rejectedImages.height,
+        duration: rejectedImages.duration,
+        fps: rejectedImages.fps,
+        frameCount: rejectedImages.frameCount,
         rejectionReason: rejectedImages.rejectionReason,
         referenceImages: rejectedImages.referenceImages,
         createdAt: rejectedImages.createdAt,
@@ -206,23 +210,27 @@ export async function GET(request: NextRequest) {
       } else {
         userRole = 'regular'
       }
-
+      
       return {
         id: img.id,
         imageUrl: img.imageUrl,
+        mediaType: img.mediaType || 'image', // 默认为图片，兼容旧数据
         prompt: img.prompt,
         model: img.model,
         width: img.width,
         height: img.height,
+        duration: img.duration,
+        fps: img.fps,
+        frameCount: img.frameCount,
+        rejectionReason: img.rejectionReason || 'image',
+        referenceImages: img.referenceImages || [],
+        createdAt: img.createdAt?.toISOString() || new Date().toISOString(),
+        userId: img.userId,
+        ipAddress: img.ipAddress,
         userRole,
         userAvatar: img.userAvatar || '/images/default-avatar.svg',
         userNickname: img.userNickname || (img.userId ? '未知用户' : '未登录用户'),
         avatarFrameId: img.userAvatarFrameId,
-        referenceImages: img.referenceImages || [],
-        rejectionReason: img.rejectionReason || 'image',
-        createdAt: img.createdAt?.toISOString() || new Date().toISOString(),
-        userId: img.userId,
-        ipAddress: img.ipAddress,
       }
     })
 

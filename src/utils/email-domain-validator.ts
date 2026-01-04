@@ -42,6 +42,28 @@ export async function isEmailDomainAllowed(email: string): Promise<boolean> {
 }
 
 /**
+ * 验证163邮箱格式：只允许纯数字+@163.com
+ * @param email 邮箱地址
+ * @returns 如果是163邮箱且格式正确（纯数字）返回true，否则返回false
+ */
+export function isValid163Email(email: string): boolean {
+  const domain = extractDomainFromEmail(email);
+  if (domain !== '163.com') {
+    return true; // 不是163邮箱，不在此处验证
+  }
+
+  // 提取@前面的部分
+  const parts = email.split('@');
+  if (parts.length !== 2) {
+    return false;
+  }
+
+  const localPart = parts[0];
+  // 检查是否只包含数字
+  return /^\d+$/.test(localPart);
+}
+
+/**
  * 获取所有启用的邮箱域名列表
  */
 export async function getAllowedEmailDomains(): Promise<string[]> {

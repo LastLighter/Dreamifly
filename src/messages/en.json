@@ -14,7 +14,7 @@
       },
       "description": "Dreamifly - Free AI Art Generator Online | One-Click Anime, Illustration, and Art Creation",
       "startButton": "Start Creating",
-      "faqButton": "FAQ",
+      "contactButton": "Contact Us",
       "imageCaption": "AI Art",
       "tags": {
         "fastGeneration": "Fast Generation",
@@ -46,6 +46,10 @@
           "label": "Prompt",
           "placeholder": "Describe what you want to see (English recommended, Chinese only supported by HiDream model)..."
         },
+        "negativePrompt": "Negative Prompt",
+        "negativePromptPlaceholder": "Describe what you don't want to see (optional)",
+        "estimatedCost": "Estimated Cost",
+        "points": "points",
         "upload": {
           "label": "Upload Reference Image (Optional)",
           "clickOrDrag": "Click or drag to upload",
@@ -56,6 +60,8 @@
         "randomPrompt": "Random Prompt",
         "optimizePrompt": "Optimize Prompt",
         "optimizingPrompt": "Optimizing...",
+        "promptOptimized": "Prompt optimized successfully",
+        "promptGenerated": "Prompt generated successfully",
         "width": {
           "label": "Width",
           "hint": "Image width (64-1920, multiples of 8)"
@@ -64,6 +70,8 @@
           "label": "Height",
           "hint": "Image height (64-1920, multiples of 8)"
         },
+        "aspectRatio": "Aspect Ratio",
+        "resolution": "Resolution",
         "model": {
           "label": "Model",
           "hint": "Select the AI model to use",
@@ -115,7 +123,8 @@
         "styleButton": "Style",
         "tabs": {
           "generate": "Image Generation",
-          "styleTransfer": "Style Transfer"
+          "styleTransfer": "Style Transfer",
+          "videoGeneration": "Video Generation"
         },
         "styleTransfer": {
           "title": "Style Transfer",
@@ -136,6 +145,19 @@
             "emoji": "Emoji Icon"
           }
         },
+        "videoGeneration": {
+          "inputImage": "Input Image",
+          "uploadImageHint": "Upload an image and the system will generate a video based on it",
+          "selectImage": "Select Image",
+          "imageRequired": "Please upload an image first",
+          "imageRequiredForOptimization": "Please upload a reference image first to optimize the prompt based on the image",
+          "loginRequired": "Please log in to use video generation feature",
+          "promptPlaceholder": "Describe the video effect you want, e.g., make the character move, add background animation, etc.",
+          "generateButton": "Generate Video",
+          "resolution": "Resolution",
+          "aspectRatio": "Aspect Ratio",
+          "videoPreviewTitle": "Generated Video"
+        },
         "progress": {
           "title": "Generation Progress",
           "estimatedTime": "Estimated Time",
@@ -148,7 +170,8 @@
           }
         },
         "generating": "Generating...",
-        "finalizing": "Finalizing..."
+        "finalizing": "Finalizing...",
+        "close": "Close"
       },
       "preview": {
         "title": "Preview",
@@ -419,6 +442,7 @@
       "resendFailed": "Failed to send, please try again later",
       "emailQuotaExceeded": "Email sending failed: Daily sending quota limit reached. Please join the official group and contact the administrator",
       "emailDomainNotAllowed": "This email domain is not allowed for registration",
+      "163EmailNotAllowed": "163 free email is not supported. Please use another email to register",
       "emailSendFailed": "Registration successful, but verification email failed to send. Please join the official group and contact the administrator",
       "unauthorized": "Unauthorized, please refresh the page and try again",
       "ipRegistrationLimitExceeded": "You can only register up to 2 times within 24 hours. Please try again later",

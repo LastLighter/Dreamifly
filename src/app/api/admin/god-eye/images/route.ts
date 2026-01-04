@@ -109,15 +109,19 @@ export async function GET(request: NextRequest) {
 
     const total = totalResult[0]?.count || 0
 
-    // 查询图片列表
+    // 查询媒体列表（图片和视频）
     const images = await db
       .select({
         id: userGeneratedImages.id,
         imageUrl: userGeneratedImages.imageUrl,
+        mediaType: userGeneratedImages.mediaType,
         prompt: userGeneratedImages.prompt,
         model: userGeneratedImages.model,
         width: userGeneratedImages.width,
         height: userGeneratedImages.height,
+        duration: userGeneratedImages.duration,
+        fps: userGeneratedImages.fps,
+        frameCount: userGeneratedImages.frameCount,
         userRole: userGeneratedImages.userRole,
         userAvatar: userGeneratedImages.userAvatar,
         userNickname: userGeneratedImages.userNickname,
@@ -136,10 +140,14 @@ export async function GET(request: NextRequest) {
     const formattedImages = images.map(img => ({
       id: img.id,
       imageUrl: img.imageUrl,
+      mediaType: img.mediaType || 'image', // 默认为图片，兼容旧数据
       prompt: img.prompt,
       model: img.model,
       width: img.width,
       height: img.height,
+      duration: img.duration,
+      fps: img.fps,
+      frameCount: img.frameCount,
       userRole: img.userRole || 'regular',
       userAvatar: img.userAvatar || '/images/default-avatar.svg',
       userNickname: img.userNickname || '未知用户',

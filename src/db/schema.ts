@@ -183,6 +183,7 @@ export const pointsConfig = pgTable("points_config", {
   zImageTurboCost: integer("z_image_turbo_cost"), // Z-Image-Turbo模型积分消耗，null表示使用环境变量
   qwenImageEditCost: integer("qwen_image_edit_cost"), // Qwen-Image-Edit模型积分消耗，null表示使用环境变量
   waiSdxlV150Cost: integer("wai_sdxl_v150_cost"), // Wai-SDXL-V150模型积分消耗，null表示使用环境变量
+  wanVideoCost: integer("wan_video_cost"), // Wan视频模型积分消耗，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -205,6 +206,7 @@ export const userSubscription = pgTable("user_subscription", {
 export const pointsPackage = pgTable("points_package", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  nameTag: text("name_tag"), // 套餐标题标签，用于前端展示
   points: integer("points").notNull(),
   price: real("price").notNull(), // 价格（人民币）
   originalPrice: real("original_price"), // 原价（用于显示折扣）
@@ -257,11 +259,15 @@ export const userGeneratedImages = pgTable("user_generated_images", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  imageUrl: text("image_url").notNull(), // OSS中的图片URL
+  imageUrl: text("image_url").notNull(), // OSS中的媒体URL（图片或视频）
+  mediaType: text("media_type").default("image").notNull(), // 媒体类型：'image' | 'video'
   prompt: text("prompt"), // 生成时的提示词
   model: text("model"), // 使用的模型
-  width: integer("width"), // 图片宽度
-  height: integer("height"), // 图片高度
+  width: integer("width"), // 图片/视频宽度
+  height: integer("height"), // 图片/视频高度
+  duration: integer("duration"), // 视频时长（秒），仅视频类型有效
+  fps: integer("fps"), // 视频帧率，仅视频类型有效
+  frameCount: integer("frame_count"), // 视频总帧数，仅视频类型有效
   userRole: text("user_role"), // 用户角色：admin, subscribed, premium, oldUser, regular
   userAvatar: text("user_avatar"), // 用户头像URL
   userNickname: text("user_nickname"), // 用户昵称
@@ -276,11 +282,15 @@ export const rejectedImages = pgTable("rejected_images", {
   id: text("id").primaryKey(), // UUID
   userId: text("user_id"), // 可为NULL（未登录用户），通过此字段关联user表获取实时用户信息
   ipAddress: text("ip_address"), // 未登录用户的IP地址
-  imageUrl: text("image_url").notNull(), // OSS中的加密图片URL
+  imageUrl: text("image_url").notNull(), // OSS中的加密媒体URL（图片或视频）
+  mediaType: text("media_type").default("image").notNull(), // 媒体类型：'image' | 'video'
   prompt: text("prompt"), // 生成时的提示词
   model: text("model"), // 使用的模型
-  width: integer("width"), // 图片宽度
-  height: integer("height"), // 图片高度
+  width: integer("width"), // 图片/视频宽度
+  height: integer("height"), // 图片/视频高度
+  duration: integer("duration"), // 视频时长（秒），仅视频类型有效
+  fps: integer("fps"), // 视频帧率，仅视频类型有效
+  frameCount: integer("frame_count"), // 视频总帧数，仅视频类型有效
   rejectionReason: text("rejection_reason"), // 拒绝原因：'image' | 'prompt' | 'both'
   referenceImages: jsonb("reference_images").$type<string[]>().default([]), // 参考图片URL数组（加密存储）
   createdAt: timestamp("created_at").defaultNow().notNull(),

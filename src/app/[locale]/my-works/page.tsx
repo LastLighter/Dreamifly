@@ -8,15 +8,19 @@ import { useParams } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import Link from 'next/link'
 import Image from 'next/image'
-import { isEncryptedImage, getImageDisplayUrl } from '@/utils/imageDisplay'
+import { isEncryptedImage, getImageDisplayUrl, getVideoDisplayUrl } from '@/utils/imageDisplay'
 
 interface UserImage {
   id: string
   imageUrl: string
+  mediaType?: string | null // 'image' | 'video'
   prompt?: string | null
   model?: string | null
   width?: number | null
   height?: number | null
+  duration?: number | null
+  fps?: number | null
+  frameCount?: number | null
   createdAt: string
 }
 
@@ -42,6 +46,7 @@ export default function MyWorksPage() {
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
+  const [zoomedMediaType, setZoomedMediaType] = useState<'image' | 'video' | null>(null)
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -112,41 +117,45 @@ export default function MyWorksPage() {
     }
   }, [])
 
-  // 解码加密图片（批量处理）
+  // 解码加密媒体（图片和视频，批量处理）
   useEffect(() => {
     if (!images.length) return
 
-    const encryptedImages = images.filter(
+    const encryptedMedia = images.filter(
       img => isEncryptedImage(img.imageUrl) && !decodedImages[img.imageUrl] && !decodingImages.has(img.imageUrl)
     )
 
-    if (encryptedImages.length === 0) return
+    if (encryptedMedia.length === 0) return
 
     let cancelled = false
     const concurrency = 4
-    const queue = [...encryptedImages]
+    const queue = [...encryptedMedia]
 
     const runWorker = async () => {
       while (queue.length && !cancelled) {
-        const image = queue.shift()
-        if (!image) continue
+        const media = queue.shift()
+        if (!media) continue
 
-        setDecodingImages(prev => new Set(prev).add(image.imageUrl))
+        setDecodingImages(prev => new Set(prev).add(media.imageUrl))
 
         try {
-          const decodedUrl = await getImageDisplayUrl(image.imageUrl, decodedImages)
+          // 根据媒体类型选择解码函数
+          const decodedUrl = media.mediaType === 'video'
+            ? await getVideoDisplayUrl(media.imageUrl, decodedImages)
+            : await getImageDisplayUrl(media.imageUrl, decodedImages)
+          
           if (!cancelled) {
             setDecodedImages(prev => ({
               ...prev,
-              [image.imageUrl]: decodedUrl
+              [media.imageUrl]: decodedUrl
             }))
           }
         } catch (error) {
-          console.error('解码图片失败:', error)
+          console.error('解码媒体失败:', error)
         } finally {
           setDecodingImages(prev => {
             const newSet = new Set(prev)
-            newSet.delete(image.imageUrl)
+            newSet.delete(media.imageUrl)
             return newSet
           })
         }
@@ -155,7 +164,7 @@ export default function MyWorksPage() {
 
     const workers = Array.from({ length: Math.min(concurrency, queue.length) }, runWorker)
     Promise.all(workers).catch(err => {
-      console.error('批量解码图片失败:', err)
+      console.error('批量解码媒体失败:', err)
     })
 
     return () => {
@@ -163,8 +172,9 @@ export default function MyWorksPage() {
     }
   }, [images, decodedImages, decodingImages])
 
-  // 获取图片显示URL
-  const getDisplayUrl = (imageUrl: string): string => {
+  // 获取媒体显示URL（支持图片和视频）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const getDisplayUrl = (imageUrl: string, _mediaType?: string | null): string => {
     if (isEncryptedImage(imageUrl)) {
       return decodedImages[imageUrl] || imageUrl // 如果还在解码中，显示原URL（会有加载状态）
     }
@@ -264,25 +274,30 @@ export default function MyWorksPage() {
     }
   }
 
-  const handleImageClick = async (imageUrl: string, e: React.MouseEvent) => {
+  const handleImageClick = async (imageUrl: string, e: React.MouseEvent, mediaType?: string | null) => {
     // 如果点击的是按钮区域，不触发预览
     const target = e.target as HTMLElement
     if (target.closest('button') || target.closest('[data-action-button]')) {
       return
     }
     
-    // 如果是加密图片，确保已解码
+    const isVideo = mediaType === 'video'
+    setZoomedMediaType(isVideo ? 'video' : 'image')
+    
+    // 如果是加密媒体，确保已解码
     if (isEncryptedImage(imageUrl) && !decodedImages[imageUrl]) {
       try {
-        const decodedUrl = await getImageDisplayUrl(imageUrl, decodedImages)
+        const decodedUrl = isVideo
+          ? await getVideoDisplayUrl(imageUrl, decodedImages)
+          : await getImageDisplayUrl(imageUrl, decodedImages)
         setDecodedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
         setZoomedImage(decodedUrl)
       } catch (error) {
-        console.error('解码图片失败:', error)
+        console.error('解码媒体失败:', error)
         setZoomedImage(imageUrl) // 失败时使用原URL
       }
     } else {
-      setZoomedImage(getDisplayUrl(imageUrl))
+      setZoomedImage(getDisplayUrl(imageUrl, mediaType))
     }
   }
 
@@ -409,8 +424,10 @@ export default function MyWorksPage() {
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {images.map((image) => {
-                const displayUrl = getDisplayUrl(image.imageUrl)
+                const mediaType = image.mediaType || 'image'
+                const displayUrl = getDisplayUrl(image.imageUrl, mediaType)
                 const isDecoding = isEncryptedImage(image.imageUrl) && !decodedImages[image.imageUrl]
+                const isVideo = mediaType === 'video'
 
                 return (
                   <div key={image.id} className="group relative rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-xl transition-all">
@@ -420,15 +437,57 @@ export default function MyWorksPage() {
                           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                         </div>
                       )}
-                      <Image
-                        src={displayUrl}
-                        alt={image.prompt || '生成的图片'}
-                        fill
-                        className="object-cover cursor-zoom-in"
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                        onClick={(e) => handleImageClick(image.imageUrl, e as any)}
-                        unoptimized={isEncryptedImage(image.imageUrl)}
-                      />
+                      {isVideo ? (
+                        <div 
+                          className="absolute inset-0 group cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleImageClick(image.imageUrl, e as any, mediaType)
+                          }}
+                          onMouseEnter={(e) => {
+                            // 鼠标悬停时播放视频预览
+                            const video = e.currentTarget.querySelector('video') as HTMLVideoElement
+                            if (video) {
+                              video.currentTime = 0
+                              video.play().catch(() => {})
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            // 鼠标离开时暂停视频
+                            const video = e.currentTarget.querySelector('video') as HTMLVideoElement
+                            if (video) {
+                              video.pause()
+                            }
+                          }}
+                        >
+                          <video
+                            src={displayUrl}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loop
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                          {/* 播放按钮覆盖层 */}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors pointer-events-none">
+                            <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                              <svg className="w-8 h-8 text-gray-800 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <Image
+                          src={displayUrl}
+                          alt={image.prompt || '生成的图片'}
+                          fill
+                          className="object-cover cursor-zoom-in"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                          onClick={(e) => handleImageClick(image.imageUrl, e as any, mediaType)}
+                          unoptimized={isEncryptedImage(image.imageUrl)}
+                        />
+                      )}
                     
                     {/* 左上角删除按钮 - 灰色磨砂玻璃底 */}
                     <button
@@ -436,7 +495,7 @@ export default function MyWorksPage() {
                       onClick={(e) => handleDeleteClick(image.id, e)}
                       disabled={deletingId === image.id}
                       className="absolute top-3 left-3 p-2 bg-gray-500/60 backdrop-blur-md rounded-lg hover:bg-gray-600/70 transition-all duration-200 shadow-lg z-20 disabled:opacity-50"
-                      title="删除图片"
+                      title={isVideo ? "删除视频" : "删除图片"}
                     >
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -448,7 +507,7 @@ export default function MyWorksPage() {
                       data-action-button
                       onClick={(e) => handleDownload(image.imageUrl, e)}
                       className="absolute top-3 right-3 p-2 bg-gray-500/60 backdrop-blur-md rounded-lg hover:bg-gray-600/70 transition-all duration-200 shadow-lg z-20"
-                      title="保存图片"
+                      title={isVideo ? "保存视频" : "保存图片"}
                     >
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -467,7 +526,7 @@ export default function MyWorksPage() {
                               </span>
                             )}
                             {image.model && (
-                              <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm text-white text-xs rounded-md border border-white/30">
+                              <span className="px-2 py-0.5 bg-white/20 backdrop-blur-sm text-white text-xs rounded-md border border-white/30 max-w-[120px] truncate" title={image.model}>
                                 {image.model}
                               </span>
                             )}
@@ -509,7 +568,10 @@ export default function MyWorksPage() {
             {zoomedImage && (
               <div
                 className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex flex-col items-center justify-center p-4 animate-fadeInUp"
-                onClick={() => setZoomedImage(null)}
+                onClick={() => {
+                  setZoomedImage(null)
+                  setZoomedMediaType(null)
+                }}
               >
                 {/* 顶部控制栏 */}
                 <div className="w-full max-w-[1400px] flex justify-end mb-4">
@@ -518,6 +580,7 @@ export default function MyWorksPage() {
                     onClick={(e) => {
                       e.stopPropagation()
                       setZoomedImage(null)
+                      setZoomedMediaType(null)
                     }}
                     aria-label="关闭预览"
                   >
@@ -527,15 +590,26 @@ export default function MyWorksPage() {
                   </button>
                 </div>
 
-                {/* 图片容器 */}
+                {/* 媒体容器 */}
                 <div className="relative w-full h-full flex items-center justify-center">
                   <div className="relative w-full max-w-[1400px] max-h-[calc(100vh-8rem)] flex items-center justify-center">
-                    <img
-                      src={zoomedImage}
-                      alt="预览图片"
-                      className="max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain rounded-lg shadow-2xl border border-orange-400/30 animate-scaleIn"
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                    {zoomedMediaType === 'video' ? (
+                      <video
+                        src={zoomedImage || ''}
+                        controls
+                        autoPlay
+                        loop
+                        className="max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain rounded-lg shadow-2xl border border-orange-400/30 animate-scaleIn"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <img
+                        src={zoomedImage || ''}
+                        alt="预览图片"
+                        className="max-w-full max-h-[calc(100vh-8rem)] w-auto h-auto object-contain rounded-lg shadow-2xl border border-orange-400/30 animate-scaleIn"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    )}
                   </div>
                 </div>
 

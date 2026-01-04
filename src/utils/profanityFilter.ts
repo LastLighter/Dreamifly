@@ -50,7 +50,6 @@ export function filterProfanity(
     
     // 调试信息：如果进行了替换，记录日志
     if (beforeReplace !== filteredText) {
-      console.log(`已替换违禁词: "${trimmedWord}"`);
     }
   }
 

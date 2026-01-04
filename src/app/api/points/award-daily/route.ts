@@ -25,6 +25,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // 检查是否是手动签到请求（新版本前端）
+    let requestBody;
+    try {
+      requestBody = await request.json();
+    } catch {
+      requestBody = {};
+    }
+
+    // 如果请求中没有 manual: true 参数，说明是旧版本前端自动签到，拒绝请求
+    if (!requestBody.manual || requestBody.manual !== true) {
+      return NextResponse.json({ 
+        error: '请使用最新版本进行手动签到',
+        code: 'MANUAL_CHECKIN_REQUIRED'
+      }, { status: 400 });
+    }
+
     // 获取用户信息（包含订阅相关字段）
     const currentUser = await db.select({
       id: user.id,
@@ -145,7 +161,12 @@ export async function POST(request: NextRequest) {
 }
 
 // 支持GET请求（用于客户端调用）
-export async function GET(request: NextRequest) {
-  return POST(request);
+// 注意：GET请求无法传递body，所以会被拒绝（只有新版本的手动签到POST请求才能成功）
+export async function GET() {
+  // GET请求无法传递manual参数，直接拒绝（防止旧版本自动签到）
+  return NextResponse.json({ 
+    error: '请使用最新版本进行手动签到',
+    code: 'MANUAL_CHECKIN_REQUIRED'
+  }, { status: 400 });
 }
 

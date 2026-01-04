@@ -1,8 +1,8 @@
 import { useTranslations } from 'next-intl'
 
 interface TabNavigationProps {
-  activeTab: 'generate' | 'style-transfer';
-  onTabChange: (tab: 'generate' | 'style-transfer') => void;
+  activeTab: 'generate' | 'video-generation';
+  onTabChange: (tab: 'generate' | 'video-generation') => void;
 }
 
 const TabNavigation = ({ activeTab, onTabChange }: TabNavigationProps) => {
@@ -28,18 +28,14 @@ const TabNavigation = ({ activeTab, onTabChange }: TabNavigationProps) => {
               {t('form.tabs.generate')}
             </button>
             <button
-              onClick={() => onTabChange('style-transfer')}
+              onClick={() => onTabChange('video-generation')}
               className={`flex-1 px-3 py-2 md:px-6 md:py-3 rounded-xl font-medium transition-all duration-300 ${
-                activeTab === 'style-transfer'
+                activeTab === 'video-generation'
                   ? 'bg-white text-gray-900 shadow-lg shadow-gray-300/20 border border-gray-200/30'
                   : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200/50'
               }`}
             >
-              {t('form.tabs.styleTransfer')}
-              {/* NEW 标签动效 - 直接跟在文字后面 */}
-              <span className="ml-2 inline-block bg-gradient-to-r from-purple-400 to-pink-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg animate-pulse">
-                NEW
-              </span>
+              {t('form.tabs.videoGeneration')}
             </button>
           </div>
         </div>

@@ -8,6 +8,7 @@ import GenerateSection from '@/components/GenerateSection'
 import CommunityMasonry, { type CommunityWork } from '@/components/CommunityMasonry'
 import { transferUrl } from '@/utils/locale'
 import community from '../communityWorks'
+import videoCommunityWorks from '../videoCommunityWorks'
 
 export default function CreateClient() {
   const t = useTranslations('home')
@@ -15,15 +16,51 @@ export default function CreateClient() {
   const searchParams = useSearchParams()
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
+
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'generate' | 'video-generation'>('generate')
+
+  // 当URL参数改变时，更新activeTab状态
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    const newTab = tabParam === 'video' ? 'video-generation' : 'generate'
+    setActiveTab(newTab)
+  }, [searchParams])
+
+  const initialPrompt = useMemo(() => {
+    return searchParams.get('prompt') || ''
+  }, [searchParams])
+
+  const initialModel = useMemo(() => {
+    return searchParams.get('model') || ''
+  }, [searchParams])
   
   // 社区作品数据状态
   const [communityWorks, setCommunityWorks] = useState<CommunityWork[]>(
     community as unknown as CommunityWork[]
   )
+  
+  // 视频社区作品数据状态
+  const [videoWorks] = useState<CommunityWork[]>(
+    videoCommunityWorks.map(work => ({
+      id: work.id,
+      image: work.image,
+      video: work.video, // 添加视频字段
+      prompt: work.prompt,
+      model: '视频生成',
+      userAvatar: '/images/default-avatar.svg',
+      userNickname: '默认',
+      avatarFrameId: null,
+    })) as CommunityWork[]
+  )
 
-  // 加载社区作品图片
+  // 加载社区作品图片（仅用于图片生成界面）
   useEffect(() => {
+    if (activeTab === 'video-generation') {
+      // 视频生成界面使用视频社区，不需要从API加载
+      return
+    }
+    
     const fetchCommunityImages = async () => {
       try {
         const response = await fetch('/api/community/images')
@@ -107,25 +144,57 @@ export default function CreateClient() {
     }
 
     fetchCommunityImages()
-  }, [])
+  }, [activeTab])
 
-  const initialPrompt = useMemo(() => {
-    return searchParams.get('prompt') || ''
-  }, [searchParams])
+  // 将图片URL转换为base64
+  const imageUrlToBase64 = async (imageUrl: string): Promise<string | null> => {
+    try {
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          const base64String = reader.result?.toString()
+          if (base64String) {
+            // 移除 base64 前缀，只返回纯base64字符串
+            const base64 = base64String.split(',')[1] || base64String
+            resolve(base64)
+          } else {
+            reject(new Error('Failed to convert image to base64'))
+          }
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      })
+    } catch (error) {
+      console.error('Error converting image URL to base64:', error)
+      return null
+    }
+  }
 
-  const initialModel = useMemo(() => {
-    return searchParams.get('model') || ''
-  }, [searchParams])
-
-  const navigateToCreate = (promptText?: string, modelId?: string) => {
+  const navigateToCreate = async (promptText?: string, modelId?: string, imageUrl?: string) => {
     const params = new URLSearchParams()
     if (promptText) params.set('prompt', promptText)
     // 只有当模型ID存在且不是"默认"时才传递模型参数
     if (modelId && modelId.trim() !== '' && modelId !== '默认') {
       params.set('model', modelId)
     }
+    // 如果当前是视频生成模式，保持tab参数
+    if (activeTab === 'video-generation') {
+      params.set('tab', 'video')
+    }
     const query = params.toString()
     router.push(transferUrl(`/create${query ? `?${query}` : ''}`, locale))
+
+    // 如果有图片URL，转换为base64并存储到sessionStorage，供GenerateSection使用
+    if (imageUrl && activeTab === 'video-generation') {
+      const base64 = await imageUrlToBase64(imageUrl)
+      if (base64) {
+        sessionStorage.setItem('videoReferenceImage', base64)
+        // 触发自定义事件，通知GenerateSection
+        window.dispatchEvent(new CustomEvent('videoReferenceImageReady', { detail: { base64, prompt: promptText } }))
+      }
+    }
 
     // 同页跳转时手动滚回顶部，确保用户立即看到生成表单
     window.setTimeout(() => {
@@ -181,9 +250,11 @@ export default function CreateClient() {
 
       <main className="transition-all duration-300 mx-auto lg:pl-40 pt-10 sm:pt-8 lg:pt-2 lg:mt-0">
         <GenerateSection
-          communityWorks={communityWorks}
+          communityWorks={activeTab === 'video-generation' ? videoWorks : communityWorks}
           initialPrompt={initialPrompt}
           initialModel={initialModel}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
         />
 
         {/* Community Showcase Section（从首页复用，但不包含 SiteStats） */}
@@ -216,8 +287,8 @@ export default function CreateClient() {
 
             <div className="animate-fadeInUp">
               <CommunityMasonry
-                works={communityWorks}
-                onGenerateSame={(prompt, model) => navigateToCreate(prompt, model)}
+                works={activeTab === 'video-generation' ? videoWorks : communityWorks}
+                onGenerateSame={(prompt, model, imageUrl) => navigateToCreate(prompt, model, imageUrl)}
                 onPreview={(img) => setZoomedImage(img)}
                 generateSameText={t('community.generateSame')}
               />

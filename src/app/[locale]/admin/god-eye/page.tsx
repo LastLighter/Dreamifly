@@ -11,7 +11,8 @@ import { useAvatar } from '@/contexts/AvatarContext'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
 import { getThumbnailUrl } from '@/utils/oss'
-import { isEncryptedImage, getImageDisplayUrl } from '@/utils/imageDisplay'
+import { isEncryptedImage, getImageDisplayUrl, getVideoDisplayUrl } from '@/utils/imageDisplay'
+import { filterProfanity } from '@/utils/profanityFilter'
 
 type TabType = 'approved' | 'rejected' | 'profanity'
 type RoleFilter = 'all' | 'subscribed' | 'premium' | 'oldUser' | 'regular'
@@ -19,10 +20,14 @@ type RoleFilter = 'all' | 'subscribed' | 'premium' | 'oldUser' | 'regular'
 interface ImageItem {
   id: string
   imageUrl: string
+  mediaType?: string | null // 'image' | 'video'
   prompt: string | null
   model: string | null
   width: number | null
   height: number | null
+  duration?: number | null
+  fps?: number | null
+  frameCount?: number | null
   userRole: string
   userAvatar: string
   userNickname: string
@@ -58,6 +63,7 @@ export default function GodEyePage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
+  const [zoomedMediaType, setZoomedMediaType] = useState<'image' | 'video' | null>(null)
   const [clickedPromptId, setClickedPromptId] = useState<string | null>(null)
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null)
   const promptPopoverRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
@@ -83,6 +89,7 @@ export default function GodEyePage() {
   const [availableModels, setAvailableModels] = useState<string[]>([])
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false) // 高级搜索折叠状态
   const [unmaskedImages, setUnmaskedImages] = useState<Set<string>>(new Set()) // 已移除遮罩的图片ID集合
+  const [showMask, setShowMask] = useState(true) // 是否显示遮罩（默认显示，仅前端控制）
   const [decodedImages, setDecodedImages] = useState<{ [key: string]: string }>({}) // 未通过审核图片的解码缓存
   const [decodedApprovedImages, setDecodedApprovedImages] = useState<{ [key: string]: string }>({}) // 通过审核图片的解码缓存
   const [decodingApprovedImages, setDecodingApprovedImages] = useState<Set<string>>(new Set()) // 正在解码的通过审核图片
@@ -105,6 +112,8 @@ export default function GodEyePage() {
   const [formProfanityWord, setFormProfanityWord] = useState('')
   const [formProfanityEnabled, setFormProfanityEnabled] = useState(true)
   const [savingProfanity, setSavingProfanity] = useState(false)
+  const [testPrompt, setTestPrompt] = useState('') // 测试提示词
+  const [testResult, setTestResult] = useState('') // 测试结果
 
   // 隐藏父级 layout 的 Navbar 和 Footer
   useEffect(() => {
@@ -316,6 +325,20 @@ export default function GodEyePage() {
     fetchRejectedImages()
   }, [activeTab, isAdmin, rejectedPage, rejectedRoleFilter, rejectedSearchTerm, rejectedStartDate, rejectedEndDate, reasonFilter, modelFilter])
 
+  // 当遮罩关闭时，自动将新加载的图片添加到unmaskedImages
+  useEffect(() => {
+    if (activeTab !== 'rejected' || !isAdmin || showMask || rejectedImages.length === 0) return
+    
+    // 如果遮罩已关闭，将当前页面的所有图片ID添加到unmaskedImages
+    setUnmaskedImages(prev => {
+      const newSet = new Set(prev)
+      rejectedImages.forEach(img => {
+        newSet.add(img.id)
+      })
+      return newSet
+    })
+  }, [activeTab, isAdmin, rejectedImages, showMask])
+
   // 获取可用模型列表
   useEffect(() => {
     if (activeTab !== 'rejected' || !isAdmin) return
@@ -502,6 +525,24 @@ export default function GodEyePage() {
     }
   }
 
+  // 当测试提示词或违禁词列表变化时，自动更新测试结果
+  useEffect(() => {
+    if (!testPrompt.trim()) {
+      setTestResult('')
+      return
+    }
+
+    // 获取已启用的违禁词列表
+    const enabledWords = profanityWords
+      .filter(w => w.isEnabled)
+      .map(w => w.word)
+      .filter(w => w && w.trim().length > 0)
+
+    // 使用与实际场景相同的替换逻辑
+    const filtered = filterProfanity(testPrompt, enabledWords)
+    setTestResult(filtered)
+  }, [testPrompt, profanityWords])
+
   // 处理未通过审核图片搜索
   const handleRejectedSearch = () => {
     setRejectedSearchTerm(rejectedSearchInput)
@@ -509,9 +550,11 @@ export default function GodEyePage() {
   }
 
   // 解码未通过审核的图片（使用统一的解密函数）
-  const decodeRejectedImage = async (imageId: string, imageUrl: string) => {
+  const decodeRejectedImage = async (imageId: string, imageUrl: string, mediaType?: string) => {
     try {
-      const decodedUrl = await getImageDisplayUrl(imageUrl, decodedImages)
+      const decodedUrl = mediaType === 'video'
+        ? await getVideoDisplayUrl(imageUrl, decodedImages)
+        : await getImageDisplayUrl(imageUrl, decodedImages)
       setDecodedImages((prev) => {
         if (prev[imageId]) return prev
         return { ...prev, [imageId]: decodedUrl }
@@ -539,7 +582,7 @@ export default function GodEyePage() {
       while (queue.length && !cancelled) {
         const next = queue.shift()
         if (next) {
-          await decodeRejectedImage(next.id, next.imageUrl)
+          await decodeRejectedImage(next.id, next.imageUrl, next.mediaType ?? undefined)
         }
       }
     }
@@ -611,7 +654,11 @@ export default function GodEyePage() {
         setDecodingApprovedImages(prev => new Set(prev).add(image.imageUrl))
 
         try {
-          const decodedUrl = await getImageDisplayUrl(image.imageUrl, decodedApprovedImages)
+          // 根据媒体类型选择解码函数
+          const decodedUrl = image.mediaType === 'video'
+            ? await getVideoDisplayUrl(image.imageUrl, decodedApprovedImages)
+            : await getImageDisplayUrl(image.imageUrl, decodedApprovedImages)
+          
           if (!cancelled) {
             setDecodedApprovedImages(prev => ({
               ...prev,
@@ -619,7 +666,7 @@ export default function GodEyePage() {
             }))
           }
         } catch (error) {
-          console.error('解码图片失败:', error)
+          console.error('解码媒体失败:', error)
         } finally {
           setDecodingApprovedImages(prev => {
             const newSet = new Set(prev)
@@ -646,6 +693,9 @@ export default function GodEyePage() {
     
     // 标记为已查看
     setViewedReferenceImages(prev => new Set(prev).add(refUrl))
+    
+    // 参考图都是图片类型
+    setZoomedMediaType('image')
     
     // 如果是加密图片，确保已解码
     if (isEncryptedImage(refUrl)) {
@@ -675,49 +725,61 @@ export default function GodEyePage() {
     }
   }
 
-  // 处理图片点击预览
-  const handleImageClick = async (imageUrl: string, e: React.MouseEvent) => {
+  // 处理图片/视频点击预览
+  const handleImageClick = async (imageUrl: string, e: React.MouseEvent, mediaType?: 'image' | 'video') => {
     e.stopPropagation()
     
-    // 如果是加密图片，确保已解码
+    // 如果是加密媒体，确保已解码
     if (isEncryptedImage(imageUrl)) {
       if (activeTab === 'approved') {
         if (!decodedApprovedImages[imageUrl]) {
           try {
-            const decodedUrl = await getImageDisplayUrl(imageUrl, decodedApprovedImages)
+            const decodedUrl = mediaType === 'video'
+              ? await getVideoDisplayUrl(imageUrl, decodedApprovedImages)
+              : await getImageDisplayUrl(imageUrl, decodedApprovedImages)
             setDecodedApprovedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
             setZoomedImage(decodedUrl)
+            setZoomedMediaType(mediaType || 'image')
           } catch (error) {
-            console.error('解码图片失败:', error)
+            console.error('解码媒体失败:', error)
             setZoomedImage(imageUrl)
+            setZoomedMediaType(mediaType || 'image')
           }
         } else {
           setZoomedImage(decodedApprovedImages[imageUrl])
+          setZoomedMediaType(mediaType || 'image')
         }
       } else {
-        // 未通过审核的图片：传入的 imageUrl 已经是解码后的 URL（从 decodedImages[image.id]）
+        // 未通过审核的媒体：传入的 imageUrl 已经是解码后的 URL（从 decodedImages[image.id]）
         // 如果是加密的原始 URL，需要查找对应的 image.id 并解码
         const image = rejectedImages.find(img => img.imageUrl === imageUrl)
         if (image && decodedImages[image.id]) {
           // 传入的是解码后的 URL，直接使用
           setZoomedImage(decodedImages[image.id])
+          setZoomedMediaType((image.mediaType as 'image' | 'video') || 'image')
         } else if (image) {
           // 传入的是原始加密 URL，需要解码
           try {
-            const decodedUrl = await getImageDisplayUrl(imageUrl, {})
+            const decodedUrl = (image.mediaType === 'video')
+              ? await getVideoDisplayUrl(imageUrl, {})
+              : await getImageDisplayUrl(imageUrl, {})
             setDecodedImages(prev => ({ ...prev, [image.id]: decodedUrl }))
             setZoomedImage(decodedUrl)
+            setZoomedMediaType((image.mediaType as 'image' | 'video') || 'image')
           } catch (error) {
-            console.error('解码图片失败:', error)
+            console.error('解码媒体失败:', error)
             setZoomedImage(imageUrl)
+            setZoomedMediaType((image.mediaType as 'image' | 'video') || 'image')
           }
         } else {
           // 直接使用传入的 URL（可能是已解码的）
           setZoomedImage(imageUrl)
+          setZoomedMediaType(mediaType || 'image')
         }
       }
     } else {
       setZoomedImage(imageUrl)
+      setZoomedMediaType(mediaType || 'image')
     }
   }
 
@@ -1028,10 +1090,12 @@ export default function GodEyePage() {
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {images.map((image) => {
+                        const mediaType = image.mediaType || 'image'
+                        const isVideo = mediaType === 'video'
                         const isDecoding = isEncryptedImage(image.imageUrl) && !decodedApprovedImages[image.imageUrl]
                         const thumbnailUrl = isEncryptedImage(image.imageUrl) 
                           ? (decodedApprovedImages[image.imageUrl] || image.imageUrl)
-                          : getThumbnailUrl(image.imageUrl, 400, 400, 75)
+                          : (isVideo ? image.imageUrl : getThumbnailUrl(image.imageUrl, 400, 400, 75))
 
                         return (
                           <div
@@ -1107,15 +1171,30 @@ export default function GodEyePage() {
                                 </div>
                               )}
                               
-                              <Image
-                                src={thumbnailUrl}
-                                alt={image.prompt || '生成的图片'}
-                                fill
-                                className="object-cover cursor-zoom-in"
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                                onClick={(e) => handleImageClick(image.imageUrl, e)}
-                                unoptimized={isEncryptedImage(image.imageUrl) || image.imageUrl.startsWith('http')}
-                              />
+                              {isVideo ? (
+                                <video
+                                  src={thumbnailUrl}
+                                  className="w-full h-full object-cover cursor-pointer"
+                                  autoPlay
+                                  loop
+                                  muted
+                                  playsInline
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleImageClick(image.imageUrl, e, 'video')
+                                  }}
+                                />
+                              ) : (
+                                <Image
+                                  src={thumbnailUrl}
+                                  alt={image.prompt || '生成的图片'}
+                                  fill
+                                  className="object-cover cursor-zoom-in"
+                                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                                  onClick={(e) => handleImageClick(image.imageUrl, e, 'image')}
+                                  unoptimized={isEncryptedImage(image.imageUrl) || image.imageUrl.startsWith('http')}
+                                />
+                              )}
 
                             {/* 用户信息覆盖层 */}
                             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/70 via-black/50 to-transparent backdrop-blur-sm">
@@ -1254,6 +1333,28 @@ export default function GodEyePage() {
                 {/* 控制栏 */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
                   <div className="flex flex-wrap gap-3 items-center">
+                    {/* 遮罩选项 */}
+                    <div className="flex items-center gap-2 h-[38px]">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showMask}
+                          onChange={(e) => {
+                            const checked = e.target.checked
+                            setShowMask(checked)
+                            if (!checked) {
+                              // 取消遮罩：将所有图片ID添加到unmaskedImages
+                              setUnmaskedImages(new Set(rejectedImages.map(img => img.id)))
+                            } else {
+                              // 显示遮罩：清空unmaskedImages
+                              setUnmaskedImages(new Set())
+                            }
+                          }}
+                          className="w-4 h-4 text-orange-600 focus:ring-orange-500 rounded border-gray-300"
+                        />
+                        <span className="text-sm text-gray-700 whitespace-nowrap">遮罩</span>
+                      </label>
+                    </div>
 
                     {/* 搜索 */}
                     <div className="flex items-center gap-2 flex-1 min-w-[200px] h-[38px]">
@@ -1439,7 +1540,11 @@ export default function GodEyePage() {
                 ) : (
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {rejectedImages.map((image) => (
+                      {rejectedImages.map((image) => {
+                        const mediaType = image.mediaType || 'image'
+                        const isVideo = mediaType === 'video'
+                        
+                        return (
                         <div
                           key={image.id}
                           className="group relative rounded-xl overflow-hidden bg-white border border-gray-200 hover:shadow-lg transition-all"
@@ -1519,7 +1624,7 @@ export default function GodEyePage() {
                             {/* 图片容器 */}
                             <div className="absolute inset-0">
                               {/* 磨砂玻璃层 - 只遮住图片区域，不遮住底部信息 */}
-                              {!unmaskedImages.has(image.id) && (
+                              {showMask && !unmaskedImages.has(image.id) && (
                                 <div className="absolute top-0 left-0 right-0 bottom-16 bg-white/30 backdrop-blur-md z-[5] flex flex-col items-center justify-center gap-2">
                                   <button
                                     onClick={(e) => {
@@ -1539,20 +1644,36 @@ export default function GodEyePage() {
                                 </div>
                               )}
                               
-                              {/* 图片 */}
+                              {/* 图片/视频 */}
                               {decodedImages[image.id] ? (
-                                <Image
-                                  src={decodedImages[image.id]}
-                                  alt={image.prompt || '未通过审核的图片'}
-                                  fill
-                                  className={`object-cover cursor-zoom-in ${!unmaskedImages.has(image.id) ? 'blur-sm' : ''}`}
-                                  onClick={(e) => {
-                                    if (unmaskedImages.has(image.id)) {
-                                      handleImageClick(decodedImages[image.id], e)
-                                    }
-                                  }}
-                                  unoptimized
-                                />
+                                isVideo ? (
+                                  <video
+                                    src={decodedImages[image.id]}
+                                    className={`w-full h-full object-cover cursor-pointer ${!unmaskedImages.has(image.id) ? 'blur-sm' : ''}`}
+                                    autoPlay
+                                    loop
+                                    muted
+                                    playsInline
+                                    onClick={(e) => {
+                                      if (unmaskedImages.has(image.id)) {
+                                        handleImageClick(decodedImages[image.id], e, 'video')
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <Image
+                                    src={decodedImages[image.id]}
+                                    alt={image.prompt || '未通过审核的图片'}
+                                    fill
+                                    className={`object-cover cursor-zoom-in ${!unmaskedImages.has(image.id) ? 'blur-sm' : ''}`}
+                                    onClick={(e) => {
+                                      if (unmaskedImages.has(image.id)) {
+                                        handleImageClick(decodedImages[image.id], e, 'image')
+                                      }
+                                    }}
+                                    unoptimized
+                                  />
+                                )
                               ) : (
                                 <div className="w-full h-full bg-gray-200 flex items-center justify-center">
                                   <div className="text-center">
@@ -1654,7 +1775,8 @@ export default function GodEyePage() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
 
                     {/* 分页 */}
@@ -1725,6 +1847,49 @@ export default function GodEyePage() {
                     {profanitySuccess}
                   </div>
                 )}
+
+                {/* 测试区域 */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">测试违禁词替换</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="test-prompt" className="block text-sm font-medium text-gray-700 mb-2">
+                        输入待测试的提示词
+                      </label>
+                      <textarea
+                        id="test-prompt"
+                        value={testPrompt}
+                        onChange={(e) => setTestPrompt(e.target.value)}
+                        placeholder="例如：这是一个测试提示词，包含违禁词"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent outline-none resize-none"
+                        rows={3}
+                      />
+                      <p className="mt-1 text-xs text-gray-500">
+                        输入提示词后，系统会自动使用已启用的违禁词进行替换测试
+                      </p>
+                    </div>
+                    {testResult && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          替换后的结果
+                        </label>
+                        <div className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-900 whitespace-pre-wrap break-words min-h-[60px]">
+                          {testResult}
+                        </div>
+                        {testPrompt !== testResult && (
+                          <p className="mt-1 text-xs text-orange-600">
+                            ✓ 已检测到违禁词并已替换为星号
+                          </p>
+                        )}
+                        {testPrompt === testResult && testPrompt.trim() && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            ℹ 未检测到违禁词
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
                 {/* 列表 */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -1818,23 +1983,40 @@ export default function GodEyePage() {
               </div>
             )}
 
-            {/* 图片预览模态框 */}
+            {/* 图片/视频预览模态框 */}
             {zoomedImage && (
               <div
                 className="fixed inset-0 bg-black/95 backdrop-blur-xl z-50 flex items-center justify-center p-4"
-                onClick={() => setZoomedImage(null)}
+                onClick={() => {
+                  setZoomedImage(null)
+                  setZoomedMediaType(null)
+                }}
               >
                 <div className="relative max-w-7xl max-h-full">
-                  <Image
-                    src={zoomedImage}
-                    alt="预览图片"
-                    width={1200}
-                    height={1200}
-                    className="max-w-full max-h-[90vh] object-contain rounded-lg"
-                    unoptimized
-                  />
+                  {zoomedMediaType === 'video' ? (
+                    <video
+                      src={zoomedImage}
+                      controls
+                      className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                      autoPlay
+                      loop
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <Image
+                      src={zoomedImage}
+                      alt="预览图片"
+                      width={1200}
+                      height={1200}
+                      className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                      unoptimized
+                    />
+                  )}
                   <button
-                    onClick={() => setZoomedImage(null)}
+                    onClick={() => {
+                      setZoomedImage(null)
+                      setZoomedMediaType(null)
+                    }}
                     className="absolute top-4 right-4 p-2 bg-white/20 backdrop-blur-md rounded-lg hover:bg-white/30 transition-colors"
                   >
                     <svg

@@ -1,5 +1,5 @@
 import { uploadToOSS } from './oss'
-import { encodeImageForStorage } from './rejectedImageStorage'
+import { encodeMediaForStorage } from './mediaStorage'
 import { v4 as uuidv4 } from 'uuid'
 
 /**
@@ -12,7 +12,7 @@ export async function saveReferenceImage(imageBase64: string): Promise<string> {
   const buffer = Buffer.from(imageBase64, 'base64')
   
   // 2. 加密图片
-  const encodedBuffer = encodeImageForStorage(buffer)
+  const encodedBuffer = encodeMediaForStorage(buffer)
   
   // 3. 生成文件名
   const fileName = `${uuidv4()}.dat`

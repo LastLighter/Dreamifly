@@ -6,7 +6,6 @@
  */
 export async function optimizePrompt(prompt: string, modelId?: string): Promise<string> {
   try {
-    console.log('Calling local API to optimize prompt...');
     
     // 调用我们的本地API端点
     const response = await fetch('/api/optimize-prompt', {
@@ -28,7 +27,6 @@ export async function optimizePrompt(prompt: string, modelId?: string): Promise<
       throw new Error('Invalid response from optimization API');
     }
 
-    console.log('Prompt optimization successful');
     return data.optimizedPrompt;
 
   } catch (error) {

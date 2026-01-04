@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
       params[key] = value.toString();
     });
 
-    console.log('收到支付宝异步通知:', JSON.stringify(params, null, 2));
 
     // 验证签名
     const isValid = verifyAlipayNotify(params);
