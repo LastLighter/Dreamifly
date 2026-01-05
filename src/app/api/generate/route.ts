@@ -57,7 +57,7 @@ function validateDynamicToken(providedToken: string): boolean {
 }
 
 // 获取客户端IP地址
-function getClientIP(request: Request): string | null {
+export function getClientIP(request: Request): string | null {
   const forwarded = request.headers.get('x-forwarded-for')
   const realIP = request.headers.get('x-real-ip')
   const cfConnectingIP = request.headers.get('cf-connecting-ip') // Cloudflare

@@ -192,6 +192,43 @@ export default function AdminSidebar() {
           </Link>
 
           <Link
+            href={transferUrl('/admin/cdk', locale)}
+            onClick={handleNavClick}
+            className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 ${
+              isActive('/admin/cdk')
+                ? 'bg-gradient-to-r from-orange-400/20 to-amber-400/20 border border-orange-400/40'
+                : 'bg-gray-200/50 hover:bg-gray-300/50'
+            }`}
+          >
+            <svg
+              className={`w-6 h-6 flex-shrink-0 ${
+                isActive('/admin/cdk')
+                  ? 'text-orange-600 group-hover:text-orange-700'
+                  : 'text-gray-700 group-hover:text-gray-900'
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"
+              />
+            </svg>
+            <span
+              className={`text-sm font-medium ${
+                isActive('/admin/cdk')
+                  ? 'text-orange-700 group-hover:text-orange-800'
+                  : 'text-gray-900 group-hover:text-gray-800'
+              }`}
+            >
+              CDK管理
+            </span>
+          </Link>
+
+          <Link
             href={transferUrl('/admin/subscriptions', locale)}
             onClick={handleNavClick}
             className={`group w-full flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 ${

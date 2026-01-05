@@ -375,6 +375,54 @@ export async function hasAwardedToday(userId: string): Promise<boolean> {
 }
 
 /**
+ * 添加用户积分
+ * @param userId 用户ID
+ * @param amount 积分数量
+ * @param description 描述
+ * @param expiresInDays 过期天数，默认7天
+ * @returns 是否添加成功
+ */
+export async function addPoints(
+  userId: string,
+  amount: number,
+  description: string = '积分奖励',
+  expiresInDays: number = 7
+): Promise<boolean> {
+  try {
+    if (amount <= 0) {
+      console.error('添加积分失败：积分数量必须大于0', { userId, amount });
+      return false;
+    }
+
+    // 计算过期时间
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+    await db.insert(userPoints).values({
+      id: randomUUID(),
+      userId,
+      points: amount,
+      type: 'earned',
+      description,
+      earnedAt: new Date(),
+      expiresAt,
+    });
+
+    console.log('积分添加成功', {
+      userId,
+      amount,
+      description,
+      expiresInDays
+    });
+
+    return true;
+  } catch (error) {
+    console.error('添加积分失败：', error);
+    return false;
+  }
+}
+
+/**
  * 返还积分（通过消费记录ID）
  * 当服务调用失败时，用于返还已扣除的积分
  * 返还的积分将设置为一个月后过期
