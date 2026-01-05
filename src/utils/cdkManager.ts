@@ -22,13 +22,12 @@ export interface RedemptionResult {
 
 /**
  * 检查用户每日兑换限制并重置计数
- * 使用UTC时区计算日期间隔
+ * 使用UTC时区计算日期间隔，按UTC时间凌晨刷新
  */
-export async function checkAndResetUserDailyLimit(userId: string): Promise<{ canRedeem: boolean; currentCount: number; maxLimit: number }> {
+export async function checkAndResetUserDailyLimit(userId: string): Promise<{ canRedeem: boolean; currentCount: number; maxLimit: number; remainingCount: number }> {
   const { getCDKConfig } = await import('@/utils/cdkGenerator');
 
   const config = await getCDKConfig();
-  const now = new Date();
 
   // 获取或创建用户每日限制记录
   let userLimit = await db.select()
@@ -54,16 +53,21 @@ export async function checkAndResetUserDailyLimit(userId: string): Promise<{ can
   const limitData = userLimit[0];
   let currentDailyCount = limitData.dailyRedemptions;
 
-  // 检查是否需要重置每日计数（使用UTC时区）
-  // 假设每日重置时间是UTC 00:00:00
-  const nowUtc = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000)); // 转换为UTC
-  const lastResetUtc = new Date(limitData.lastRedemptionResetDate.getTime() + (limitData.lastRedemptionResetDate.getTimezoneOffset() * 60 * 1000)); // 确保是UTC
+  // 使用PostgreSQL的UTC日期比较来检查是否需要重置每日计数
+  // 比较UTC日期的年月日部分
+  // 注意：last_redemption_reset_date 是 timestamp（无时区），存储的是UTC时间戳
+  // 所以直接比较日期部分即可，不需要 AT TIME ZONE 转换
+  const resetCheck = await db.select({
+    shouldReset: sql<boolean>`
+      DATE(${userCdkDailyLimit.lastRedemptionResetDate}) < DATE((now() at time zone 'UTC'))
+    `,
+  })
+    .from(userCdkDailyLimit)
+    .where(eq(userCdkDailyLimit.userId, userId))
+    .limit(1);
 
-  const nowDate = new Date(nowUtc.getFullYear(), nowUtc.getMonth(), nowUtc.getDate());
-  const lastResetDateOnly = new Date(lastResetUtc.getFullYear(), lastResetUtc.getMonth(), lastResetUtc.getDate());
-
-  if (nowDate.getTime() > lastResetDateOnly.getTime()) {
-    // 需要重置计数
+  if (resetCheck.length > 0 && resetCheck[0].shouldReset) {
+    // 需要重置计数（UTC新的一天开始了）
     currentDailyCount = 0;
     await db.update(userCdkDailyLimit)
       .set({
@@ -74,12 +78,15 @@ export async function checkAndResetUserDailyLimit(userId: string): Promise<{ can
       .where(eq(userCdkDailyLimit.userId, userId));
   }
 
-  const canRedeem = currentDailyCount < config.userDailyLimit;
+  const maxLimit = config.userDailyLimit;
+  const remainingCount = Math.max(0, maxLimit - currentDailyCount);
+  const canRedeem = currentDailyCount < maxLimit;
 
   return {
     canRedeem,
     currentCount: currentDailyCount,
-    maxLimit: config.userDailyLimit
+    maxLimit,
+    remainingCount
   };
 }
 
@@ -160,22 +167,30 @@ export async function createCDK(data: CDKData, createdBy?: string): Promise<stri
 
 /**
  * 兑换CDK - 一个CDK只能兑换一次
+ * 注意：只要发了兑换请求，无论成功或失败都算次数（包括格式无效等情况）
  */
 export async function redeemCDK(code: string, userId: string, ipAddress?: string): Promise<RedemptionResult> {
-  const { validateCDKFormat } = await import('@/utils/cdkGenerator');
-
-  // 验证CDK格式
-  if (!validateCDKFormat(code)) {
-    return { success: false, message: 'CDK格式无效' };
-  }
-
-  // 检查每日兑换限制
+  // 先检查每日兑换限制并重置计数
   const dailyLimitCheck = await checkAndResetUserDailyLimit(userId);
   if (!dailyLimitCheck.canRedeem) {
     return {
       success: false,
       message: `今日已兑换${dailyLimitCheck.currentCount}次，明天再来吧（每日最多${dailyLimitCheck.maxLimit}次）`
     };
+  }
+
+  // 在请求开始时立即更新每日兑换计数（无论成功失败都算次数，包括格式无效）
+  await db.update(userCdkDailyLimit)
+    .set({
+      dailyRedemptions: sql`${userCdkDailyLimit.dailyRedemptions} + 1`,
+      updatedAt: sql`(now() at time zone 'UTC')`,
+    })
+    .where(eq(userCdkDailyLimit.userId, userId));
+
+  // 验证CDK格式（在增加次数之后验证，确保格式无效也消耗次数）
+  const { validateCDKFormat } = await import('@/utils/cdkGenerator');
+  if (!validateCDKFormat(code)) {
+    return { success: false, message: 'CDK格式无效' };
   }
 
   // 使用事务进行兑换
@@ -333,13 +348,7 @@ export async function redeemCDK(code: string, userId: string, ipAddress?: string
       })
       .where(eq(cdk.id, cdkData.id));
 
-    // 更新用户每日兑换计数
-    await tx.update(userCdkDailyLimit)
-      .set({
-        dailyRedemptions: sql`${userCdkDailyLimit.dailyRedemptions} + 1`,
-        updatedAt: sql`(now() at time zone 'UTC')`,
-      })
-      .where(eq(userCdkDailyLimit.userId, userId));
+    // 注意：每日兑换计数已在事务外更新，确保无论成功失败都算次数
 
     return {
       success: true,

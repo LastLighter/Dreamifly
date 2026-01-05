@@ -65,7 +65,7 @@ export default function ProfilePage() {
   const [cdkCode, setCdkCode] = useState('')
   const [cdkRedeeming, setCdkRedeeming] = useState(false)
   const [cdkConfig, setCdkConfig] = useState({ userDailyLimit: 5 })
-  const [cdkDailyCount, setCdkDailyCount] = useState(0)
+  const [cdkRemainingCount, setCdkRemainingCount] = useState(5)
 
   // Modal state for CDK redemption result
   const [showCdkResultModal, setShowCdkResultModal] = useState(false)
@@ -270,8 +270,8 @@ export default function ProfilePage() {
           setCdkConfig(configData.config)
         }
 
-        // 加载用户每日CDK使用情况
-        await loadCdkDailyCount()
+        // 加载用户CDK剩余次数
+        await loadCdkRemainingCount()
       } catch (error) {
         console.error('加载CDK数据失败:', error)
       }
@@ -612,6 +612,8 @@ export default function ProfilePage() {
           message: '服务器响应异常，请稍后重试'
         })
         setShowCdkResultModal(true)
+        // 即使JSON解析失败，如果请求已发送到服务器，次数可能已消耗，刷新剩余次数
+        await loadCdkRemainingCount()
         return
       }
 
@@ -632,13 +634,27 @@ export default function ProfilePage() {
         // 如果兑换的是会员，刷新订阅状态
         if (data.data?.packageType === 'subscription_plan') {
           // 重新获取订阅状态
-          await loadSubscriptionStatus()
+          try {
+            const res = await fetch(`/api/subscription/status?t=${Date.now()}`, {
+              credentials: 'include',
+            })
+            if (res.ok) {
+              const subData = await res.json()
+              setSubscription({
+                isSubscribed: Boolean(subData.isSubscribed),
+                planType: subData.subscription?.planType ?? null,
+                expiresAt: subData.expiresAt ?? null,
+              })
+            }
+          } catch (error) {
+            console.error('Error fetching subscription status:', error)
+          }
         }
 
-        // 重新获取CDK每日使用情况
-        await loadCdkDailyCount()
+        // 重新获取CDK剩余次数
+        await loadCdkRemainingCount()
       } else {
-        // 兑换失败
+        // 兑换失败（但次数已经消耗，需要刷新剩余次数）
         const errorMessage = data.error || (response.status === 500 ? '服务器错误，请稍后重试' : '兑换失败')
         setCdkResult({
           type: 'error',
@@ -646,6 +662,9 @@ export default function ProfilePage() {
           message: errorMessage
         })
         setShowCdkResultModal(true)
+        
+        // 兑换失败也需要刷新剩余次数（因为次数已经消耗）
+        await loadCdkRemainingCount()
       }
     } catch (err) {
       console.error('CDK兑换网络错误:', err)
@@ -655,19 +674,33 @@ export default function ProfilePage() {
         message: '网络连接失败，请检查网络后重试'
       })
       setShowCdkResultModal(true)
+      
+      // 网络错误时，如果请求已发送到服务器，次数可能已消耗，尝试刷新
+      // 如果请求未发送，刷新也不会影响（只是多一次请求）
+      await loadCdkRemainingCount()
     } finally {
       setCdkRedeeming(false)
     }
   }
 
-  // 加载CDK每日使用情况
-  const loadCdkDailyCount = async () => {
+  // 加载CDK剩余次数
+  const loadCdkRemainingCount = async () => {
     try {
-      // 这里暂时设置为0，因为还没有专门的API
-      // 可以在兑换成功后通过其他方式更新
-      setCdkDailyCount(0)
+      const response = await fetch('/api/cdk/remaining', {
+        credentials: 'include',
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setCdkRemainingCount(data.remainingCount)
+          // 同时更新配置中的最大限制
+          if (data.maxLimit) {
+            setCdkConfig({ userDailyLimit: data.maxLimit })
+          }
+        }
+      }
     } catch (error) {
-      console.error('加载CDK每日使用情况失败:', error)
+      console.error('加载CDK剩余次数失败:', error)
     }
   }
 
@@ -931,27 +964,31 @@ export default function ProfilePage() {
               )
             })()}
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-400 to-amber-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-400/30 transition hover:from-orange-500 hover:to-amber-500 disabled:opacity-50"
-              >
-                {saving && (
-                  <svg className="h-5 w-5 animate-spin text-white" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                )}
-                {t('saveChanges')}
-              </button>
-              <button
-                onClick={() => setShowPasswordForm(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
-              >
-                🔒 {t('changePassword')}
-              </button>
-              <p className="text-xs text-gray-500">头像和头像框更换后记得点击保存同步。</p>
+            <div className="mt-8">
+              <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+                <p className="text-xs text-blue-700">💡 头像和头像框更换后记得点击保存同步。</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-400 to-amber-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-400/30 transition hover:from-orange-500 hover:to-amber-500 disabled:opacity-50"
+                >
+                  {saving && (
+                    <svg className="h-5 w-5 animate-spin text-white" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  )}
+                  {t('saveChanges')}
+                </button>
+                <button
+                  onClick={() => setShowPasswordForm(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                >
+                  🔒 {t('changePassword')}
+                </button>
+              </div>
             </div>
           </section>
 
@@ -1125,8 +1162,7 @@ export default function ProfilePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <p className="text-sm text-blue-800">
-                      每日最多可兑换 {cdkConfig.userDailyLimit} 次
-                      {cdkDailyCount > 0 && `，今日已兑换 ${cdkDailyCount} 次`}
+                      今日剩余 {cdkRemainingCount} 次兑换机会（每日最多 {cdkConfig.userDailyLimit} 次） 
                     </p>
                   </div>
                 </div>
