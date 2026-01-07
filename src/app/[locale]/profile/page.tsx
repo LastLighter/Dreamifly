@@ -1427,7 +1427,7 @@ export default function ProfilePage() {
                 </p>
                 {cdkResult.type === 'success' && cdkResult.packageName && (
                   <p className="text-xs text-gray-500 mt-2">
-                    您已成功兑换 "{cdkResult.packageName}"
+                    您已成功兑换 &quot;{cdkResult.packageName}&quot;
                   </p>
                 )}
               </div>

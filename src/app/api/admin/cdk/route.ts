@@ -94,11 +94,18 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/admin/cdk/route.ts:96',message:'DELETE handler called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   try {
     // 验证管理员权限
     const session = await auth.api.getSession({
       headers: await headers()
     });
+
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/admin/cdk/route.ts:103',message:'Session check',data:{hasSession:!!session,isAdmin:session?.user?.isAdmin},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
 
     if (!session?.user?.isAdmin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
@@ -107,14 +114,27 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/admin/cdk/route.ts:110',message:'ID extracted from query',data:{id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+
     if (!id) {
       return NextResponse.json({ error: 'Missing CDK ID' }, { status: 400 });
     }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/admin/cdk/route.ts:114',message:'Calling deleteCDK',data:{id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     await deleteCDK(id);
 
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/admin/cdk/route.ts:116',message:'deleteCDK completed successfully',data:{id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     return NextResponse.json({ success: true });
   } catch (error) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/admin/cdk/route.ts:119',message:'Delete error caught in API',data:{error:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     console.error('删除CDK失败:', error);
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal server error' }, { status: 500 });
   }

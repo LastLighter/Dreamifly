@@ -97,7 +97,6 @@ export async function createCDK(data: CDKData, createdBy?: string): Promise<stri
   const { generateCDK } = await import('@/utils/cdkGenerator');
 
   // 验证包是否存在且有效
-  let packageData: any = null;
   if (data.packageType === 'points_package') {
     const pkg = await db.select()
       .from(pointsPackage)
@@ -110,7 +109,6 @@ export async function createCDK(data: CDKData, createdBy?: string): Promise<stri
     if (pkg.length === 0) {
       throw new Error('积分包不存在或已下架');
     }
-    packageData = pkg[0];
   } else if (data.packageType === 'subscription_plan') {
     const plan = await db.select()
       .from(subscriptionPlan)
@@ -123,7 +121,6 @@ export async function createCDK(data: CDKData, createdBy?: string): Promise<stri
     if (plan.length === 0) {
       throw new Error('订阅套餐不存在或已下架');
     }
-    packageData = plan[0];
   } else {
     throw new Error('无效的包类型');
   }
@@ -315,7 +312,7 @@ export async function redeemCDK(code: string, userId: string, ipAddress?: string
           userId,
           packageData.bonusPoints,
           `订阅赠送积分 - ${packageName}`,
-          30
+          365
         );
       }
 
@@ -373,7 +370,7 @@ export async function getCDKList(page = 1, pageSize = 20, filters?: {
   isRedeemed?: boolean;
   code?: string;
 }) {
-  let whereConditions = [];
+  const whereConditions = [];
 
   if (filters?.packageType) {
     whereConditions.push(eq(cdk.packageType, filters.packageType));
@@ -458,7 +455,7 @@ export async function getRedemptionHistory(page = 1, pageSize = 20, filters?: {
   startDate?: Date;
   endDate?: Date;
 }) {
-  let whereConditions = [];
+  const whereConditions = [];
 
   if (filters?.userId) {
     whereConditions.push(sql`${user.email} ILIKE ${`%${filters.userId}%`}`);
@@ -570,20 +567,39 @@ export async function updateCDKExpiry(id: string, expiresAt?: Date) {
  * 删除CDK（只有未兑换的才能删除）
  */
 export async function deleteCDK(id: string) {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdkManager.ts:569',message:'deleteCDK called',data:{id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   // 检查是否已被兑换
   const cdkRecord = await db.select()
     .from(cdk)
     .where(eq(cdk.id, id))
     .limit(1);
 
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdkManager.ts:575',message:'CDK record fetched',data:{id,found:cdkRecord.length>0,isRedeemed:cdkRecord[0]?.isRedeemed},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
+
   if (cdkRecord.length === 0) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdkManager.ts:577',message:'CDK not found error',data:{id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     throw new Error('CDK不存在');
   }
 
   if (cdkRecord[0].isRedeemed) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdkManager.ts:581',message:'CDK already redeemed error',data:{id,isRedeemed:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     throw new Error('已兑换的CDK不能删除');
   }
 
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdkManager.ts:584',message:'Before database delete',data:{id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
   await db.delete(cdk)
     .where(eq(cdk.id, id));
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdkManager.ts:586',message:'Database delete completed',data:{id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
 }

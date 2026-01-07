@@ -193,6 +193,9 @@ export default function CDKAdminPage() {
 
   // 加载CDK列表
   const loadCdks = async () => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:195',message:'loadCdks called',data:{page,filters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     setLoading(true)
     try {
       const token = await generateDynamicTokenWithServerTime()
@@ -204,16 +207,34 @@ export default function CDKAdminPage() {
         ...(filters.code && { code: filters.code }),
       })
 
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:207',message:'Before fetch CDK list',data:{url:`/api/admin/cdk?${queryParams}`},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       const response = await fetch(`/api/admin/cdk?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       })
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:212',message:'CDK list response received',data:{status:response.status,ok:response.ok},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load CDKs: ${response.status}`)
+      }
+      
       const data = await response.json()
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:218',message:'CDK list data parsed',data:{cdksCount:data.cdks?.length || 0,total:data.total,cdkIds:data.cdks?.map((c:CDK)=>c.id) || []},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       setCdks(data.cdks)
       setTotal(data.total)
       setTotalPages(data.totalPages)
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:224',message:'loadCdks error',data:{error:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       console.error('加载CDK失败:', error)
     } finally {
       setLoading(false)
@@ -353,27 +374,101 @@ export default function CDKAdminPage() {
     }
   }
 
+  // 单个删除
+  const handleSingleDelete = async (cdkId: string) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:356',message:'handleSingleDelete called',data:{cdkId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    if (!confirm('确定要删除此CDK吗？')) return
+
+    try {
+      const token = await generateDynamicTokenWithServerTime()
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:362',message:'Before single delete API call',data:{cdkId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      const response = await fetch(`/api/admin/cdk?id=${cdkId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      const responseData = await response.json().catch(() => ({}));
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:371',message:'Single delete API response',data:{cdkId,status:response.status,ok:response.ok,responseData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+
+      if (!response.ok) {
+        throw new Error(responseData.error || `删除失败: ${response.status}`);
+      }
+
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:377',message:'Single delete completed, refreshing list',data:{cdkId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      loadCdks()
+    } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:380',message:'Single delete error caught',data:{cdkId,error:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      console.error('删除CDK失败:', error)
+      alert(error instanceof Error ? error.message : '删除失败，请重试')
+    }
+  }
+
   // 批量操作
   const handleBatchDelete = async () => {
-    if (selectedCdks.length === 0) return
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:357',message:'handleBatchDelete called',data:{selectedCdksCount:selectedCdks.length,selectedCdks:selectedCdks},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    if (selectedCdks.length === 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:360',message:'Early return: selectedCdks empty',data:{selectedCdksCount:0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      return
+    }
 
     if (!confirm(`确定要删除选中的 ${selectedCdks.length} 个CDK吗？已兑换的CDK无法删除。`)) return
 
     try {
       const token = await generateDynamicTokenWithServerTime()
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:365',message:'Before delete API calls',data:{idsToDelete:selectedCdks,idsCount:selectedCdks.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       const deletePromises = selectedCdks.map(id =>
         fetch(`/api/admin/cdk?id=${id}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
           },
+        }).then(async (response) => {
+          const responseData = await response.json().catch(() => ({}));
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:370',message:'Delete API response',data:{id,status:response.status,ok:response.ok,responseData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+          if (!response.ok) {
+            throw new Error(responseData.error || `Delete failed for ${id}: ${response.status}`);
+          }
+          return response;
         })
       )
 
-      await Promise.all(deletePromises)
+      const results = await Promise.allSettled(deletePromises)
+      const failed = results.filter(r => r.status === 'rejected')
+      if (failed.length > 0) {
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:380',message:'Some deletes failed',data:{failedCount:failed.length,totalCount:selectedCdks.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+        throw new Error(`${failed.length} 个CDK删除失败`)
+      }
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:378',message:'All deletes completed, refreshing list',data:{deletedCount:selectedCdks.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       setSelectedCdks([])
       loadCdks()
     } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:382',message:'Delete error caught',data:{error:error instanceof Error ? error.message : String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       console.error('批量删除失败:', error)
       alert('批量删除失败，请重试')
     }
@@ -755,9 +850,10 @@ export default function CDKAdminPage() {
                             {!cdk.isRedeemed && (
                               <button
                                 onClick={() => {
-                                  if (confirm('确定要删除此CDK吗？')) {
-                                    handleBatchDelete()
-                                  }
+                                  // #region agent log
+                                  fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:757',message:'Single delete button clicked',data:{cdkId:cdk.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                                  // #endregion
+                                  handleSingleDelete(cdk.id)
                                 }}
                                 className="text-red-600 hover:text-red-900"
                               >
