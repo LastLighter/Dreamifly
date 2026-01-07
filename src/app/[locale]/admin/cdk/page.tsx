@@ -1,13 +1,10 @@
 'use client'
 
 import { useSession } from '@/lib/auth-client'
-import { ExtendedUser } from '@/types/auth'
 import { useRouter, useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import AdminSidebar from '@/components/AdminSidebar'
-import Image from 'next/image'
 import { transferUrl } from '@/utils/locale'
-import { useAvatar } from '@/contexts/AvatarContext'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
 interface CDK {
@@ -61,14 +58,12 @@ type CDKTab = 'list' | 'create' | 'redemptions'
 
 export default function CDKAdminPage() {
   const { data: session, isPending: sessionLoading } = useSession()
-  const { avatar: globalAvatar } = useAvatar()
   const router = useRouter()
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
 
   const [isAdmin, setIsAdmin] = useState(false)
   const [checkingAdmin, setCheckingAdmin] = useState(true)
-  const [currentUserAvatar, setCurrentUserAvatar] = useState<string>('')
   const [activeTab, setActiveTab] = useState<CDKTab>('list')
 
   // CDK列表相关状态
@@ -166,15 +161,6 @@ export default function CDKAdminPage() {
     }
   }, [session, sessionLoading])
 
-  // 设置用户头像
-  useEffect(() => {
-    if (session?.user?.image) {
-      setCurrentUserAvatar(session.user.image)
-    } else if (globalAvatar) {
-      setCurrentUserAvatar(globalAvatar)
-    }
-  }, [session, globalAvatar])
-
   // 加载CDK配置
   const loadConfig = async () => {
     try {
@@ -192,7 +178,7 @@ export default function CDKAdminPage() {
   }
 
   // 加载CDK列表
-  const loadCdks = async () => {
+  const loadCdks = useCallback(async () => {
     // #region agent log
     fetch('http://127.0.0.1:7243/ingest/c7514175-f2a4-4357-9430-0bf0dc8944bf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cdk/page.tsx:195',message:'loadCdks called',data:{page,filters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
     // #endregion
@@ -239,7 +225,7 @@ export default function CDKAdminPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, filters])
 
   // 加载包列表
   const loadPackages = async () => {
@@ -259,7 +245,7 @@ export default function CDKAdminPage() {
   }
 
   // 加载兑换记录
-  const loadRedemptions = async () => {
+  const loadRedemptions = useCallback(async () => {
     setRedemptionsLoading(true)
     try {
       const token = await generateDynamicTokenWithServerTime()
@@ -286,7 +272,7 @@ export default function CDKAdminPage() {
     } finally {
       setRedemptionsLoading(false)
     }
-  }
+  }, [redemptionsPage, redemptionsFilters])
 
   // 更新配置
   const updateConfig = async (newLimit: number) => {
@@ -365,7 +351,7 @@ export default function CDKAdminPage() {
 
       setActiveTab('list')
       loadCdks()
-      setCreateForm({ packageType: 'points_package', packageId: '', expiresAt: '', quantity: '1' })
+      setCreateForm({ packageType: 'points_package', packageId: '', expiryType: 'week', customDays: '', quantity: '1' })
     } catch (error) {
       console.error('创建CDK失败:', error)
       alert('创建失败，请重试')
@@ -558,7 +544,7 @@ export default function CDKAdminPage() {
         loadRedemptions()
       }
     }
-  }, [isAdmin, activeTab, page, filters, redemptionsPage, redemptionsFilters])
+  }, [isAdmin, activeTab, loadCdks, loadRedemptions])
 
   // 权限检查
   if (checkingAdmin) {

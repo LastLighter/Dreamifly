@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '请输入CDK' }, { status: 400 });
     }
 
-    const clientIP = getClientIP(request);
+    const clientIP = getClientIP(request) || undefined;
     const result = await redeemCDK(code.toUpperCase(), session.user.id, clientIP);
 
     if (result.success) {
