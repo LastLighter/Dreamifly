@@ -695,29 +695,27 @@ export async function POST(request: Request) {
     const { prompt: originalPrompt, width, height, steps, seed, batch_size, model, images, negative_prompt } = body
     prompt = originalPrompt
     
-    // 如果是图生图模式，对 prompt 进行违禁词过滤（在接收请求时处理）
-    if (images && images.length > 0) {
-      try {
-        const { filterProfanity } = await import('@/utils/profanityFilter')
-        const { profanityWord } = await import('@/db/schema')
-        const { eq } = await import('drizzle-orm')
-        
-        // 从数据库获取已启用的违禁词
-        const words = await db
-          .select()
-          .from(profanityWord)
-          .where(eq(profanityWord.isEnabled, true))
-        
-        const wordList = words.map(row => row.word).filter(w => !!w && w.trim().length > 0)
-        
-        if (wordList.length > 0) {
-          // 过滤 prompt，后续所有流程都使用过滤后的 prompt
-          prompt = filterProfanity(prompt, wordList)
-        }
-      } catch (error) {
-        console.error('过滤违禁词失败，使用原始 prompt:', error)
-        // 如果过滤失败，继续使用原始 prompt，不阻止流程
+    // 对 prompt 进行违禁词过滤（文生图和图生图模式都生效）
+    try {
+      const { filterProfanity } = await import('@/utils/profanityFilter')
+      const { profanityWord } = await import('@/db/schema')
+      const { eq } = await import('drizzle-orm')
+      
+      // 从数据库获取已启用的违禁词
+      const words = await db
+        .select()
+        .from(profanityWord)
+        .where(eq(profanityWord.isEnabled, true))
+      
+      const wordList = words.map(row => row.word).filter(w => !!w && w.trim().length > 0)
+      
+      if (wordList.length > 0) {
+        // 过滤 prompt，后续所有流程都使用过滤后的 prompt
+        prompt = filterProfanity(prompt, wordList)
       }
+    } catch (error) {
+      console.error('过滤违禁词失败，使用原始 prompt:', error)
+      // 如果过滤失败，继续使用原始 prompt，不阻止流程
     }
     
     // 对于已登录用户，在解析请求体后检查积分和额度
