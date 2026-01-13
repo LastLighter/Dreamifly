@@ -137,7 +137,7 @@ export async function GET() {
     const blockWords = COMMUNITY_IMAGE_BLOCK_WORDS
 
     // 根据屏蔽词过滤图片
-    let filteredImages = recentImages.filter(image => {
+    const filteredImages = recentImages.filter(image => {
       const prompt = image.prompt || ''
 
       // 过滤掉空提示词或只有空格的提示词
