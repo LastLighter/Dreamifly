@@ -64,7 +64,7 @@ export default function ReportDialog({ isOpen, onClose, imageId }: ReportDialogP
       const data = await response.json()
 
       if (data.success) {
-        setSuccess('举报成功！图片已被标记为不适合展示')
+        setSuccess('举报成功！请勿重复举报')
         // 2秒后自动关闭弹窗
         setTimeout(() => {
           onClose()

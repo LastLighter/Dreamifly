@@ -345,8 +345,8 @@ export default function CommunityMasonry({
                     <div className="absolute inset-0 z-0 bg-gradient-to-t from-gray-950/70 via-gray-950/18 to-transparent" />
 
                     {/* 顶部信息 */}
-                    <div className="pointer-events-none absolute left-3 right-3 top-3 sm:left-5 sm:right-5 sm:top-5 z-20 flex items-start justify-between gap-3">
-                      <div className="pointer-events-auto inline-flex max-w-full items-center gap-2 sm:gap-3 rounded-xl sm:rounded-2xl border border-white/30 bg-white/70 px-2 py-1.5 sm:px-3.5 sm:py-2.5 backdrop-blur-md shadow-sm">
+                    <div className="pointer-events-none absolute left-3 right-3 top-3 sm:left-5 sm:right-5 sm:top-5 z-20 flex items-start justify-between gap-2 sm:gap-3">
+                      <div className="pointer-events-auto flex-1 sm:flex-none sm:w-fit sm:max-w-[60%] min-w-0 inline-flex items-center gap-1.5 sm:gap-2 md:gap-3 rounded-xl sm:rounded-2xl border border-white/30 bg-white/70 px-1.5 py-1 sm:px-2 sm:py-1.5 md:px-3.5 md:py-2.5 backdrop-blur-md shadow-sm">
                         <AvatarWithFrame
                           avatar={avatar}
                           avatarFrameId={
@@ -358,12 +358,12 @@ export default function CommunityMasonry({
                           }
                           // 移动端缩小至原来的一半左右
                           size={interactionMode === 'hover' ? 40 : 20}
-                          className="border border-orange-200/70"
+                          className="border border-orange-200/70 flex-shrink-0"
                         />
-                        <div className="min-w-0">
-                          <div className="truncate text-[12px] sm:text-sm font-semibold text-gray-900">{nickname}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[11px] sm:text-[12px] md:text-sm font-semibold text-gray-900">{nickname}</div>
                           <div className="mt-0.5 inline-flex max-w-full items-center gap-1">
-                            <span className="truncate text-[11px] sm:text-xs text-gray-600">{model}</span>
+                            <span className="truncate text-[10px] sm:text-[11px] md:text-xs text-gray-600">{model}</span>
                           </div>
                         </div>
                       </div>
@@ -378,10 +378,10 @@ export default function CommunityMasonry({
                             e.stopPropagation()
                             handleReport(String(work.id))
                           }}
-                          className="pointer-events-auto p-2 rounded-lg bg-red-500/80 hover:bg-red-500 text-white transition-colors shadow-sm"
+                          className="pointer-events-auto flex-shrink-0 p-1.5 sm:p-2 rounded-lg bg-white/20 hover:bg-white/40 text-gray-600 border border-white/30 hover:border-white/50 transition-all duration-200"
                           title="举报不当内容"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                           </svg>
                         </button>
