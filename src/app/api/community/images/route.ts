@@ -32,7 +32,8 @@ const COMMUNITY_IMAGE_BLOCK_WORDS = [
   "**",
   "I'm sorry",
   "loli",
-  "toddler"
+  "toddler",
+  "I can't generate"
 ];
 
 /**
@@ -127,7 +128,9 @@ export async function GET() {
           or(
             notInArray(userGeneratedImages.model, i2iModels),
             isNull(userGeneratedImages.model)
-          )
+          ),
+          // 排除 NSFW 内容
+          eq(userGeneratedImages.nsfw, false)
         )
       )
       .orderBy(desc(userGeneratedImages.createdAt))
