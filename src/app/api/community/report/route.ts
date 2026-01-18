@@ -88,7 +88,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: '无权限举报，只有优质用户或管理员可以使用举报功能'
+          error: '目前只对优质用户开放举报功能哦~~~'
         },
         { status: 403 }
       )
@@ -183,7 +183,7 @@ export async function POST(request: Request) {
     // 8. 返回成功响应
     return NextResponse.json({
       success: true,
-      message: '举报成功，图片已被标记为不适合展示'
+      message: '举报成功，请勿重复举报'
     })
 
   } catch (error) {
