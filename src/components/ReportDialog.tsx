@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 // 举报原因选项
 const VIOLATION_OPTIONS = [
@@ -26,8 +27,13 @@ export default function ReportDialog({ isOpen, onClose, imageId }: ReportDialogP
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [mounted, setMounted] = useState(false)
 
-  if (!isOpen) return null
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!isOpen || !mounted) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -90,9 +96,9 @@ export default function ReportDialog({ isOpen, onClose, imageId }: ReportDialogP
     }
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
       onClick={handleOverlayClick}
     >
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
@@ -197,6 +203,7 @@ export default function ReportDialog({ isOpen, onClose, imageId }: ReportDialogP
           您的举报将帮助我们维护更好的社区环境
         </p>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
