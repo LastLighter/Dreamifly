@@ -278,6 +278,17 @@ export const userGeneratedImages = pgTable("user_generated_images", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// 举报记录表
+export const imageReports = pgTable("image_reports", {
+  id: text("id").primaryKey(), // UUID主键
+  reporterId: text("reporter_id").notNull(), // 举报人ID
+  imageId: text("image_id").notNull(), // 被举报的图片ID
+  reason: text("reason").notNull(), // 举报原因：pornography, political, violence, gore, illegal, other
+  description: text("description"), // 详细描述（选择"其他"时可填写）
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 举报时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+});
+
 // 未通过审核图片表
 export const rejectedImages = pgTable("rejected_images", {
   id: text("id").primaryKey(), // UUID
