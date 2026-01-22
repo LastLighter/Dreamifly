@@ -65,22 +65,24 @@ export async function GET() {
     // 检查环境变量，默认为 false（只对管理员开放）
     const isPublic = process.env.COMMUNITY_IMAGES_PUBLIC === 'true'
     
-    // 如果环境变量为 false，需要验证管理员权限
+    // 获取用户会话
+    const session = await auth.api.getSession({
+      headers: await headers()
+    })
+
+    // 所有用户都需要登录才能访问社区图片
+    if (!session?.user) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: '未授权，请先登录' 
+        },
+        { status: 401 }
+      )
+    }
+    
+    // 如果环境变量为 false，还需要验证管理员权限
     if (!isPublic) {
-      const session = await auth.api.getSession({
-        headers: await headers()
-      })
-
-      if (!session?.user) {
-        return NextResponse.json(
-          { 
-            success: false,
-            error: '未授权，请先登录' 
-          },
-          { status: 401 }
-        )
-      }
-
       const currentUser = await db.select()
         .from(user)
         .where(eq(user.id, session.user.id))

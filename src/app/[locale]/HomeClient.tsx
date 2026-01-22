@@ -15,6 +15,7 @@ import VideoToVideoPlazaCard from '@/components/VideoToVideoPlazaCard'
 import { ModelConfig } from '@/utils/modelConfig'
 import { WorkflowConfig } from '@/utils/workflowConfig'
 import CommunityMasonry, { type CommunityWork } from '@/components/CommunityMasonry'
+import { useSession } from '@/lib/auth-client'
 
 interface FAQItem {
   q: string;
@@ -30,6 +31,7 @@ export default function HomeClient() {
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
   const router = useRouter()
+  const { data: session } = useSession()
   // 先使用所有模型和工作流，然后异步更新为可用的
   const [availableModels, setAvailableModels] = useState<ModelConfig[]>([])
   const [availableWorkflows, setAvailableWorkflows] = useState<WorkflowConfig[]>([])
@@ -115,6 +117,19 @@ export default function HomeClient() {
 
   // 加载社区作品图片
   useEffect(() => {
+    // 未登录用户直接使用默认图片，不请求API
+    if (!session?.user) {
+      setCommunityWorks(community.map((work: any) => ({
+        ...work,
+        model: '默认',
+        userAvatar: '/images/default-avatar.svg',
+        userNickname: '默认',
+        avatarFrameId: null,
+      })))
+      return
+    }
+
+    // 已登录用户才请求API
     const fetchCommunityImages = async () => {
       try {
         const response = await fetch('/api/community/images')
@@ -198,7 +213,7 @@ export default function HomeClient() {
     }
 
     fetchCommunityImages()
-  }, [])
+  }, [session?.user])
 
   const navigateToCreate = (promptText?: string, modelId?: string) => {
     const params = new URLSearchParams()
