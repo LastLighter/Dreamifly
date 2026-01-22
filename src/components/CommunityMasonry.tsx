@@ -52,12 +52,6 @@ export default function CommunityMasonry({
   const [activeTapId, setActiveTapId] = useState<string | number | null>(null)
 
   // 举报相关状态
-  const [userPermissions, setUserPermissions] = useState<{ 
-    isAdmin: boolean; 
-    isPremium: boolean; 
-    isSubscribed: boolean; 
-    isOldUser: boolean;
-  } | null>(null)
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportingImageId, setReportingImageId] = useState<string>('')
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -123,24 +117,12 @@ export default function CommunityMasonry({
 
         if (response.ok) {
           const data = await response.json()
-          setUserPermissions({
-            isAdmin: data.isAdmin || false,
-            isPremium: data.isPremium || false,
-            isSubscribed: data.isSubscribed || false,
-            isOldUser: data.isOldUser || false
-          })
           // 使用 API 返回的 isLoggedIn 字段
           setIsLoggedIn(data.isLoggedIn || false)
         }
       } catch (error) {
         console.error('Failed to check user permissions:', error)
         // 权限检查失败时，设置为未登录
-        setUserPermissions({ 
-          isAdmin: false, 
-          isPremium: false, 
-          isSubscribed: false, 
-          isOldUser: false 
-        })
         setIsLoggedIn(false)
       }
     }
