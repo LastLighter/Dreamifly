@@ -74,12 +74,18 @@ export async function GET(request: Request) {
 
     if (!session?.user) {
       return NextResponse.json(
-        { isAdmin: false, isPremium: false },
+        { 
+          isLoggedIn: false,
+          isAdmin: false, 
+          isPremium: false, 
+          isSubscribed: false, 
+          isOldUser: false 
+        },
         { status: 200 }
       );
     }
 
-    // 3. 从数据库查询用户的 isAdmin 和 isPremium 状态
+    // 3. 从数据库查询用户的完整权限状态
     const currentUser = await db.select()
       .from(user)
       .where(eq(user.id, session.user.id))
@@ -87,7 +93,13 @@ export async function GET(request: Request) {
 
     if (currentUser.length === 0) {
       return NextResponse.json(
-        { isAdmin: false, isPremium: false },
+        { 
+          isLoggedIn: false,
+          isAdmin: false, 
+          isPremium: false, 
+          isSubscribed: false, 
+          isOldUser: false 
+        },
         { status: 200 }
       );
     }
@@ -102,17 +114,28 @@ export async function GET(request: Request) {
       adminStatus = Boolean(userData.is_admin);
     }
 
-    // 获取 isPremium 状态
+    // 获取其他用户状态
     const premiumStatus = Boolean(userData.isPremium);
+    const subscribedStatus = Boolean(userData.isSubscribed);
+    const oldUserStatus = Boolean(userData.isOldUser);
 
     return NextResponse.json({
+      isLoggedIn: true,
       isAdmin: adminStatus,
-      isPremium: premiumStatus
+      isPremium: premiumStatus,
+      isSubscribed: subscribedStatus,
+      isOldUser: oldUserStatus
     });
   } catch (error) {
     console.error('Error checking user status:', error);
     return NextResponse.json(
-      { isAdmin: false, isPremium: false },
+      { 
+        isLoggedIn: false,
+        isAdmin: false, 
+        isPremium: false, 
+        isSubscribed: false, 
+        isOldUser: false 
+      },
       { status: 200 }
     );
   }

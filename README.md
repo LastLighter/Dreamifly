@@ -127,6 +127,11 @@ NEXT_PUBLIC_WEB_VERSION=1.0.0
 # 设置为 false 时，社区内容只对管理员开放
 COMMUNITY_IMAGES_PUBLIC=false
 
+# 社区举报功能配置
+# NSFW 举报阈值：普通用户（非管理员/优质用户）举报次数达到此值后，图片将被标记为 NSFW
+# 管理员和优质用户拥有一票举报权，举报后直接标记为 NSFW（不计入此阈值）
+NSFW_REPORT_THRESHOLD=3
+
 # 阿里云 OSS（对象存储服务）的访问密钥 ID
 OSS_AK=xxx
 

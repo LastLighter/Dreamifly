@@ -52,9 +52,15 @@ export default function CommunityMasonry({
   const [activeTapId, setActiveTapId] = useState<string | number | null>(null)
 
   // 举报相关状态
-  const [userPermissions, setUserPermissions] = useState<{ isAdmin: boolean; isPremium: boolean } | null>(null)
+  const [userPermissions, setUserPermissions] = useState<{ 
+    isAdmin: boolean; 
+    isPremium: boolean; 
+    isSubscribed: boolean; 
+    isOldUser: boolean;
+  } | null>(null)
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
   const [reportingImageId, setReportingImageId] = useState<string>('')
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
     const hoverMql = window.matchMedia('(hover: hover) and (pointer: fine)')
@@ -104,7 +110,7 @@ export default function CommunityMasonry({
     if (interactionMode === 'hover') setActiveTapId(null)
   }, [interactionMode])
 
-  // 获取用户权限（优质用户或管理员才能看到举报按钮）
+  // 获取用户权限（所有登录用户都可以举报）
   useEffect(() => {
     const checkUserPermissions = async () => {
       try {
@@ -119,13 +125,23 @@ export default function CommunityMasonry({
           const data = await response.json()
           setUserPermissions({
             isAdmin: data.isAdmin || false,
-            isPremium: data.isPremium || false
+            isPremium: data.isPremium || false,
+            isSubscribed: data.isSubscribed || false,
+            isOldUser: data.isOldUser || false
           })
+          // 使用 API 返回的 isLoggedIn 字段
+          setIsLoggedIn(data.isLoggedIn || false)
         }
       } catch (error) {
         console.error('Failed to check user permissions:', error)
-        // 权限检查失败时，设置为无权限
-        setUserPermissions({ isAdmin: false, isPremium: false })
+        // 权限检查失败时，设置为未登录
+        setUserPermissions({ 
+          isAdmin: false, 
+          isPremium: false, 
+          isSubscribed: false, 
+          isOldUser: false 
+        })
+        setIsLoggedIn(false)
       }
     }
 
@@ -368,9 +384,8 @@ export default function CommunityMasonry({
                         </div>
                       </div>
 
-                      {/* 举报按钮 - 只对优质用户/管理员显示，且只在图片上显示，不在默认图片上显示 */}
-                      {userPermissions &&
-                       (userPermissions.isPremium || userPermissions.isAdmin) &&
+                      {/* 举报按钮 - 所有登录用户都可以举报，且只在图片上显示，不在默认图片上显示 */}
+                      {isLoggedIn &&
                        !work.video &&
                        !String(work.id).startsWith('default-') && (
                         <button

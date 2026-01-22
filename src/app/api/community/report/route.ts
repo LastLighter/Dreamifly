@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/db'
 import { user, imageReports, userGeneratedImages } from '@/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { v4 as uuidv4 } from 'uuid'
 
 /**
  * 举报社区图片 API
- * 允许优质用户和管理员举报不当内容
+ * 允许已登录用户举报不当内容，分为两种处理方式：
+ * 1. 一票举报权：管理员和优质用户举报后直接标记为 NSFW
+ * 2. 累计举报：其他用户举报需达到阈值后标记为 NSFW
  *
  * 请求格式：
  * POST /api/community/report
@@ -20,15 +22,17 @@ import { v4 as uuidv4 } from 'uuid'
  *
  * 权限要求：
  * - 用户必须登录
- * - 用户必须是优质用户（isPremium=true）或管理员（isAdmin=true）
+ * - 同一用户不能重复举报同一图片
  *
  * 处理逻辑：
  * 1. 验证用户登录状态
- * 2. 验证用户权限（优质用户或管理员）
+ * 2. 检查是否重复举报
  * 3. 验证请求参数
- * 4. 验证图片是否存在且未被删除
- * 5. 插入举报记录到 image_reports 表
- * 6. 更新图片的 nsfw 字段为 true
+ * 4. 验证图片是否存在
+ * 5. 根据用户类型执行不同的举报逻辑：
+ *    - 管理员/优质用户：直接设置 nsfw=true
+ *    - 其他用户：report_count += 1，达到阈值后设置 nsfw=true
+ * 6. 插入举报记录到 image_reports 表
  * 7. 返回成功响应
  */
 
@@ -61,10 +65,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // 2. 获取用户权限信息
+    // 2. 获取用户信息
     const currentUser = await db.select({
       isAdmin: user.isAdmin,
-      isPremium: user.isPremium
+      isPremium: user.isPremium,
+      isSubscribed: user.isSubscribed,
+      isOldUser: user.isOldUser
     })
       .from(user)
       .where(eq(user.id, session.user.id))
@@ -80,25 +86,13 @@ export async function POST(request: Request) {
       )
     }
 
-    // 3. 验证用户权限（必须是优质用户或管理员）
     const userData = currentUser[0]
-    const hasPermission = userData.isPremium || userData.isAdmin
 
-    if (!hasPermission) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: '目前只对优质用户开放举报功能哦~~~'
-        },
-        { status: 403 }
-      )
-    }
-
-    // 4. 解析请求体
+    // 3. 解析请求体
     const body = await request.json()
     const { imageId, reason, description } = body
 
-    // 5. 验证请求参数
+    // 4. 验证请求参数
     if (!imageId || typeof imageId !== 'string') {
       return NextResponse.json(
         {
@@ -140,6 +134,27 @@ export async function POST(request: Request) {
       )
     }
 
+    // 5. 检查是否重复举报
+    const existingReport = await db.select({ id: imageReports.id })
+      .from(imageReports)
+      .where(
+        and(
+          eq(imageReports.reporterId, session.user.id),
+          eq(imageReports.imageId, imageId)
+        )
+      )
+      .limit(1)
+
+    if (existingReport.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: '您已举报过此图片，请勿重复举报'
+        },
+        { status: 400 }
+      )
+    }
+
     // 6. 验证图片是否存在且未被删除
     const imageExists = await db.select({ id: userGeneratedImages.id })
       .from(userGeneratedImages)
@@ -156,8 +171,11 @@ export async function POST(request: Request) {
       )
     }
 
-    // 7. 使用数据库事务确保数据一致性
+    // 7. 判断用户类型并执行相应的举报逻辑
     const reportId = uuidv4()
+    
+    // 判断是否为一票举报权用户（管理员或优质用户）
+    const hasOneVoteRight = userData.isAdmin || userData.isPremium
 
     await db.transaction(async (tx) => {
       // 7.1 插入举报记录
@@ -171,19 +189,46 @@ export async function POST(request: Request) {
         updatedAt: new Date(),
       })
 
-      // 7.2 更新图片的 nsfw 字段为 true
-      await tx.update(userGeneratedImages)
-        .set({
-          nsfw: true,
-          updatedAt: new Date(),
+      if (hasOneVoteRight) {
+        // 7.2a 一票举报权：直接设置 nsfw=true，不更新 report_count
+        await tx.update(userGeneratedImages)
+          .set({
+            nsfw: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(userGeneratedImages.id, imageId))
+      } else {
+        // 7.2b 累计举报：增加 report_count，检查是否达到阈值
+        const nsfwThreshold = parseInt(process.env.NSFW_REPORT_THRESHOLD || '3', 10)
+        
+        // 获取当前举报次数
+        const currentImage = await tx.select({
+          reportCount: userGeneratedImages.reportCount,
+          nsfw: userGeneratedImages.nsfw
         })
-        .where(eq(userGeneratedImages.id, imageId))
+          .from(userGeneratedImages)
+          .where(eq(userGeneratedImages.id, imageId))
+          .limit(1)
+
+        if (currentImage.length > 0) {
+          const newReportCount = (currentImage[0].reportCount || 0) + 1
+          const shouldMarkAsNsfw = newReportCount >= nsfwThreshold
+
+          await tx.update(userGeneratedImages)
+            .set({
+              reportCount: newReportCount,
+              nsfw: shouldMarkAsNsfw || currentImage[0].nsfw, // 保持已标记为 nsfw 的状态
+              updatedAt: new Date(),
+            })
+            .where(eq(userGeneratedImages.id, imageId))
+        }
+      }
     })
 
     // 8. 返回成功响应
     return NextResponse.json({
       success: true,
-      message: '举报成功，请勿重复举报'
+      message: '举报成功，感谢您的反馈'
     })
 
   } catch (error) {
