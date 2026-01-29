@@ -279,7 +279,7 @@ export async function GET(request: Request) {
     // 获取每日总计趋势（用于折线图）
     // 对于hour范围，按分钟统计；today和yesterday范围按小时统计；week和month按天统计
     let dailyTrend: Array<{ date: string; total: number; authenticated: number; unauthenticated: number }> = []
-    
+
     if (timeRange === 'hour') {
       // 按分钟统计
       const minuteTrendData = await db
@@ -342,6 +342,71 @@ export async function GET(request: Request) {
       }))
     }
 
+    // 获取用户量趋势数据（活跃用户数、已登录用户IP数、未登录用户IP数）
+    let userTrend: Array<{ date: string; activeUsers: number; authenticatedIPs: number; unauthenticatedIPs: number }> = []
+
+    if (timeRange === 'hour') {
+      // 按分钟统计用户量趋势
+      const minuteUserTrendData = await db
+        .select({
+          date: sql<string>`date_trunc('minute', ${modelUsageStats.createdAt})::text`,
+          activeUsers: sql<number>`count(distinct ${modelUsageStats.userId}) filter (where ${isNotNull(modelUsageStats.userId)})::int`,
+          authenticatedIPs: sql<number>`count(distinct ${modelUsageStats.ipAddress}) filter (where ${modelUsageStats.isAuthenticated} = true and ${isNotNull(modelUsageStats.ipAddress)})::int`,
+          unauthenticatedIPs: sql<number>`count(distinct ${modelUsageStats.ipAddress}) filter (where ${modelUsageStats.isAuthenticated} = false and ${isNotNull(modelUsageStats.ipAddress)})::int`,
+        })
+        .from(modelUsageStats)
+        .where(and(...whereConditions))
+        .groupBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
+        .orderBy(sql`date_trunc('minute', ${modelUsageStats.createdAt})`)
+
+      userTrend = minuteUserTrendData.map((stat) => ({
+        date: stat.date,
+        activeUsers: Number(stat.activeUsers),
+        authenticatedIPs: Number(stat.authenticatedIPs),
+        unauthenticatedIPs: Number(stat.unauthenticatedIPs),
+      }))
+    } else if (timeRange === 'today' || timeRange === 'yesterday') {
+      // 按小时统计用户量趋势
+      const hourUserTrendData = await db
+        .select({
+          date: sql<string>`date_trunc('hour', ${modelUsageStats.createdAt})::text`,
+          activeUsers: sql<number>`count(distinct ${modelUsageStats.userId}) filter (where ${isNotNull(modelUsageStats.userId)})::int`,
+          authenticatedIPs: sql<number>`count(distinct ${modelUsageStats.ipAddress}) filter (where ${modelUsageStats.isAuthenticated} = true and ${isNotNull(modelUsageStats.ipAddress)})::int`,
+          unauthenticatedIPs: sql<number>`count(distinct ${modelUsageStats.ipAddress}) filter (where ${modelUsageStats.isAuthenticated} = false and ${isNotNull(modelUsageStats.ipAddress)})::int`,
+        })
+        .from(modelUsageStats)
+        .where(and(...whereConditions))
+        .groupBy(sql`date_trunc('hour', ${modelUsageStats.createdAt})`)
+        .orderBy(sql`date_trunc('hour', ${modelUsageStats.createdAt})`)
+
+      userTrend = hourUserTrendData.map((stat) => ({
+        date: stat.date,
+        activeUsers: Number(stat.activeUsers),
+        authenticatedIPs: Number(stat.authenticatedIPs),
+        unauthenticatedIPs: Number(stat.unauthenticatedIPs),
+      }))
+    } else if (timeRange === 'week' || timeRange === 'month') {
+      // 按天统计用户量趋势
+      const dailyUserTrendData = await db
+        .select({
+          date: sql<string>`date_trunc('day', ${modelUsageStats.createdAt})::date::text`,
+          activeUsers: sql<number>`count(distinct ${modelUsageStats.userId}) filter (where ${isNotNull(modelUsageStats.userId)})::int`,
+          authenticatedIPs: sql<number>`count(distinct ${modelUsageStats.ipAddress}) filter (where ${modelUsageStats.isAuthenticated} = true and ${isNotNull(modelUsageStats.ipAddress)})::int`,
+          unauthenticatedIPs: sql<number>`count(distinct ${modelUsageStats.ipAddress}) filter (where ${modelUsageStats.isAuthenticated} = false and ${isNotNull(modelUsageStats.ipAddress)})::int`,
+        })
+        .from(modelUsageStats)
+        .where(and(...whereConditions))
+        .groupBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+        .orderBy(sql`date_trunc('day', ${modelUsageStats.createdAt})`)
+
+      userTrend = dailyUserTrendData.map((stat) => ({
+        date: stat.date,
+        activeUsers: Number(stat.activeUsers),
+        authenticatedIPs: Number(stat.authenticatedIPs),
+        unauthenticatedIPs: Number(stat.unauthenticatedIPs),
+      }))
+    }
+
     // 设置响应头，禁用缓存
     return NextResponse.json(
       {
@@ -360,6 +425,7 @@ export async function GET(request: Request) {
           unverifiedRegistrations: unverifiedRegistrations[0] ? Number(unverifiedRegistrations[0].count) : 0,
         },
         dailyTrend,
+        userTrend,
       },
       {
         headers: {

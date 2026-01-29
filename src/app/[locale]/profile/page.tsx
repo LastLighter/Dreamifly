@@ -61,6 +61,21 @@ export default function ProfilePage() {
   } | null>(null)
   const [subscriptionLoading, setSubscriptionLoading] = useState(false)
 
+  // CDK state
+  const [cdkCode, setCdkCode] = useState('')
+  const [cdkRedeeming, setCdkRedeeming] = useState(false)
+  const [cdkConfig, setCdkConfig] = useState({ userDailyLimit: 5 })
+  const [cdkRemainingCount, setCdkRemainingCount] = useState(5)
+
+  // Modal state for CDK redemption result
+  const [showCdkResultModal, setShowCdkResultModal] = useState(false)
+  const [cdkResult, setCdkResult] = useState<{
+    type: 'success' | 'error'
+    title: string
+    message: string
+    packageName?: string
+  } | null>(null)
+
   // Check-in state
   const [checkedIn, setCheckedIn] = useState<boolean | null>(null)
   const [checkInLoading, setCheckInLoading] = useState(false)
@@ -236,6 +251,34 @@ export default function ProfilePage() {
       setCheckedIn(null)
     }
   }, [session, isPending])
+
+  // 加载CDK配置和每日使用情况
+  useEffect(() => {
+    const loadCdkData = async () => {
+      if (!session?.user) return
+
+      try {
+        // 加载CDK配置
+        const token = await generateDynamicTokenWithServerTime()
+        const configResponse = await fetch('/api/admin/cdk/config', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+        if (configResponse.ok) {
+          const configData = await configResponse.json()
+          setCdkConfig(configData.config)
+        }
+
+        // 加载用户CDK剩余次数
+        await loadCdkRemainingCount()
+      } catch (error) {
+        console.error('加载CDK数据失败:', error)
+      }
+    }
+
+    loadCdkData()
+  }, [session])
 
   // 仅在保存成功时通过 updateProfile 同步全局昵称，输入时不实时同步
 
@@ -540,6 +583,127 @@ export default function ProfilePage() {
     }
   }
 
+  // CDK兑换处理函数
+  const handleRedeemCDK = async () => {
+    if (cdkRedeeming || !cdkCode.trim()) return
+
+    setCdkRedeeming(true)
+
+    try {
+      const response = await fetch('/api/cdk/redeem', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: cdkCode.trim(),
+        }),
+      })
+
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        // JSON解析失败
+        console.error('API响应解析失败:', parseError)
+        setCdkResult({
+          type: 'error',
+          title: '兑换失败',
+          message: '服务器响应异常，请稍后重试'
+        })
+        setShowCdkResultModal(true)
+        // 即使JSON解析失败，如果请求已发送到服务器，次数可能已消耗，刷新剩余次数
+        await loadCdkRemainingCount()
+        return
+      }
+
+      if (response.ok && data.success) {
+        // 兑换成功
+        setCdkResult({
+          type: 'success',
+          title: '兑换成功',
+          message: `恭喜您成功兑换 ${data.data?.packageName || '礼包'}！`,
+          packageName: data.data?.packageName
+        })
+        setShowCdkResultModal(true)
+        setCdkCode('')
+
+        // 刷新积分和会员状态
+        await refreshPoints()
+
+        // 如果兑换的是会员，刷新订阅状态
+        if (data.data?.packageType === 'subscription_plan') {
+          // 重新获取订阅状态
+          try {
+            const res = await fetch(`/api/subscription/status?t=${Date.now()}`, {
+              credentials: 'include',
+            })
+            if (res.ok) {
+              const subData = await res.json()
+              setSubscription({
+                isSubscribed: Boolean(subData.isSubscribed),
+                planType: subData.subscription?.planType ?? null,
+                expiresAt: subData.expiresAt ?? null,
+              })
+            }
+          } catch (error) {
+            console.error('Error fetching subscription status:', error)
+          }
+        }
+
+        // 重新获取CDK剩余次数
+        await loadCdkRemainingCount()
+      } else {
+        // 兑换失败（但次数已经消耗，需要刷新剩余次数）
+        const errorMessage = data.error || (response.status === 500 ? '服务器错误，请稍后重试' : '兑换失败')
+        setCdkResult({
+          type: 'error',
+          title: '兑换失败',
+          message: errorMessage
+        })
+        setShowCdkResultModal(true)
+        
+        // 兑换失败也需要刷新剩余次数（因为次数已经消耗）
+        await loadCdkRemainingCount()
+      }
+    } catch (err) {
+      console.error('CDK兑换网络错误:', err)
+      setCdkResult({
+        type: 'error',
+        title: '网络错误',
+        message: '网络连接失败，请检查网络后重试'
+      })
+      setShowCdkResultModal(true)
+      
+      // 网络错误时，如果请求已发送到服务器，次数可能已消耗，尝试刷新
+      // 如果请求未发送，刷新也不会影响（只是多一次请求）
+      await loadCdkRemainingCount()
+    } finally {
+      setCdkRedeeming(false)
+    }
+  }
+
+  // 加载CDK剩余次数
+  const loadCdkRemainingCount = async () => {
+    try {
+      const response = await fetch('/api/cdk/remaining', {
+        credentials: 'include',
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setCdkRemainingCount(data.remainingCount)
+          // 同时更新配置中的最大限制
+          if (data.maxLimit) {
+            setCdkConfig({ userDailyLimit: data.maxLimit })
+          }
+        }
+      }
+    } catch (error) {
+      console.error('加载CDK剩余次数失败:', error)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-white">
       <div className="max-w-6xl mx-auto px-4 pb-16 pt-10 lg:pl-48">
@@ -800,27 +964,31 @@ export default function ProfilePage() {
               )
             })()}
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <button
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-400 to-amber-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-400/30 transition hover:from-orange-500 hover:to-amber-500 disabled:opacity-50"
-              >
-                {saving && (
-                  <svg className="h-5 w-5 animate-spin text-white" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                )}
-                {t('saveChanges')}
-              </button>
-              <button
-                onClick={() => setShowPasswordForm(true)}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
-              >
-                🔒 {t('changePassword')}
-              </button>
-              <p className="text-xs text-gray-500">头像和头像框更换后记得点击保存同步。</p>
+            <div className="mt-8">
+              <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+                <p className="text-xs text-blue-700">💡 头像和头像框更换后记得点击保存同步。</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-400 to-amber-400 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-400/30 transition hover:from-orange-500 hover:to-amber-500 disabled:opacity-50"
+                >
+                  {saving && (
+                    <svg className="h-5 w-5 animate-spin text-white" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  )}
+                  {t('saveChanges')}
+                </button>
+                <button
+                  onClick={() => setShowPasswordForm(true)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                >
+                  🔒 {t('changePassword')}
+                </button>
+              </div>
             </div>
           </section>
 
@@ -945,6 +1113,59 @@ export default function ProfilePage() {
                 ) : (
                   <p className="text-sm text-gray-600">无法加载额度信息</p>
                 )}
+              </div>
+            </div>
+
+            {/* 兑换码模块 */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-xl shadow-orange-500/5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">福利中心</p>
+                  <h3 className="text-lg font-semibold text-gray-900">兑换码</h3>
+                  <p className="text-sm text-gray-500">输入兑换码，获得积分或会员权益。</p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-4">
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={cdkCode}
+                    onChange={(e) => setCdkCode(e.target.value.toUpperCase())}
+                    placeholder="请输入兑换码"
+                    className="flex-1 rounded-lg border border-gray-200 px-4 py-3 focus:border-orange-300 focus:ring-2 focus:ring-orange-100"
+                    disabled={cdkRedeeming}
+                  />
+                  <button
+                    onClick={handleRedeemCDK}
+                    disabled={cdkRedeeming || !cdkCode.trim()}
+                    className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-orange-400 to-amber-400 px-6 py-3 text-sm font-semibold text-white transition hover:from-orange-500 hover:to-amber-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {cdkRedeeming ? (
+                      <>
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        兑换中...
+                      </>
+                    ) : (
+                      '兑换'
+                    )}
+                  </button>
+                </div>
+
+                {/* 每日兑换限制提示 */}
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-sm text-blue-800">
+                      今日剩余 {cdkRemainingCount} 次兑换机会（每日最多 {cdkConfig.userDailyLimit} 次） 
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -1104,7 +1325,7 @@ export default function ProfilePage() {
             <ul className="mt-4 space-y-2 text-sm text-gray-700">
               <li>· 若上传失败，请检查网络或稍后重试。</li>
               <li>· 遇到额度紧张，可考虑升级会员或次日再用。</li>
-              <li>· 任何异常请携带 UID 联系管理员。</li>
+              <li>· 任何异常请携带 注册邮箱 联系管理员。</li>
             </ul>
           </div>
         </section>
@@ -1161,6 +1382,68 @@ export default function ProfilePage() {
                 className="px-4 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors"
               >
                 知道啦
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CDK兑换结果弹窗 */}
+      {showCdkResultModal && cdkResult && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 relative">
+            <button
+              aria-label="Close"
+              onClick={() => {
+                setShowCdkResultModal(false)
+                setCdkResult(null)
+              }}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className={`p-3 rounded-full ${cdkResult.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                {cdkResult.type === 'success' ? (
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ) : (
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <h3 className={`text-lg font-bold ${cdkResult.type === 'success' ? 'text-emerald-900' : 'text-red-900'}`}>
+                  {cdkResult.title}
+                </h3>
+                <p className={`text-sm ${cdkResult.type === 'success' ? 'text-emerald-700' : 'text-red-700'}`}>
+                  {cdkResult.message}
+                </p>
+                {cdkResult.type === 'success' && cdkResult.packageName && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    您已成功兑换 &quot;{cdkResult.packageName}&quot;
+                  </p>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowCdkResultModal(false)
+                  setCdkResult(null)
+                }}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  cdkResult.type === 'success'
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                    : 'bg-red-500 text-white hover:bg-red-600'
+                }`}
+              >
+                {cdkResult.type === 'success' ? '太好了' : '知道了'}
               </button>
             </div>
           </div>

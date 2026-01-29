@@ -61,12 +61,20 @@ interface DailyTrend {
   unauthenticated: number
 }
 
+interface UserTrend {
+  date: string
+  activeUsers: number
+  authenticatedIPs: number
+  unauthenticatedIPs: number
+}
+
 interface StatsResponse {
   timeRange: TimeRange
   modelStats: ModelStat[]
   dailyData: DailyData[]
   totalStats: TotalStats
   dailyTrend: DailyTrend[]
+  userTrend: UserTrend[]
 }
 
 // 为不同模型定义清晰的颜色方案（参考网站橙色系主题）
@@ -767,8 +775,8 @@ export default function AnalyticsPage() {
                       <ResponsiveContainer width="100%" height={300}>
                         <LineChart data={stats.dailyTrend}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                          <XAxis 
-                            dataKey="date" 
+                          <XAxis
+                            dataKey="date"
                             stroke="#6b7280"
                             tick={{ fill: '#6b7280', fontSize: 12 }}
                             tickFormatter={(value) => {
@@ -785,11 +793,11 @@ export default function AnalyticsPage() {
                               }
                             }}
                           />
-                          <YAxis 
+                          <YAxis
                             stroke="#6b7280"
                             tick={{ fill: '#6b7280', fontSize: 12 }}
                           />
-                          <Tooltip 
+                          <Tooltip
                             contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e5e7eb',
@@ -803,18 +811,18 @@ export default function AnalyticsPage() {
                               const date = new Date(value)
                               if (timeRange === 'hour') {
                                 // 按分钟显示：完整日期时间
-                                return date.toLocaleString('zh-CN', { 
-                                  year: 'numeric', 
-                                  month: 'long', 
+                                return date.toLocaleString('zh-CN', {
+                                  year: 'numeric',
+                                  month: 'long',
                                   day: 'numeric',
                                   hour: '2-digit',
                                   minute: '2-digit'
                                 })
                               } else if (timeRange === 'today' || timeRange === 'yesterday') {
                                 // 按小时显示：完整日期和小时
-                                return date.toLocaleString('zh-CN', { 
-                                  year: 'numeric', 
-                                  month: 'long', 
+                                return date.toLocaleString('zh-CN', {
+                                  year: 'numeric',
+                                  month: 'long',
                                   day: 'numeric',
                                   hour: '2-digit'
                                 })
@@ -824,7 +832,7 @@ export default function AnalyticsPage() {
                               }
                             }}
                           />
-                          <Legend 
+                          <Legend
                             wrapperStyle={{ paddingTop: '20px' }}
                             iconType="line"
                           />
@@ -853,6 +861,106 @@ export default function AnalyticsPage() {
                             strokeWidth={2.5}
                             name="未登录用户调用"
                             dot={{ fill: '#6b7280', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {/* 用户量趋势折线图 */}
+                  {(timeRange === 'hour' || timeRange === 'today' || timeRange === 'yesterday' || timeRange === 'week' || timeRange === 'month') && stats.userTrend && stats.userTrend.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-md font-semibold text-gray-900 mb-4">用户量趋势</h3>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart data={stats.userTrend}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis
+                            dataKey="date"
+                            stroke="#6b7280"
+                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                            tickFormatter={(value) => {
+                              const date = new Date(value)
+                              if (timeRange === 'hour') {
+                                // 按分钟显示：HH:mm
+                                return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+                              } else if (timeRange === 'today' || timeRange === 'yesterday') {
+                                // 按小时显示：HH:00
+                                return `${date.getHours().toString().padStart(2, '0')}:00`
+                              } else {
+                                // 按天显示：M/D
+                                return `${date.getMonth() + 1}/${date.getDate()}`
+                              }
+                            }}
+                          />
+                          <YAxis
+                            stroke="#6b7280"
+                            tick={{ fill: '#6b7280', fontSize: 12 }}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: 'white',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                              padding: '8px 12px'
+                            }}
+                            labelStyle={{ color: '#111827', fontWeight: 600 }}
+                            itemStyle={{ color: '#374151' }}
+                            labelFormatter={(value) => {
+                              const date = new Date(value)
+                              if (timeRange === 'hour') {
+                                // 按分钟显示：完整日期时间
+                                return date.toLocaleString('zh-CN', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })
+                              } else if (timeRange === 'today' || timeRange === 'yesterday') {
+                                // 按小时显示：完整日期和小时
+                                return date.toLocaleString('zh-CN', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  hour: '2-digit'
+                                })
+                              } else {
+                                // 按天显示：完整日期
+                                return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+                              }
+                            }}
+                          />
+                          <Legend
+                            wrapperStyle={{ paddingTop: '20px' }}
+                            iconType="line"
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="activeUsers"
+                            stroke="#10b981"
+                            strokeWidth={2.5}
+                            name="活跃用户数"
+                            dot={{ fill: '#10b981', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="authenticatedIPs"
+                            stroke="#8b5cf6"
+                            strokeWidth={2.5}
+                            name="已登录用户IP数"
+                            dot={{ fill: '#8b5cf6', r: 4 }}
+                            activeDot={{ r: 6 }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="unauthenticatedIPs"
+                            stroke="#f59e0b"
+                            strokeWidth={2.5}
+                            name="未登录用户IP数"
+                            dot={{ fill: '#f59e0b', r: 4 }}
                             activeDot={{ r: 6 }}
                           />
                         </LineChart>

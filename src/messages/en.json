@@ -457,99 +457,127 @@
     "termsAndPrivacy": "Terms of Service and Privacy Policy",
     "terms": {
       "title": "Dreamifly Terms of Service and Privacy Policy",
-      "effectiveDate": "Effective Date: December 19, 2025",
+      "effectiveDate": "Effective Date: Jan 29, 2026",
       "close": "I have read",
       "section1": {
         "title": "I. Introduction",
-        "content": "Welcome to Dreamifly (hereinafter referred to as \"this platform\"). This agreement is entered into between Dreamifly operators (hereinafter referred to as \"we\") and you (the user). By using this platform, you agree to: (1) comply with all terms of this agreement; (2) authorize us to collect and use your data in accordance with this policy; (3) accept our handling measures for violations.",
-        "note": "If you do not agree, please stop using immediately."
+        "item1": "1.1 This Dreamifly Terms of Service and Privacy Policy (\"this Agreement\") governs the rights and obligations between the Dreamifly platform (\"this Platform\" or \"we\") and all users who register, access, or use the Platform (\"you\"). In addition to this Agreement, all rules, announcements, policies, and other documents published or updated by the Platform form an integral part of this Agreement. We may amend this Agreement and such documents as required by law, business, or service optimization. Amendments will be published on the Platform or by other prominent means. If you do not agree, you may stop using the Platform; continued use after the effective date of amendments constitutes acceptance.",
+        "item2": "1.2 Before using the Platform, please read and understand all terms of this Agreement, especially those on limitation of liability, intellectual property, network security and compliance, personal information, and dispute resolution. If you have questions, you may pause and contact us using the contact information in this Agreement.",
+        "item3": "1.3 The Platform is intended primarily for adults with full legal capacity. If you are under 18, please read this Agreement with your legal guardian and use the Platform only with their understanding and consent. Guardians are responsible for supervising minors' use of the Platform.",
+        "item4": "1.4 Any of the following constitutes your full understanding, acceptance, and agreement to be bound by this Agreement: (1) clicking \"Agree\" or \"Register\" to complete registration; (2) actually using any service provided by the Platform (e.g., download, browse, generate content). If you do not agree to any term, please stop registering or using the Platform immediately.",
+        "item5": "1.5 For questions, comments, or assistance regarding this Agreement, please contact us at: support email pyr@suanleme.cn."
       },
       "section2": {
-        "title": "II. User Conduct Standards",
-        "intro": "You promise that when using this platform:",
-        "subsection1": {
-          "title": "2.1 Prohibited Content",
-          "item1": "Content that violates laws, regulations, or public order and morals (such as violence, pornography, hate speech, infringement of others' rights)",
-          "item2": "Content that infringes intellectual property rights (such as unauthorized celebrity portraits, copyrighted art styles)",
-          "item3": "False information or content that may cause social harm (such as deepfakes, politically sensitive content)",
-          "item4": "Other content that violates this platform's Content Safety Guidelines (see [link])"
-        },
-        "subsection2": {
-          "title": "2.2 Violation Handling Measures",
-          "intro": "If users generate prohibited content, we have the right to:",
-          "item1": "Immediately ban accounts (including temporary or permanent bans)",
-          "item2": "Delete prohibited content and associated data",
-          "item3": "Report to regulatory authorities (if involving illegal activities)",
-          "item4": "Pursue legal liability (if causing losses)",
-          "note": "Ban decisions are final and not subject to appeal (except for major misjudgments)."
-        }
+        "title": "II. Service and License",
+        "item1": "2.1 This Agreement applies to your use of all services provided by the Platform, including AI-generated content (AIGC) services such as text-to-image, text-to-video, image-to-video, and related features.",
+        "item2": "2.2 To improve user experience and for operational, security, and compliance reasons, we may update or change products or services from time to time (e.g., modify, upgrade, suspend, or terminate parts of the service, or add new features). You may choose whether to update. If you do not update, some or all features may be limited or unavailable. We may remind you to update when appropriate. You may stop using the relevant service if you do not accept the updated version.",
+        "item3": "2.3 We grant you a personal, revocable, non-transferable, non-exclusive license to use the Platform. All rights not expressly granted remain with us. You may not use the Platform in any unauthorized way, including but not limited to adaptation, reproduction, distribution, crawling, vertical search, mirroring, or trading, without our prior written consent."
       },
       "section3": {
-        "title": "III. Data Collection and Use",
+        "title": "III. User Accounts",
         "subsection1": {
-          "title": "3.1 Types of Data We Collect",
-          "table": {
-            "header1": "Data Type",
-            "header2": "Purpose",
-            "row1": {
-              "col1": "Account Information",
-              "col2": "Email/phone number, username (for login and notifications)"
-            },
-            "row2": {
-              "col1": "Generated Content Data",
-              "col2": "Input prompts, generated images, operation logs (for content moderation and model optimization)"
-            },
-            "row3": {
-              "col1": "Device and Behavior Data",
-              "col2": "IP address, device model, usage frequency, feature clickstream (for security and product improvement)"
-            },
-            "row4": {
-              "col1": "Feedback Data",
-              "col2": "User complaints, report content (for violation handling and model tuning)"
-            }
-          }
+          "title": "3.1 Account Registration",
+          "item1": "3.1.1 You must register using your verified mobile number or other supported third-party accounts. You authorize us to verify and process your information as required for service and compliance. You must provide true, accurate, and complete registration information; otherwise you may not use the service or may face limitations, and you bear the resulting responsibility and loss.",
+          "item2": "3.1.2 Your account is for your personal use only. You may not use it for any illegal, improper, or rights-infringing purpose, or register multiple accounts in bad faith. You may not give, lend, rent, transfer, sell, or license the account to others without our written consent. If we reasonably suspect the account user is not the registrant, we may suspend or terminate the account and permanently disable it.",
+          "item3": "3.1.3 You may browse some content without logging in, but you must register, log in, and complete required identity verification before using core features such as AI content generation. Under applicable real-name requirements, mobile verification is currently necessary; if you refuse to provide it, we cannot offer related core services.",
+          "item4": "3.1.4 If your information contains illegal or immoral content, or we reasonably suspect it was obtained by automated or fraudulent means, we may suspend or terminate your account and refuse current and future use of the Platform.",
+          "item5": "3.1.5 We are not obligated to continuously verify the truthfulness, accuracy, completeness, timeliness, or suitability of any registration information provided by you or any user.",
+          "item6": "3.1.6 You are responsible for keeping your account credentials (username, password, verification codes, etc.) secure. Any action performed with your account and credentials is deemed to be your action, and the corresponding electronic records are valid evidence.",
+          "item7": "3.1.7 You may request account deletion when: (1) you may only delete your own account, via the process indicated on the Platform or by contacting support; (2) before deletion, you remain liable for your conduct while using the service; (3) after deletion, we will delete or anonymize your personal information (unless otherwise required by law); you will no longer be able to log in and account data cannot be recovered.",
+          "item8": "3.1.8 If your account has not been used for a long period (e.g., six months), we may freeze or reclaim it as required by law or for resource management. We will try to notify you before doing so. After reclaim, you cannot log in or use the account, and related information cannot be recovered."
         },
         "subsection2": {
-          "title": "3.2 Data Use Purposes",
-          "item1": "Core purposes: Provide AI generation services, content safety review, account management",
-          "item2": "Optimization purposes: Improve AI model performance, develop new features, enhance user experience",
-          "item3": "Compliance purposes: Fulfill legal obligations, cooperate with regulatory investigations, handle user disputes"
+          "title": "3.2 Account Security",
+          "item1": "3.2.1 After registration, protecting your account is your responsibility. You are fully responsible for all activities under your account, including data changes and content posting. You must keep account and verification information confidential and notify us immediately if you discover unauthorized use or other security issues. Except where required by law or we are at fault, we are not liable for losses caused by your delay in notifying us.",
+          "item2": "3.2.2 We are not liable for any loss or damage arising from your failure to keep your account and verification information secure.",
+          "item3": "3.2.3 You shall maintain the security and confidentiality of your account and bear full legal responsibility for all activities conducted in the name of the account. You shall compensate us, yourself, or any third party for damage caused by your failure to keep the account secure (e.g., disclosure, attack).",
+          "item4": "3.2.4 You may not transfer or authorize others to use your account without authorization.",
+          "item5": "3.2.5 Except as required by law, you bear any loss or consequence of the foregoing or of account information disclosure and shall seek recovery from the infringing party yourself."
         },
         "subsection3": {
-          "title": "3.3 User Authorization",
-          "intro": "You explicitly authorize us to:",
-          "item1": "Automatically analyze your submitted prompts and generated images (including AI recognition and manual sampling) for: (a) real-time detection of prohibited content; (b) training/optimizing Dreamifly AI models (Note: Generated images used for training undergo desensitization and do not contain personally identifiable information); (c) platform security protection (such as identifying malicious attacks and abuse)"
-        },
-        "subsection4": {
-          "title": "3.4 Data Sharing and Disclosure",
-          "intro": "No sharing: Except for the following situations, we will never sell or share your data with third parties;",
-          "item1": "Necessary sharing: Cloud service providers, content moderation service providers (with confidentiality agreements)",
-          "item2": "When required by judicial authorities in accordance with the law",
-          "item3": "Control change scenarios such as corporate mergers (data security must be guaranteed)"
+          "title": "3.3 Log Retention and Data Backup",
+          "item1": "3.3 The Platform will retain system logs as required by applicable law, but this does not constitute a guarantee of long-term or permanent storage of your input or generated content. Due to technical or network issues, data may be lost. We remind you to back up important data in a timely manner. We are not liable for any loss or damage of data due to your failure to back up effectively."
         }
       },
       "section4": {
-        "title": "IV. Privacy Protection Measures",
-        "item1": "Technical safeguards: Data transmission encryption (TLS), storage encryption, access control",
-        "item2": "Retention period: Account data retained for 1 year after account deletion; Generated content retained until violation risk is removed (usually ≤6 months)",
-        "item3": "Your rights: You can export/delete personal data in account settings at any time (except data required to be retained by law)"
+        "title": "IV. Personal Information and Privacy",
+        "item1": "4.1 We are committed to protecting your personal information. When you use the Platform, we may process information you provide to deliver the services you choose and to comply with the law. We take information security seriously and adopt technical and organizational measures consistent with industry standards. Please read the processing rules in this section carefully.",
+        "item2": "4.2 We will use your personal information strictly in accordance with this Agreement and the law, mainly for: (1) providing, maintaining, and improving the Platform; (2) real-name verification, identity recognition, and account security; (3) responding to your inquiries or requests; (4) other purposes permitted by law.",
+        "item3": "4.3 You may contact us through support channels to exercise rights regarding your personal information: (1) request access to your personal information we process; (2) request correction or supplementation when information is inaccurate or incomplete; (3) in certain circumstances (e.g., end of service, withdrawal of consent), request deletion. We will respond within a reasonable time after verifying your identity. Some information may not be deleted immediately or fully as required by law or legitimate business needs.",
+        "item4": "4.4 We will not share or disclose your personal information to third parties without your prior consent, except: (1) to comply with applicable law, court order, or mandatory government requirement; (2) in connection with merger, division, acquisition, or asset transfer, with the recipient bound by this Agreement; (3) as necessary to perform this Agreement, provide requested products or services, or resolve disputes; (4) as necessary to protect important legitimate interests (e.g., life, property) of us, you, or other users."
       },
       "section5": {
-        "title": "V. Disclaimer",
-        "item1": "AI-generated content may have deviations, and the platform does not guarantee content accuracy or legality",
-        "item2": "Users are solely responsible for legal liability arising from inputting prohibited prompts",
-        "item3": "For data breaches caused by force majeure (such as hacker attacks, policy changes), we will notify promptly but do not assume compensation liability"
+        "title": "V. Service Fees",
+        "item1": "5.1 We invest significant resources in operating and improving the Platform. Services may include free and paid offerings; types and fees are as stated on the then-current service pages.",
+        "item2": "5.2 You agree that we may unilaterally decide and change fee models, rates, and methods to meet business needs. We may begin charging for previously free services or change how paid services are billed. Such changes will be announced on the Platform, by in-app notice, or other appropriate means.",
+        "item3": "5.3 Free provision of any service for a period shall not be construed as a waiver of our right to charge for that service in the future."
       },
       "section6": {
-        "title": "VI. Agreement Updates",
-        "content": "We may update this agreement based on legal or business adjustments. After updates, we will notify through:",
-        "item1": "Platform announcements",
-        "item2": "Email notifications (registered email)",
-        "note": "Continued use is deemed acceptance of new terms."
+        "title": "VI. Content Labeling",
+        "item1": "6.1 To indicate that content is AI-generated, we will add visible and/or embedded technical labels as required by law. You must not obscure, alter, or remove labels we add to AI content, and you should understand applicable labeling requirements under relevant regulations and standards.",
+        "item2": "6.1 Special application for content without visible labels: If you need generated content without the Platform's visible label for personal study or artistic creation, you may apply through the process we publish on the Platform.",
+        "item3": "6.2 If we approve your application, when using or distributing such content you must: (1) clearly and prominently disclose that it is \"AI-generated\" or use other legally compliant wording; (2) ensure your use is lawful and does not harm others or the public interest; for public or commercial use you must not imply the content is fully human-created photography, painting, or footage; you must independently review it for IP, portrait, or other rights and bear all legal responsibility; (3) not attempt to remove or interfere with any embedded technical identifiers; (4) cooperate if we need usage information or other measures for compliance.",
+        "item4": "6.3 The above application and approval are a limited exception to our default labeling. You bear full responsibility for use of content under this section. If you breach Section 6, we may revoke authorization and take measures such as limiting or suspending your account. You shall fully indemnify us for any loss (including fines, third-party compensation, reputational harm) caused by your breach."
       },
       "section7": {
-        "title": "VII. Contact Us",
-        "content": "Privacy issues/Account appeals"
+        "title": "VII. Intellectual Property",
+        "item1": "7.1 All content in or provided through the Platform (e.g., software, UI, graphics, logos, trademarks, text, images, audio, video, data) is owned by us or our licensors and protected by applicable law. You may not infringe any such intellectual property or other proprietary rights.",
+        "item2": "7.2 For any content you upload, publish, or generate on the Platform (\"User Content\"), you retain existing IP and related rights. You represent that User Content is your original work or you have full authorization (including sub-licenses) and that it does not infringe third-party IP, portrait, privacy, or other rights. You grant us a non-exclusive, worldwide, royalty-free license to use, store, copy, modify, distribute, and display User Content to provide, present, and promote the Platform. You also authorize us (or our designee) to take necessary enforcement action in our name if infringement is found. You own and are fully responsible for User Content; we may remove or block content we deem in violation of this Agreement or the law without notice.",
+        "item3": "7.3 Use the Platform as a creation tool with care. If you plan to use any generated content for public distribution or commercial use, you must independently review it for legality and third-party rights and bear all legal risk and responsibility.",
+        "item4": "7.4 Where the Platform includes content under open source or other special licenses, your use must also comply with those licenses, and you may not remove any license notices or identifiers."
+      },
+      "section8": {
+        "title": "VIII. Network Security and Compliance",
+        "item1": "8.1 You may not use any plugin, add-on, system, or third-party tool to interfere with, disrupt, modify, or otherwise affect the normal operation of the Platform, including automated access to collect or process Platform information or content.",
+        "item2": "8.2 You may not endanger Platform or network security, including but not limited to: unauthorized access, disruption of network function, theft of data; providing tools for such activities; assisting others in such activities; using unauthorized data or systems; probing or testing Platform or network weaknesses; disrupting operation or spreading malware; forging packet information; reverse engineering the Platform; bulk or abusive registration; or other conduct that harms Platform or network security.",
+        "item3": "8.3 Without our written permission, you may not, alone or with others: use Platform information or content to promote your own products or create confusion with the Platform; edit or adapt Platform content for display outside the Platform; use technical means to modify, hijack, redirect, obscure, or insert content so users cannot use the Platform normally; scrape, mirror, or misappropriate Platform information or content; hide or alter the Platform domain, branding, or user information; use Platform information for unauthorized analytics or commercial use; interfere with Platform data; or use the Platform or its content to develop competing products or services.",
+        "item4": "8.4 If we reasonably believe you have breached or may breach the above, or your conduct adversely affects Platform information, content, or user rights, we may take action including terminating your access without prior notice and pursuing legal remedies.",
+        "item5": "8.5 You must respect privacy and ethics, protect data security, and not input or share unauthorized personal or confidential information. You must ensure your inputs are lawful and that you own or have authorization for them; you may not infringe others' IP or personality rights or use the Platform to create or spread false or illegal content (e.g., via deep learning, VR, or generative AI).",
+        "item6": "8.6 You agree not to create, copy, publish, or distribute information or content that: violates fundamental principles; endangers national security or secrets; subverts state power or unity; damages national honor or interests; promotes terrorism or extremism; incites ethnic or regional hatred or discrimination; undermines religious policy or promotes cults or superstition; spreads rumors or false information that disrupts order; distributes obscenity, gambling, violence, or incitement to crime; endangers network security; defames or infringes others' rights; involves doxxing, privacy, or minors; constitutes spam or meaningless or evasive content; or otherwise violates law, policy, public order, or others' rights. If you violate this section, we may delete content and suspend or terminate your account."
+      },
+      "section9": {
+        "title": "IX. Complaints and Reports",
+        "item1": "9.1 We provide channels for complaints and reports. You may contact us through the paths published on the Platform (e.g., email) regarding any conduct or content that may violate the law or this Agreement. We will handle your feedback promptly.",
+        "item2": "9.2 If you find content or conduct on the Platform that violates the law, this Agreement, or your rights, you may notify us through the published complaint channels and should provide relevant proof. We will handle in accordance with the law. If your content is processed following a complaint and you disagree, you may submit a non-infringement statement and supporting materials through the same channels. We are committed to maintaining a sound environment through this mechanism."
+      },
+      "section10": {
+        "title": "X. Breach and Enforcement",
+        "item1": "10.1 If you breach this Agreement (including platform rules), we may take one or more measures depending on the nature and severity of the breach, including but not limited to: warning; refusing to generate or publish; stopping transmission; deleting content; temporarily restricting posting or comments; limiting account functions; terminating service; permanently closing the account; or prohibiting re-registration. You bear all adverse consequences (e.g., loss of function, deletion of content or assets). We are not obligated to restore deleted information or content.",
+        "item2": "10.2 We may announce enforcement results and decide whether to restore account access. For suspected illegal or criminal conduct, we will retain records and may report to and cooperate with authorities.",
+        "item3": "10.3 We respect and protect IP, reputation, name, privacy, portrait, and other rights of users and third parties. If you infringe such rights and this leads to complaints, lawsuits, or claims, we may take necessary measures as required by law. You shall fully indemnify us for any compensation we pay, government penalties, or other loss or reputational harm.",
+        "item4": "10.4 You bear all disputes, claims, losses, and costs (including reasonable legal fees) arising from your use of the Platform (including breach, illegality, or disputes over your content). Unless a claim directly results from our intentional misconduct or gross negligence, you agree to indemnify us and our affiliates, partners, directors, and employees."
+      },
+      "section11": {
+        "title": "XI. Minors",
+        "item1": "11.1 If you are under 18, you should use the Platform and related services only with your guardian's full reading, understanding, and agreement, under their supervision. If a guardian finds that a minor has registered or used an account without consent, they may contact us through the published channels; we may restrict the account accordingly.",
+        "item2": "11.2 We value protection of minors' personal information. Minor users should enhance awareness and operate prudently under guardian guidance when registering or using the service.",
+        "item3": "11.3 Minor users and their guardians understand that if a minor violates the law or this Agreement, the guardian shall bear legal responsibility as provided by law.",
+        "item4": "11.4 Special notice for minors: (1) Minors should use the internet reasonably under guardian guidance, avoid addiction, and develop good habits; we encourage compliance with online conduct norms. (2) If your content involves a minor's portrait, voice, or other personal information, you are deemed to have the guardian's consent and authorize us to process it under this Agreement and the law; we remind you to be cautious when publishing such content.",
+        "item5": "11.5 As a guardian, you should guide, supervise, and manage the minor's use of the Platform. When your ward registers or uses the service, it is deemed to be with your consent."
+      },
+      "section12": {
+        "title": "XII. Limitations and Disclaimer",
+        "item1": "12.1 Generative and deep-synthesis AI brings value but also risk of misuse. By using the Platform you acknowledge: (1) We cannot guarantee the accuracy, reliability, or uniqueness of generated content due to current technical limits; evaluate content independently and do not rely on it solely for important decisions; we recommend consulting professionals before acting in areas such as health, finance, or law. (2) Use AI in a rational, lawful manner and comply with this Agreement and the law; you bear all legal liability for violations; we make no warranty as to generated content. (3) We take content safety seriously and use reasonable technical measures to filter harmful content, but results may still be imperfect. (4) Generated content does not represent our position or views; it may be flawed. Contact us via the feedback channel or email if you have questions.",
+        "item2": "12.2 Our products and services are provided \"as is.\" We make no express or implied warranty that: (1) they will meet your requirements or that any result will satisfy your expectations; (2) service will be uninterrupted, timely, secure, or error-free; (3) any error will be corrected; (4) you will not face any risk when using the service.",
+        "item3": "12.3 We will try to maintain continuity and security, but service may be affected by many factors. We are not liable (to the extent permitted by law) for interruption, suspension, termination, or loss due to: (1) force majeure (e.g., government action, disaster, war, strike, epidemic); (2) factors beyond our control (e.g., power or network failure, attack, virus, third-party defect); (3) our maintenance, upgrade, or repair of systems or equipment (we will try to give advance notice).",
+        "item4": "12.4 If you encounter information related to lending, investment, finance, or property (e.g., account passwords, promotions), treat it with caution and judge for yourself. Except as required by law, we are not liable for any direct, indirect, incidental, or punitive damage (profit, reputation, data, or otherwise) you suffer.",
+        "item5": "12.5 We have the right to review and handle illegal or violating content under law, this Agreement, and platform rules, but exercising this right does not create an obligation or promise; we cannot guarantee that we will detect or handle all violations.",
+        "item6": "12.6 Unless otherwise agreed, we do not warrant that the Platform is legal or appropriate in all jurisdictions. If you use the Platform in a jurisdiction we have not officially released in, you do so at your own initiative and must ensure compliance with local law and bear all risk.",
+        "item7": "12.7 Despite our efforts, we cannot guarantee flawless service or foresee all legal, technical, or other risks. Except as required by law, we are not liable for indirect, consequential, punitive, incidental, special, or exemplary damages. To the extent permitted by law, our total liability to you for any reason shall not exceed the fees you have paid us during your use of the Platform (if any)."
+      },
+      "section13": {
+        "title": "XIII. Effect, Termination, and Disputes",
+        "item1": "13.1 The formation, effect, performance, interpretation, and dispute resolution of this Agreement are governed by the laws of mainland China (excluding conflict of law). If any term is invalid as contrary to mandatory law, it shall be interpreted or revised to the maximum extent permitted to restore validity without affecting the rest of this Agreement.",
+        "item2": "13.2 You may terminate this Agreement by: (1) completing account deletion in accordance with platform requirements; (2) stopping use and clearly rejecting changes before they take effect; (3) clearly indicating in writing or through the Platform that you will not continue, and meeting any termination conditions.",
+        "item3": "13.3 We may unilaterally terminate this Agreement and stop providing service if: (1) you materially breach this Agreement; (2) you use the Platform for illegal activity, false information, or serious infringement of others' rights; (3) we must terminate as required by law or to protect platform security or the public interest.",
+        "item4": "13.4 Termination does not affect rights and obligations that arose before termination. Your obligations and our rights under this Agreement during its term continue to apply after termination.",
+        "item5": "13.5 Any dispute arising from or relating to this Agreement shall first be resolved by good-faith negotiation. If negotiation fails, you agree to submit the dispute to the competent court in Haidian District, Beijing for litigation."
+      },
+      "section14": {
+        "title": "XIV. Miscellaneous",
+        "item1": "14.1 Section headings in this Agreement are for convenience only and have no legal or contractual effect and shall not limit or affect the meaning of the provisions.",
+        "item2": "14.2 This Agreement does not create any agency, partnership, joint venture, or employment relationship between us and you. Each party is an independent legal entity.",
+        "item3": "14.3 For questions, comments, or suggestions regarding this Agreement, please contact us at: email pyr@suanleme.cn."
       }
     }
   },

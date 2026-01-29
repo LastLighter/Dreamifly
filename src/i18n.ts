@@ -16,4 +16,4 @@ export default getRequestConfig(async ({locale}) => {
     now: new Date(),
     locale: activeLocale as string
   };
-}); 
+});

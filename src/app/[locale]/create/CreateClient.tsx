@@ -9,6 +9,7 @@ import CommunityMasonry, { type CommunityWork } from '@/components/CommunityMaso
 import { transferUrl } from '@/utils/locale'
 import community from '../communityWorks'
 import videoCommunityWorks from '../videoCommunityWorks'
+import { useSession } from '@/lib/auth-client'
 
 export default function CreateClient() {
   const t = useTranslations('home')
@@ -16,6 +17,7 @@ export default function CreateClient() {
   const searchParams = useSearchParams()
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
+  const { data: session } = useSession()
 
   const [zoomedImage, setZoomedImage] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'generate' | 'video-generation'>('generate')
@@ -61,6 +63,19 @@ export default function CreateClient() {
       return
     }
     
+    // 未登录用户直接使用默认图片，不请求API
+    if (!session?.user) {
+      setCommunityWorks((community as any[]).map((work: any) => ({
+        ...work,
+        model: '默认',
+        userAvatar: '/images/default-avatar.svg',
+        userNickname: '默认',
+        avatarFrameId: null,
+      })))
+      return
+    }
+
+    // 已登录用户才请求API
     const fetchCommunityImages = async () => {
       try {
         const response = await fetch('/api/community/images')
@@ -144,7 +159,7 @@ export default function CreateClient() {
     }
 
     fetchCommunityImages()
-  }, [activeTab])
+  }, [activeTab, session?.user])
 
   // 将图片URL转换为base64
   const imageUrlToBase64 = async (imageUrl: string): Promise<string | null> => {

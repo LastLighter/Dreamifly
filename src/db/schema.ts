@@ -273,8 +273,21 @@ export const userGeneratedImages = pgTable("user_generated_images", {
   userNickname: text("user_nickname"), // 用户昵称
   avatarFrameId: integer("avatar_frame_id"), // 头像框ID
   referenceImages: jsonb("reference_images").$type<string[]>().default([]), // 参考图片URL数组（加密存储）
+  nsfw: boolean("nsfw").default(false).notNull(), // 是否为 NSFW 内容，true 表示不适合在社区展示
+  reportCount: integer("report_count").default(0).notNull(), // 被普通用户举报的次数（优质用户和管理员举报不计入）
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// 举报记录表
+export const imageReports = pgTable("image_reports", {
+  id: text("id").primaryKey(), // UUID主键
+  reporterId: text("reporter_id").notNull(), // 举报人ID
+  imageId: text("image_id").notNull(), // 被举报的图片ID
+  reason: text("reason").notNull(), // 举报原因：pornography, political, violence, gore, illegal, other
+  description: text("description"), // 详细描述（选择"其他"时可填写）
+  createdAt: timestamp("created_at").defaultNow().notNull(), // 举报时间
+  updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
 });
 
 // 未通过审核图片表
@@ -304,6 +317,48 @@ export const profanityWord = pgTable("profanity_word", {
   isEnabled: boolean("is_enabled").default(true).notNull(), // 是否启用
   createdAt: timestamp("created_at").defaultNow().notNull(), // 创建时间
   updatedAt: timestamp("updated_at").defaultNow().notNull(), // 更新时间
+});
+
+// CDK表 - 关联到具体的积分包或订阅包
+export const cdk = pgTable("cdk", {
+  id: text("id").primaryKey(), // 使用UUID作为主键
+  code: text("code").notNull().unique(), // CDK代码（加密后的长串）
+  packageType: text("package_type").notNull(), // 'points_package' | 'subscription_plan'
+  packageId: integer("package_id").notNull(), // 关联的包ID
+  isRedeemed: boolean("is_redeemed").default(false).notNull(), // 是否已被兑换
+  expiresAt: timestamp("expires_at"), // CDK过期时间，timestamp类型（无时区UTC）
+  createdAt: timestamp("created_at").notNull(), // 创建时间，timestamp类型（无时区UTC）
+  updatedAt: timestamp("updated_at").notNull(), // 更新时间，timestamp类型（无时区UTC）
+  createdBy: text("created_by"), // 创建者ID
+});
+
+// CDK兑换记录表 - 每个CDK只能有一条兑换记录
+export const cdkRedemption = pgTable("cdk_redemption", {
+  id: text("id").primaryKey(), // 使用UUID作为主键
+  cdkId: text("cdk_id").notNull().unique(), // 一个CDK只能兑换一次，所以cdkId唯一
+  userId: text("user_id").notNull(),
+  redeemedAt: timestamp("redeemed_at").notNull(), // 兑换时间，timestamp类型（无时区UTC）
+  ipAddress: text("ip_address"), // 兑换时的IP地址
+  // 兑换时的包信息快照（防止包信息变更后丢失）
+  packageType: text("package_type").notNull(),
+  packageName: text("package_name").notNull(),
+  packageData: jsonb("package_data").notNull(), // 包的完整数据快照
+});
+
+// 用户每日CDK兑换限制表
+export const userCdkDailyLimit = pgTable("user_cdk_daily_limit", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().unique(),
+  dailyRedemptions: integer("daily_redemptions").default(0).notNull(), // 当日已兑换次数
+  lastRedemptionResetDate: timestamp("last_redemption_reset_date").notNull(), // 最后重置日期，timestamp类型（无时区UTC）
+  updatedAt: timestamp("updated_at").notNull(), // 更新时间，timestamp类型（无时区UTC）
+});
+
+// CDK全局配置表
+export const cdkConfig = pgTable("cdk_config", {
+  id: integer("id").primaryKey().default(1), // 单例配置
+  userDailyLimit: integer("user_daily_limit").default(5).notNull(), // 用户每日兑换次数限制，默认5次
+  updatedAt: timestamp("updated_at").notNull(), // 更新时间，timestamp类型（无时区UTC）
 });
 
 // 用户与头像框的关系
