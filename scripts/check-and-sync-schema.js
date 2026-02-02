@@ -168,6 +168,7 @@ const schemaDefinition = {
     points_expiry_days: 'integer',
     repair_workflow_cost: 'integer',
     upscale_workflow_cost: 'integer',
+    z_image_cost: 'integer',
     created_at: 'timestamp',
     updated_at: 'timestamp',
   },

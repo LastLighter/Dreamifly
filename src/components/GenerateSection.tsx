@@ -293,6 +293,11 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
         tags: ["chineseSupport"]
       },
       {
+        id: "Z-Image",
+        maxImages: 0,
+        tags: ["chineseSupport", "fastGeneration"]
+      },
+      {
         id: "Z-Image-Turbo",
         maxImages: 0,
         tags: ["chineseSupport", "fastGeneration"]
