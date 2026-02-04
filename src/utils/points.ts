@@ -25,7 +25,7 @@ export async function getPointsConfig() {
   const envUpscaleCost = parseInt(process.env.UPSCALE_WORKFLOW_COST || '5', 10);
   
   // 模型积分消耗默认值
-  const envZImageCost = parseInt(process.env.Z_IMAGE_COST || '10', 10);
+  const envZImageCost = parseInt(process.env.Z_IMAGE_COST || '12', 10);
   const envZImageTurboCost = parseInt(process.env.Z_IMAGE_TURBO_COST || '3', 10);
   const envQwenImageEditCost = parseInt(process.env.QWEN_IMAGE_EDIT_COST || '4', 10);
   const envWaiSdxlV150Cost = parseInt(process.env.WAI_SDXL_V150_COST || '2', 10);
