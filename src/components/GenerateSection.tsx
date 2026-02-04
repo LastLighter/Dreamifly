@@ -49,11 +49,11 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
   const [width, setWidth] = useState(1024);
   const [height, setHeight] = useState(1024);
   // 初始步数根据初始模型配置设置（如果提供了initialModel，使用它的配置；否则使用默认模型）
-  const initialModelForSteps = initialModel || 'Z-Image-Turbo';
+  const initialModelForSteps = initialModel || 'Z-Image';
   const initialModelThresholds = getModelThresholds(initialModelForSteps);
   const [steps, setSteps] = useState(initialModelThresholds.normalSteps || 10);
   const [batch_size, setBatchSize] = useState(1);
-  const [model, setModel] = useState(initialModel || 'Z-Image-Turbo');
+  const [model, setModel] = useState(initialModel || 'Z-Image');
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [imageStatuses, setImageStatuses] = useState<Array<{
