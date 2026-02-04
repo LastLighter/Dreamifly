@@ -51,11 +51,13 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
   let featureTags: string[] = []
   let coverImage = ''
   let route = ''
+  let isZImageModel = false
 
   if (type === 'model') {
     const model = item as ModelConfig
     coverImage = model.homepageCover || '/models/homepageModelCover/demo.jpg'
     route = `/create?model=${encodeURIComponent(model.id)}`
+    isZImageModel = model.id === 'Z-Image'
     
     if (model.use_t2i) featureTags.push('文生图')
     if (model.use_i2i) featureTags.push('图生图')
@@ -109,7 +111,11 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
           >
             <div className="relative">
               <button
-                className="px-1.5 py-0.5 bg-gray-500/40 backdrop-blur-sm text-white text-[10px] font-medium rounded whitespace-nowrap hover:bg-gray-500/60 transition-all duration-300"
+                className={`px-1.5 py-0.5 backdrop-blur-sm text-[10px] font-medium rounded whitespace-nowrap transition-all duration-300 ${
+                  isZImageModel
+                    ? 'bg-amber-400/40 text-amber-50 hover:bg-amber-400/60 shadow-sm'
+                    : 'bg-gray-500/40 text-white hover:bg-gray-500/60'
+                }`}
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
@@ -159,7 +165,11 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
                 {featureTags.map((tag, index) => (
                   <span
                     key={index}
-                    className="px-1.5 py-0.5 bg-gray-500/40 backdrop-blur-sm text-white text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap"
+                    className={`px-1.5 py-0.5 backdrop-blur-sm text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap ${
+                      isZImageModel
+                        ? 'bg-amber-400/40 text-amber-50 shadow-sm'
+                        : 'bg-gray-500/40 text-white'
+                    }`}
                   >
                     {tag}
                   </span>
