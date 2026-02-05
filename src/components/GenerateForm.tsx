@@ -207,6 +207,7 @@ export default function GenerateForm({
         'Qwen-Image': 1.5,             // 48s/60s
         'Qwen-Image-Edit': 1.2,
         'Wai-SDXL-V150': 0.1,
+        'Z-Image': 0.325,
         'Z-Image-Turbo': 0.325       // 20步1024*1024=13秒，换算到30步基准：13*(30/20)/60 = 0.325
       };
       

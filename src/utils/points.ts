@@ -25,6 +25,7 @@ export async function getPointsConfig() {
   const envUpscaleCost = parseInt(process.env.UPSCALE_WORKFLOW_COST || '5', 10);
   
   // 模型积分消耗默认值
+  const envZImageCost = parseInt(process.env.Z_IMAGE_COST || '12', 10);
   const envZImageTurboCost = parseInt(process.env.Z_IMAGE_TURBO_COST || '3', 10);
   const envQwenImageEditCost = parseInt(process.env.QWEN_IMAGE_EDIT_COST || '4', 10);
   const envWaiSdxlV150Cost = parseInt(process.env.WAI_SDXL_V150_COST || '2', 10);
@@ -36,6 +37,7 @@ export async function getPointsConfig() {
     pointsExpiryDays: configData?.pointsExpiryDays ?? envExpiryDays,
     repairWorkflowCost: configData?.repairWorkflowCost ?? envRepairCost,
     upscaleWorkflowCost: configData?.upscaleWorkflowCost ?? envUpscaleCost,
+    zImageCost: configData?.zImageCost ?? envZImageCost,
     zImageTurboCost: configData?.zImageTurboCost ?? envZImageTurboCost,
     qwenImageEditCost: configData?.qwenImageEditCost ?? envQwenImageEditCost,
     waiSdxlV150Cost: configData?.waiSdxlV150Cost ?? envWaiSdxlV150Cost,
@@ -79,6 +81,8 @@ export async function getModelBaseCost(modelId: string): Promise<number | null> 
   const config = await getPointsConfig();
   
   switch (modelId) {
+    case 'Z-Image':
+      return config.zImageCost;
     case 'Z-Image-Turbo':
       return config.zImageTurboCost;
     case 'Qwen-Image-Edit':

@@ -11,6 +11,7 @@ const MODEL_ENV_MAP = {
   "Qwen-Image": "Qwen_Image_URL",
   "Qwen-Image-Edit": "Qwen_Image_Edit_URL",
   "Wai-SDXL-V150": "Wai_SDXL_V150_URL",
+  "Z-Image": "Z_IMAGE_URL",
   "Z-Image-Turbo": "Z_Image_Turbo_URL",
   "Flux-2": "Flux_2_URL"
 } as const;

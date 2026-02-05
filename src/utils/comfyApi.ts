@@ -1,4 +1,4 @@
-import { hidreamFp8T2IWorkflow,  fluxDevT2IWorkflow, stableDiffusion3T2IWorkflow, fluxKreaT2IWorkflow, qwenImageT2IWorkflow, waiSDXLV150Workflow, zImageTurboT2IWorkflow, flux2T2IWorkflow } from "./t2iworkflow";
+import { hidreamFp8T2IWorkflow,  fluxDevT2IWorkflow, stableDiffusion3T2IWorkflow, fluxKreaT2IWorkflow, qwenImageT2IWorkflow, waiSDXLV150Workflow, zImageTurboT2IWorkflow, flux2T2IWorkflow, zImageT2IWorkflow } from "./t2iworkflow";
 import { fluxI2IWorkflow, fluxKontextI2IMultiImageWorkflow, fluxKontextI2IWorkflow, QwenImageEdit2ImagesWorkflow, QwenImageEdit3ImagesWorkflow, QwenImageEditWorkflow } from "./i2iworkflow";
 const T2IModelMap = {
   "HiDream-full-fp8": hidreamFp8T2IWorkflow,
@@ -8,7 +8,8 @@ const T2IModelMap = {
   "Qwen-Image": qwenImageT2IWorkflow,
   "Wai-SDXL-V150": waiSDXLV150Workflow,
   "Z-Image-Turbo": zImageTurboT2IWorkflow,
-  "Flux-2": flux2T2IWorkflow
+  "Flux-2": flux2T2IWorkflow,
+  "Z-Image": zImageT2IWorkflow
 }
 
 const I2IModelMap = {
@@ -94,6 +95,9 @@ export async function generateImage(params: GenerateParams): Promise<string> {
   }else if(params.model === 'Z-Image-Turbo') {
     baseUrl = process.env.Z_Image_Turbo_URL || ''
     setZImageTurboT2IorkflowParams(workflow, params);
+  }else if(params.model === 'Z-Image') {
+    baseUrl = process.env.Z_IMAGE_URL || ''
+    setZImageT2IorkflowParams(workflow, params);
   }else if(params.model === 'Flux-2') {
     baseUrl = process.env.Flux_2_URL || ''
     setFlux2T2IorkflowParams(workflow, params);
@@ -312,6 +316,46 @@ function setWaiSDXLV150T2IorkflowParams(workflow: any, params: GenerateParams) {
   }
   if (params.negative_prompt) {
     workflow["7"].inputs.text = params.negative_prompt;
+  }
+}
+
+function setZImageT2IorkflowParams(workflow: any, params: GenerateParams) {
+  try {
+    // 检查关键节点是否存在
+    if (!workflow["68"] || !workflow["68"].inputs) {
+      throw new Error('工作流节点 "68" (EmptySD3LatentImage) 不存在');
+    }
+    if (!workflow["67"] || !workflow["67"].inputs) {
+      throw new Error('工作流节点 "67" (CLIPTextEncode Positive) 不存在');
+    }
+    if (!workflow["69"] || !workflow["69"].inputs) {
+      throw new Error('工作流节点 "69" (KSampler) 不存在');
+    }
+    if (params.negative_prompt && (!workflow["71"] || !workflow["71"].inputs)) {
+      throw new Error('工作流节点 "71" (CLIPTextEncode Negative) 不存在');
+    }
+
+    // 设置宽高
+    workflow["68"].inputs.width = params.width;
+    workflow["68"].inputs.height = params.height;
+
+    // 设置正向提示词
+    workflow["67"].inputs.text = params.prompt;
+
+    // 设置步数和种子
+    workflow["69"].inputs.steps = params.steps;
+    if (params.seed) {
+      workflow["69"].inputs.seed = params.seed;
+    }
+
+    // 负向提示词（如果提供）
+    if (params.negative_prompt) {
+      workflow["71"].inputs.text = params.negative_prompt;
+    }
+  } catch (error) {
+    console.error('Error setting Z-Image workflow params:', error);
+    console.error('Workflow structure:', Object.keys(workflow));
+    throw error;
   }
 }
 

@@ -180,6 +180,7 @@ export const pointsConfig = pgTable("points_config", {
   pointsExpiryDays: integer("points_expiry_days"), // 积分过期天数
   repairWorkflowCost: integer("repair_workflow_cost"), // 工作流修复消耗
   upscaleWorkflowCost: integer("upscale_workflow_cost"), // 工作流放大消耗
+  zImageCost: integer("z_image_cost"), // Z-Image 模型积分消耗，null表示使用环境变量
   zImageTurboCost: integer("z_image_turbo_cost"), // Z-Image-Turbo模型积分消耗，null表示使用环境变量
   qwenImageEditCost: integer("qwen_image_edit_cost"), // Qwen-Image-Edit模型积分消耗，null表示使用环境变量
   waiSdxlV150Cost: integer("wai_sdxl_v150_cost"), // Wai-SDXL-V150模型积分消耗，null表示使用环境变量

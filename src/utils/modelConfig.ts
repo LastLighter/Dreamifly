@@ -10,6 +10,7 @@ const MODEL_ENV_MAP = {
   "Qwen-Image": "Qwen_Image_URL",
   "Qwen-Image-Edit": "Qwen_Image_Edit_URL",
   "Wai-SDXL-V150": "Wai_SDXL_V150_URL",
+  "Z-Image": "Z_IMAGE_URL",
   "Z-Image-Turbo": "Z_Image_Turbo_URL",
   "Flux-2": "Flux_2_URL"
 } as const;
@@ -136,6 +137,18 @@ export const ALL_MODELS: ModelConfig[] = [
     isRecommended: true
   },
   {
+    id: "Z-Image",
+    name: "Z-Image",
+    image: "/models/Z-Image.jpg",
+    homepageCover: "/models/homepageModelCover/Z-Image.png",
+    description: "区别于 Turbo 的轻量化设计，Z-Image 深耕 Lumina2 架构，精准拿捏中文提示词细节",
+    use_i2i: false,
+    use_t2i: true,
+    maxImages: 0,
+    tags: ["chineseSupport"],
+    isRecommended: false
+  },
+  {
     id: "Flux-2",
     name: "Flux-2",
     image: "/models/Flux-2.jpg",
@@ -246,6 +259,12 @@ export const MODEL_THRESHOLDS: Record<string, ModelThresholds> = {
   "Z-Image-Turbo": {
     normalSteps: 10,
     highSteps: 20,
+    normalResolutionPixels: 1024 * 1024,      // 1048576
+    highResolutionPixels: 1416 * 1416,       // 2005056
+  },
+  "Z-Image": {
+    normalSteps: 20,
+    highSteps: 12,
     normalResolutionPixels: 1024 * 1024,      // 1048576
     highResolutionPixels: 1416 * 1416,       // 2005056
   },
