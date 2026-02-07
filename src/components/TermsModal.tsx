@@ -83,43 +83,43 @@ export default function TermsModal({ isOpen, onClose }: TermsModalProps) {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  h1: ({ node, ...props }) => (
+                  h1: (props) => (
                     <h1 className="text-2xl font-bold text-gray-900 mb-4" {...props} />
                   ),
-                  h2: ({ node, ...props }) => (
+                  h2: (props) => (
                     <h2 className="text-xl font-semibold text-gray-900 mb-3 mt-6" {...props} />
                   ),
-                  h3: ({ node, ...props }) => (
+                  h3: (props) => (
                     <h3 className="text-lg font-semibold text-gray-800 mb-2 mt-4" {...props} />
                   ),
-                  h4: ({ node, ...props }) => (
+                  h4: (props) => (
                     <h4 className="text-base font-semibold text-gray-800 mb-2 mt-3" {...props} />
                   ),
-                  p: ({ node, ...props }) => (
+                  p: (props) => (
                     <p className="text-gray-700 text-sm leading-6 mb-3" {...props} />
                   ),
-                  ul: ({ node, ...props }) => (
+                  ul: (props) => (
                     <ul className="list-disc list-inside space-y-2 mb-3 text-gray-700 text-sm" {...props} />
                   ),
-                  ol: ({ node, ...props }) => (
+                  ol: (props) => (
                     <ol className="list-decimal list-inside space-y-2 mb-3 text-gray-700 text-sm" {...props} />
                   ),
-                  li: ({ node, ...props }) => (
+                  li: (props) => (
                     <li className="leading-6" {...props} />
                   ),
-                  strong: ({ node, ...props }) => (
+                  strong: (props) => (
                     <strong className="font-semibold text-gray-900" {...props} />
                   ),
-                  hr: ({ node, ...props }) => (
+                  hr: (props) => (
                     <hr className="my-6 border-gray-300" {...props} />
                   ),
-                  blockquote: ({ node, ...props }) => (
+                  blockquote: (props) => (
                     <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4" {...props} />
                   ),
-                  code: ({ node, ...props }) => (
+                  code: (props) => (
                     <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props} />
                   ),
-                  a: ({ node, ...props }) => (
+                  a: (props) => (
                     <a className="text-orange-500 hover:text-orange-600 underline" {...props} />
                   ),
                 }}
