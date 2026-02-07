@@ -7,7 +7,8 @@
     "build": "node -e \"try { require('fs').rmSync('.next', { recursive: true, force: true }); } catch(e) {}\" && next build",
     "build:clean": "rimraf .next && next build",
     "start": "node scripts/reset-concurrency-on-startup.js && next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "fix-terms": "node scripts/fix-markdown-punctuation.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.1",
@@ -35,7 +36,9 @@
     "react-dom": "19.2.3",
     "react-easy-crop": "^5.5.3",
     "react-hook-form": "^7.51.0",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.3.0",
+    "remark-gfm": "^4.0.1",
     "resend": "^6.1.2",
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.1",

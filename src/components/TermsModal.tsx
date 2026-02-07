@@ -1,6 +1,9 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { useState, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface TermsModalProps {
   isOpen: boolean
@@ -9,7 +12,29 @@ interface TermsModalProps {
 
 export default function TermsModal({ isOpen, onClose }: TermsModalProps) {
   const t = useTranslations('auth.terms')
-  const effectiveDate = t('effectiveDate')
+  const [markdownContent, setMarkdownContent] = useState<string>('')
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string>('')
+
+  useEffect(() => {
+    // 加载统一的用户协议MD文档（不依赖语言）
+    fetch('/terms.md')
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('加载用户协议失败')
+        }
+        return res.text()
+      })
+      .then(content => {
+        setMarkdownContent(content)
+        setIsLoading(false)
+      })
+      .catch(err => {
+        console.error('加载用户协议失败:', err)
+        setError('加载用户协议失败，请稍后重试')
+        setIsLoading(false)
+      })
+  }, [])
 
   if (!isOpen) return null
 
@@ -42,217 +67,66 @@ export default function TermsModal({ isOpen, onClose }: TermsModalProps) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="prose max-w-none">
-            {effectiveDate && effectiveDate.trim() && (
-              <p className="text-sm text-gray-600 mb-6">{effectiveDate}</p>
+            {isLoading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-gray-600">加载中...</div>
+              </div>
+            )}
+            
+            {error && (
+              <div className="text-red-600 text-center py-12">
+                {error}
+              </div>
             )}
 
-            {/* 一、导言 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section1.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section1.item1')}</p></li>
-                <li><p>{t('section1.item2')}</p></li>
-                <li><p>{t('section1.item3')}</p></li>
-                <li><p>{t('section1.item4')}</p></li>
-                <li><p>{t('section1.item5')}</p></li>
-              </ul>
-            </section>
-
-            {/* 二、服务与许可 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section2.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section2.item1')}</p></li>
-                <li><p>{t('section2.item2')}</p></li>
-                <li><p>{t('section2.item3')}</p></li>
-              </ul>
-            </section>
-
-            {/* 三、用户账户 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section3.title')}
-              </h3>
-              <h4 className="text-base font-semibold text-gray-800 mt-4 mb-2">
-                {t('section3.subsection1.title')}
-              </h4>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6 mb-4">
-                <li><p>{t('section3.subsection1.item1')}</p></li>
-                <li><p>{t('section3.subsection1.item2')}</p></li>
-                <li><p>{t('section3.subsection1.item3')}</p></li>
-                <li><p>{t('section3.subsection1.item4')}</p></li>
-                <li><p>{t('section3.subsection1.item5')}</p></li>
-                <li><p>{t('section3.subsection1.item6')}</p></li>
-                <li><p>{t('section3.subsection1.item7')}</p></li>
-                <li><p>{t('section3.subsection1.item8')}</p></li>
-              </ul>
-              <h4 className="text-base font-semibold text-gray-800 mt-4 mb-2">
-                {t('section3.subsection2.title')}
-              </h4>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6 mb-4">
-                <li><p>{t('section3.subsection2.item1')}</p></li>
-                <li><p>{t('section3.subsection2.item2')}</p></li>
-                <li><p>{t('section3.subsection2.item3')}</p></li>
-                <li><p>{t('section3.subsection2.item4')}</p></li>
-                <li><p>{t('section3.subsection2.item5')}</p></li>
-              </ul>
-              <h4 className="text-base font-semibold text-gray-800 mt-4 mb-2">
-                {t('section3.subsection3.title')}
-              </h4>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section3.subsection3.item1')}</p></li>
-              </ul>
-            </section>
-
-            {/* 四、用户个人信息保护及隐私政策 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section4.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section4.item1')}</p></li>
-                <li><p>{t('section4.item2')}</p></li>
-                <li><p>{t('section4.item3')}</p></li>
-                <li><p>{t('section4.item4')}</p></li>
-              </ul>
-            </section>
-
-            {/* 五、服务费用 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section5.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section5.item1')}</p></li>
-                <li><p>{t('section5.item2')}</p></li>
-                <li><p>{t('section5.item3')}</p></li>
-              </ul>
-            </section>
-
-            {/* 六、内容标识 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section6.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section6.item1')}</p></li>
-                <li><p>{t('section6.item2')}</p></li>
-                <li><p>{t('section6.item3')}</p></li>
-                <li><p>{t('section6.item4')}</p></li>
-              </ul>
-            </section>
-
-            {/* 七、知识产权 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section7.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section7.item1')}</p></li>
-                <li><p>{t('section7.item2')}</p></li>
-                <li><p>{t('section7.item3')}</p></li>
-                <li><p>{t('section7.item4')}</p></li>
-              </ul>
-            </section>
-
-            {/* 八、网络安全保护与合规声明 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section8.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section8.item1')}</p></li>
-                <li><p>{t('section8.item2')}</p></li>
-                <li><p>{t('section8.item3')}</p></li>
-                <li><p>{t('section8.item4')}</p></li>
-                <li><p>{t('section8.item5')}</p></li>
-                <li><p>{t('section8.item6')}</p></li>
-              </ul>
-            </section>
-
-            {/* 九、投诉举报 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section9.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section9.item1')}</p></li>
-                <li><p>{t('section9.item2')}</p></li>
-              </ul>
-            </section>
-
-            {/* 十、违约责任与处理 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section10.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section10.item1')}</p></li>
-                <li><p>{t('section10.item2')}</p></li>
-                <li><p>{t('section10.item3')}</p></li>
-                <li><p>{t('section10.item4')}</p></li>
-              </ul>
-            </section>
-
-            {/* 十一、未成年人使用规则 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section11.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section11.item1')}</p></li>
-                <li><p>{t('section11.item2')}</p></li>
-                <li><p>{t('section11.item3')}</p></li>
-                <li><p>{t('section11.item4')}</p></li>
-                <li><p>{t('section11.item5')}</p></li>
-              </ul>
-            </section>
-
-            {/* 十二、功能局限性声明与责任限制 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section12.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section12.item1')}</p></li>
-                <li><p>{t('section12.item2')}</p></li>
-                <li><p>{t('section12.item3')}</p></li>
-                <li><p>{t('section12.item4')}</p></li>
-                <li><p>{t('section12.item5')}</p></li>
-                <li><p>{t('section12.item6')}</p></li>
-                <li><p>{t('section12.item7')}</p></li>
-              </ul>
-            </section>
-
-            {/* 十三、协议的生效、终止与争议解决 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section13.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section13.item1')}</p></li>
-                <li><p>{t('section13.item2')}</p></li>
-                <li><p>{t('section13.item3')}</p></li>
-                <li><p>{t('section13.item4')}</p></li>
-                <li><p>{t('section13.item5')}</p></li>
-              </ul>
-            </section>
-
-            {/* 十四、其他 */}
-            <section className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                {t('section14.title')}
-              </h3>
-              <ul className="list-none space-y-3 text-gray-700 text-sm leading-6">
-                <li><p>{t('section14.item1')}</p></li>
-                <li><p>{t('section14.item2')}</p></li>
-                <li><p>{t('section14.item3')}</p></li>
-              </ul>
-            </section>
+            {!isLoading && !error && markdownContent && (
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  h1: ({ node, ...props }) => (
+                    <h1 className="text-2xl font-bold text-gray-900 mb-4" {...props} />
+                  ),
+                  h2: ({ node, ...props }) => (
+                    <h2 className="text-xl font-semibold text-gray-900 mb-3 mt-6" {...props} />
+                  ),
+                  h3: ({ node, ...props }) => (
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2 mt-4" {...props} />
+                  ),
+                  h4: ({ node, ...props }) => (
+                    <h4 className="text-base font-semibold text-gray-800 mb-2 mt-3" {...props} />
+                  ),
+                  p: ({ node, ...props }) => (
+                    <p className="text-gray-700 text-sm leading-6 mb-3" {...props} />
+                  ),
+                  ul: ({ node, ...props }) => (
+                    <ul className="list-disc list-inside space-y-2 mb-3 text-gray-700 text-sm" {...props} />
+                  ),
+                  ol: ({ node, ...props }) => (
+                    <ol className="list-decimal list-inside space-y-2 mb-3 text-gray-700 text-sm" {...props} />
+                  ),
+                  li: ({ node, ...props }) => (
+                    <li className="leading-6" {...props} />
+                  ),
+                  strong: ({ node, ...props }) => (
+                    <strong className="font-semibold text-gray-900" {...props} />
+                  ),
+                  hr: ({ node, ...props }) => (
+                    <hr className="my-6 border-gray-300" {...props} />
+                  ),
+                  blockquote: ({ node, ...props }) => (
+                    <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600 my-4" {...props} />
+                  ),
+                  code: ({ node, ...props }) => (
+                    <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props} />
+                  ),
+                  a: ({ node, ...props }) => (
+                    <a className="text-orange-500 hover:text-orange-600 underline" {...props} />
+                  ),
+                }}
+              >
+                {markdownContent}
+              </ReactMarkdown>
+            )}
           </div>
         </div>
 
