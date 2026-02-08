@@ -264,7 +264,7 @@ export const MODEL_THRESHOLDS: Record<string, ModelThresholds> = {
   },
   "Z-Image": {
     normalSteps: 20,
-    highSteps: 12,
+    highSteps: 35,
     normalResolutionPixels: 1024 * 1024,      // 1048576
     highResolutionPixels: 1416 * 1416,       // 2005056
   },
