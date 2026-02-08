@@ -2,9 +2,6 @@
 
 import { useTranslations } from 'next-intl'
 import { useDownloadWithTerms } from '@/hooks/useDownloadWithTerms'
-import dynamic from 'next/dynamic'
-
-const DownloadTermsModal = dynamic(() => import('@/components/DownloadTermsModal'), { ssr: false })
 
 interface GeneratePreviewProps {
   generatedImages: string[];
@@ -29,7 +26,7 @@ export default function GeneratePreview({
   onDownloadImage
 }: GeneratePreviewProps) {
   const t = useTranslations('home.generate')
-  const { checkAndDownload, isModalOpen, isLoading, closeModal, DownloadTermsModalWrapper } = useDownloadWithTerms()
+  const { checkAndDownload, DownloadTermsModalWrapper } = useDownloadWithTerms()
 
   const handleDownloadImage = async (image: string, index: number) => {
     await checkAndDownload(async () => {

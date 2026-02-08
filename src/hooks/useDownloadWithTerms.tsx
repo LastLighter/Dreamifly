@@ -87,7 +87,7 @@ export function useDownloadWithTerms(): UseDownloadWithTermsReturn {
           return
         }
       }
-    } catch (_) {
+    } catch {
       // 接口失败则按未同意处理，弹窗让用户确认
     }
 
