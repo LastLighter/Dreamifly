@@ -16,13 +16,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { nickname, avatar, avatarFrameId } = body;
+    const { nickname, avatar, avatarFrameId, acceptedDownloadTerms } = body;
 
     // 构建更新数据
     const updateData: {
       nickname?: string;
       avatar?: string;
       avatarFrameId?: number | null;
+      acceptedDownloadTerms?: boolean;
     } = {};
 
     if (nickname !== undefined) {
@@ -42,6 +43,9 @@ export async function POST(request: NextRequest) {
           updateData.avatarFrameId = frameId;
         }
       }
+    }
+    if (acceptedDownloadTerms !== undefined) {
+      updateData.acceptedDownloadTerms = acceptedDownloadTerms;
     }
 
     // 更新用户信息

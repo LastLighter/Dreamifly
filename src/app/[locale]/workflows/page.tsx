@@ -7,11 +7,13 @@ import Link from 'next/link'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { usePoints } from '@/contexts/PointsContext'
 import { transferUrl } from '@/utils/locale'
+import { useDownloadWithTerms } from '@/hooks/useDownloadWithTerms'
 
 type TabKey = 'repair' | 'upscale'
 
 export default function WorkflowsPage() {
   const { refreshPoints } = usePoints()
+  const { checkAndDownload, DownloadTermsModalWrapper } = useDownloadWithTerms()
   const searchParams = useSearchParams()
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
@@ -685,13 +687,15 @@ export default function WorkflowsPage() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  const link = document.createElement('a')
-                  link.href = resultImage
-                  link.download = `supir-repair-${Date.now()}.png`
-                  link.click()
+                onClick={async () => {
+                  await checkAndDownload(async () => {
+                    const link = document.createElement('a')
+                    link.href = resultImage
+                    link.download = `supir-repair-${Date.now()}.png`
+                    link.click()
+                  })
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-orange-600 border border-orange-300 rounded-xl hover:bg-orange-50 transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-orange-600 border border-orange-300 rounded-xl hover:bg-orange-50 transition-all focus:outline-none"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -894,7 +898,7 @@ export default function WorkflowsPage() {
                     link.download = `supir-upscale-${Date.now()}.png`
                     link.click()
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-orange-600 border border-orange-300 rounded-xl hover:bg-orange-50 transition-all"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-orange-600 border border-orange-300 rounded-xl hover:bg-orange-50 transition-all focus:outline-none"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1133,6 +1137,9 @@ export default function WorkflowsPage() {
           </div>
         </div>
       )}
+      
+      {/* 下载协议弹窗 */}
+      <DownloadTermsModalWrapper />
     </div>
   )
 }

@@ -152,6 +152,11 @@ export const auth = betterAuth({
         type: "string",
         required: false,
       },
+      acceptedDownloadTerms: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+      },
     },
   },
   session: {

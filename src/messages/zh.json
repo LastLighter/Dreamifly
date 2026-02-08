@@ -639,5 +639,24 @@
       "description": "生成图片后会自动保存到这里",
       "button": "开始生成图片"
     }
+  },
+  "downloadTerms": {
+    "modal": {
+      "title": "无水印下载协议",
+      "agreeLabel": "我已阅读并同意",
+      "linkText": "《无水印下载协议》",
+      "loading": "加载中...",
+      "error": "加载协议失败，请稍后重试",
+      "agree": "同意并下载",
+      "agreeShort": "同意",
+      "agreeing": "处理中...",
+      "cancel": "取消",
+      "back": "返回",
+      "agreementRequired": "请先勾选同意协议"
+    },
+    "toast": {
+      "accepted": "已同意下载协议",
+      "failed": "操作失败，请重试"
+    }
   }
 }

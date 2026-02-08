@@ -634,5 +634,24 @@
       "description": "Generated images will be automatically saved here",
       "button": "Start Generating"
     }
+  },
+  "downloadTerms": {
+    "modal": {
+      "title": "Watermark-Free Download Agreement",
+      "agreeLabel": "I have read and agree to the",
+      "linkText": "Watermark-Free Download Agreement",
+      "loading": "Loading...",
+      "error": "Failed to load agreement, please try again later",
+      "agree": "Agree & Download",
+      "agreeShort": "I Agree",
+      "agreeing": "Processing...",
+      "cancel": "Cancel",
+      "back": "Back",
+      "agreementRequired": "Please check the box to accept the agreement"
+    },
+    "toast": {
+      "accepted": "Download agreement accepted",
+      "failed": "Operation failed, please try again"
+    }
   }
 }

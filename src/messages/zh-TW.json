@@ -595,5 +595,24 @@
         "description": "生成內容將不被公開"
       }
     }
+  },
+  "downloadTerms": {
+    "modal": {
+      "title": "無浮水印下載協議",
+      "agreeLabel": "我已閱讀並同意",
+      "linkText": "《無浮水印下載協議》",
+      "loading": "載入中...",
+      "error": "載入協議失敗，請稍後重試",
+      "agree": "同意並下載",
+      "agreeShort": "同意",
+      "agreeing": "處理中...",
+      "cancel": "取消",
+      "back": "返回",
+      "agreementRequired": "請先勾選同意協議"
+    },
+    "toast": {
+      "accepted": "已同意下載協議",
+      "failed": "操作失敗，請重試"
+    }
   }
 }

@@ -35,6 +35,7 @@ export const user = pgTable("user", {
   isSubscribed: boolean("is_subscribed").default(false), // 是否为订阅用户
   subscriptionExpiresAt: timestamp("subscription_expires_at"), // 订阅过期时间
   lastDailyAwardDate: timestamp("last_daily_award_date"), // 数据库字段名: last_daily_award_date，最后签到日期（东八区凌晨4点刷新）
+  acceptedDownloadTerms: boolean("accepted_download_terms").default(false), // 数据库字段名: accepted_download_terms，是否同意无水印下载协议
   banReason: text("ban_reason"), // 数据库字段名: ban_reason，封禁原因
 });
 
