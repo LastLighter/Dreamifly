@@ -11,9 +11,11 @@ import { useAvatar } from '@/contexts/AvatarContext'
 import PointsTotalRanking from '@/components/admin/PointsTotalRanking'
 import PointsConsumeRanking from '@/components/admin/PointsConsumeRanking'
 import PointsConsumeDistribution from '@/components/admin/PointsConsumeDistribution'
+import PointsMonthlyUserStats from '@/components/admin/PointsMonthlyUserStats'
+import PointsExportDialog from '@/components/admin/PointsExportDialog'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 
-type PointsTab = 'consume' | 'total' | 'distribution'
+type PointsTab = 'consume' | 'total' | 'distribution' | 'monthly'
 type TimeRange = 'hour' | 'today' | 'yesterday' | 'week' | 'month' | 'all'
 
 export default function PointsAdminPage() {
@@ -152,7 +154,7 @@ export default function PointsAdminPage() {
         <header className="bg-gradient-to-r from-white to-gray-50 border-b border-orange-200/50 shadow-sm sticky top-0 z-30 lg:static">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-16">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-1">
                 <div className="p-2 bg-gradient-to-r from-orange-400/10 to-amber-400/10 rounded-lg">
                   <svg
                     className="w-5 h-5 text-orange-600"
@@ -174,6 +176,9 @@ export default function PointsAdminPage() {
                   </h1>
                   <p className="text-xs text-gray-500 -mt-0.5">积分消耗排名、总额统计与分布分析</p>
                 </div>
+              </div>
+              <div className="hidden md:block">
+                <PointsExportDialog />
               </div>
               <div className="flex items-center gap-3 px-4 py-2 bg-white/80 rounded-lg border border-orange-200/50 shadow-sm hover:shadow-md transition-all duration-200">
                 <Image
@@ -204,10 +209,11 @@ export default function PointsAdminPage() {
         {/* 内容区域 */}
         <div className="p-4 lg:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* Tab 切换 + 时间范围选择 */}
+              {/* Tab 切换 + 时间范围选择 */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-4">
-              {/* 主 Tab：消耗 / 总额 / 分布 */}
-              <div className="flex gap-2 border-b border-gray-200 pb-1">
+              {/* 主 Tab：消耗 / 总额 / 分布 / 月度统计 + 导出按钮（移动端） */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex gap-2 border-b border-gray-200 pb-1 flex-1">
                 <button
                   onClick={() => setActiveTab('consume')}
                   className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
@@ -238,6 +244,20 @@ export default function PointsAdminPage() {
                 >
                   积分消耗分布
                 </button>
+                <button
+                  onClick={() => setActiveTab('monthly')}
+                  className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 ${
+                    activeTab === 'monthly'
+                      ? 'border-orange-500 text-orange-600'
+                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  用户月度统计
+                </button>
+                </div>
+                <div className="md:hidden">
+                  <PointsExportDialog />
+                </div>
               </div>
 
               {/* 时间范围 Tab（参考数据统计页的划分），用于"积分消耗排名"和"积分消耗分布" */}
@@ -282,8 +302,10 @@ export default function PointsAdminPage() {
               <PointsConsumeRanking timeRange={timeRange} />
             ) : activeTab === 'distribution' ? (
               <PointsConsumeDistribution timeRange={timeRange} />
-            ) : (
+            ) : activeTab === 'total' ? (
               <PointsTotalRanking />
+            ) : (
+              <PointsMonthlyUserStats />
             )}
           </div>
         </div>
