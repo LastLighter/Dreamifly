@@ -346,7 +346,8 @@
     "workflows": "Workflows",
     "pricing": "Subscription",
     "myWorks": "My Works",
-    "aiPlaza": "AI Plaza"
+    "aiPlaza": "AI Plaza",
+    "newYearWish": "New Year Wishes"
   },
   "friends": {
     "title": "Friends",
@@ -652,6 +653,60 @@
     "toast": {
       "accepted": "Download agreement accepted",
       "failed": "Operation failed, please try again"
+    }
+  },
+  "newYearWish": {
+    "title": "2025 New Year Wish Machine",
+    "subtitle": "Lucky Grid of Nine",
+    "description": "Upload your photo and let AI create your personalized New Year wish images",
+    "upload": {
+      "button": "Choose My Lucky Photo",
+      "dragTip": "Or drag image here",
+      "fileTip": "Supports JPG, PNG formats, square images recommended",
+      "uploading": "Uploading...",
+      "error": "Upload failed, please try again"
+    },
+    "generate": {
+      "button": "Draw My New Year Fortune",
+      "generating": "Generating your lucky images...",
+      "progress": "Generating {current}/{total}...",
+      "success": "Generation successful!",
+      "error": "Generation failed, please try again",
+      "retry": "Regenerate"
+    },
+    "result": {
+      "title": "Your New Year Wish Grid",
+      "downloadButton": "Download All Images",
+      "downloading": "Downloading...",
+      "downloadHint": "Perfect for social media sharing",
+      "preview": "Click image to preview"
+    },
+    "features": {
+      "title": "Features",
+      "free": "Completely Free",
+      "freeDesc": "No credits, unlimited usage",
+      "noLogin": "No Login Required",
+      "noLoginDesc": "Guest friendly",
+      "fast": "Lightning Fast",
+      "fastDesc": "AI parallel processing",
+      "share": "Easy Sharing",
+      "shareDesc": "Perfect for social media"
+    },
+    "steps": {
+      "title": "How to Use",
+      "step1": "Upload Photo",
+      "step1Desc": "Choose your personal photo or avatar",
+      "step2": "AI Generation",
+      "step2Desc": "Randomly select 8 wishes, AI generates images",
+      "step3": "Save & Share",
+      "step3Desc": "Download 9 images with one click"
+    },
+    "tips": {
+      "title": "Tips",
+      "tip1": "Square or near-square photos work best",
+      "tip2": "Generation takes about 30-60 seconds, please be patient",
+      "tip3": "Different wishes are randomly selected each time",
+      "tip4": "Completely free, no login required, unlimited usage"
     }
   }
 }

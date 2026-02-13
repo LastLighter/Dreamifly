@@ -323,7 +323,10 @@
     "switchLanguage": "切換語言",
     "friends": "友鏈",
     "workflows": "工作流",
-    "pricing": "會員訂閱"
+    "pricing": "會員訂閱",
+    "myWorks": "我的作品",
+    "aiPlaza": "AI廣場",
+    "newYearWish": "新年許願機"
   },
   "footer": {
     "copyright": "Dreamifly 版權所有。"
@@ -613,6 +616,60 @@
     "toast": {
       "accepted": "已同意下載協議",
       "failed": "操作失敗，請重試"
+    }
+  },
+  "newYearWish": {
+    "title": "2025 蛇年許願機",
+    "subtitle": "好運九宮格",
+    "description": "上傳你的照片，讓AI為你定製專屬新年願望圖",
+    "upload": {
+      "button": "選擇我的福照",
+      "dragTip": "或拖曳圖片到這裡",
+      "fileTip": "支援 JPG、PNG 格式，建議正方形圖片",
+      "uploading": "上傳中...",
+      "error": "上傳失敗，請重試"
+    },
+    "generate": {
+      "button": "抽取我的新年好運",
+      "generating": "福星高照生成中...",
+      "progress": "正在生成第 {current}/{total} 張...",
+      "success": "生成成功！",
+      "error": "生成失敗，請重試",
+      "retry": "重新生成"
+    },
+    "result": {
+      "title": "你的新年願望九宮格",
+      "downloadButton": "一鍵保存九宮格",
+      "downloading": "下載中...",
+      "downloadHint": "可直接分享朋友圈",
+      "preview": "點擊圖片可放大查看"
+    },
+    "features": {
+      "title": "活動特色",
+      "free": "完全免費",
+      "freeDesc": "無需積分，不限次數",
+      "noLogin": "無需登錄",
+      "noLoginDesc": "遊客也可以使用",
+      "fast": "極速生成",
+      "fastDesc": "AI並發處理，快速出圖",
+      "share": "一鍵分享",
+      "shareDesc": "朋友圈九宮格專屬"
+    },
+    "steps": {
+      "title": "使用步驟",
+      "step1": "上傳照片",
+      "step1Desc": "選擇你的個人照片或頭像",
+      "step2": "AI生成",
+      "step2Desc": "隨機抽取8個新年願望，AI智能生成",
+      "step3": "保存分享",
+      "step3Desc": "一鍵下載9張圖片，分享朋友圈"
+    },
+    "tips": {
+      "title": "溫馨提示",
+      "tip1": "建議上傳正方形或接近正方形的照片，效果更佳",
+      "tip2": "生成過程約需30-60秒，請耐心等待",
+      "tip3": "每次隨機抽取不同的願望，可多次生成",
+      "tip4": "完全免費，無需登錄，不限制使用次數"
     }
   }
 }

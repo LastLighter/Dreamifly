@@ -271,6 +271,16 @@ export default function Navbar() {
               <span className="text-sm text-gray-900 group-hover:text-gray-800">{t('quickGenerate')}</span>
             </button>
 
+            {/* 新年许愿机 - 春节特色功能 */}
+            <Link
+              href={transferUrl('/new-year-wish', locale)}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="group w-full flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-red-100/70 to-yellow-100/70 hover:from-red-200/70 hover:to-yellow-200/70 border border-red-200/60 transition-all duration-300 shadow-sm hover:shadow-md"
+            >
+              <span className="text-xl flex-shrink-0">🧧</span>
+              <span className="text-sm font-medium text-red-700 group-hover:text-red-800">新年许愿机</span>
+            </Link>
+
             {/* 价格/会员菜单 */}
             <Link
               href={transferUrl('/pricing', locale)}

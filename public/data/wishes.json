@@ -1,0 +1,182 @@
+[
+  {
+    "id": "wish_001",
+    "name": "财源滚滚",
+    "prompt": "golden coins and red envelopes floating around, money tree, wealth symbols, prosperity aura, Chinese fortune elements, festive gold and red colors",
+    "icon": "💰"
+  },
+  {
+    "id": "wish_002",
+    "name": "身体健康",
+    "prompt": "healthy glow, vitality energy, fitness symbols, wellness aura, strong body, medical cross with heart, energetic vibe, fresh and vibrant atmosphere",
+    "icon": "💪"
+  },
+  {
+    "id": "wish_003",
+    "name": "心想事成",
+    "prompt": "magic wand with sparkles, dream coming true, wish stars, glowing achievement symbols, success light beams, hope and aspiration elements",
+    "icon": "✨"
+  },
+  {
+    "id": "wish_004",
+    "name": "学业进步",
+    "prompt": "books and graduation cap, academic symbols, diploma scroll, knowledge light, study excellence, wisdom glow, educational achievement elements",
+    "icon": "📚"
+  },
+  {
+    "id": "wish_005",
+    "name": "爱情甜蜜",
+    "prompt": "romantic hearts floating, love arrows, couple symbols, sweet pink atmosphere, romance petals, happiness aura, warm affection elements",
+    "icon": "💕"
+  },
+  {
+    "id": "wish_006",
+    "name": "升职加薪",
+    "prompt": "career ladder going up, promotion trophy, salary rising chart, success briefcase, professional achievement, upward arrow, business excellence symbols",
+    "icon": "📈"
+  },
+  {
+    "id": "wish_007",
+    "name": "家庭和睦",
+    "prompt": "warm family house, harmony symbols, togetherness aura, home sweet home, peaceful atmosphere, love and unity, cozy family elements",
+    "icon": "🏠"
+  },
+  {
+    "id": "wish_008",
+    "name": "好运连连",
+    "prompt": "four-leaf clover, lucky horseshoe, fortune wheel, good luck charms, lucky stars, serendipity sparkles, blessing symbols",
+    "icon": "🍀"
+  },
+  {
+    "id": "wish_009",
+    "name": "万事如意",
+    "prompt": "smooth sailing boat, everything perfect, harmonious balance, peaceful zen elements, favorable wind, auspicious clouds, everything goes well symbols",
+    "icon": "🎯"
+  },
+  {
+    "id": "wish_010",
+    "name": "事业有成",
+    "prompt": "business success trophy, career achievement medal, professional milestone, victory laurel wreath, entrepreneurship symbols, success summit",
+    "icon": "🏆"
+  },
+  {
+    "id": "wish_011",
+    "name": "平安喜乐",
+    "prompt": "peaceful dove, safety shield, joyful smile, happiness balloon, calm serenity, protection aura, cheerful and safe atmosphere",
+    "icon": "🕊️"
+  },
+  {
+    "id": "wish_012",
+    "name": "脱单成功",
+    "prompt": "cupid arrow, matchmaking symbols, romantic date, love connection, heart linking, relationship blooming, finding true love elements",
+    "icon": "💘"
+  },
+  {
+    "id": "wish_013",
+    "name": "逢考必过",
+    "prompt": "test paper with A+, examination success, certificate of achievement, victory check mark, academic triumph, passing score symbols",
+    "icon": "📝"
+  },
+  {
+    "id": "wish_014",
+    "name": "美梦成真",
+    "prompt": "dream cloud coming to life, fantasy becoming reality, magic transformation, wish fulfillment, dreamy sparkles, aspiration achieved",
+    "icon": "🌟"
+  },
+  {
+    "id": "wish_015",
+    "name": "福星高照",
+    "prompt": "lucky star shining bright, fortune blessing from above, celestial blessing, divine favor, auspicious light rays, heavenly fortune",
+    "icon": "⭐"
+  },
+  {
+    "id": "wish_016",
+    "name": "吉祥如意",
+    "prompt": "auspicious ruyi scepter, lucky Chinese symbols, propitious clouds, favorable omens, blessing patterns, traditional fortune elements",
+    "icon": "🎊"
+  },
+  {
+    "id": "wish_017",
+    "name": "龙马精神",
+    "prompt": "energetic dragon and horse, vigorous spirit, powerful vitality, strong momentum, dynamic energy, spirited and lively atmosphere",
+    "icon": "🐉"
+  },
+  {
+    "id": "wish_018",
+    "name": "年年有余",
+    "prompt": "abundant fish swimming, surplus wealth, yearly prosperity, overflow of blessings, plenty and abundance, continuous fortune",
+    "icon": "🐟"
+  },
+  {
+    "id": "wish_019",
+    "name": "桃花运旺",
+    "prompt": "peach blossoms blooming, romantic opportunities, love luck flourishing, attractive charm aura, relationship prospects, romance in the air",
+    "icon": "🌸"
+  },
+  {
+    "id": "wish_020",
+    "name": "考研上岸",
+    "prompt": "graduate school acceptance letter, postgraduate success, research achievement, academic ladder, master degree symbols, higher education triumph",
+    "icon": "🎓"
+  },
+  {
+    "id": "wish_021",
+    "name": "暴富暴瘦",
+    "prompt": "money raining down while body slimming, wealth increasing and weight decreasing, dual achievement, fortune and fitness together, perfect balance",
+    "icon": "💎"
+  },
+  {
+    "id": "wish_022",
+    "name": "出门遇贵人",
+    "prompt": "helpful person appearing, beneficial connection, opportunity encounter, networking luck, supportive mentor, serendipitous meeting symbols",
+    "icon": "🤝"
+  },
+  {
+    "id": "wish_023",
+    "name": "逢赌必赢",
+    "prompt": "winning cards and dice, lucky gambling, jackpot symbols, winning streak, fortune in games, lucky number elements",
+    "icon": "🎰"
+  },
+  {
+    "id": "wish_024",
+    "name": "心情愉悦",
+    "prompt": "bright sunshine smile, cheerful mood, happiness bubbles, joyful heart, positive energy, delightful atmosphere, carefree vibes",
+    "icon": "😊"
+  },
+  {
+    "id": "wish_025",
+    "name": "才华横溢",
+    "prompt": "artistic palette and instruments, creative genius, talent shining, skill mastery, gifted abilities, brilliance and excellence symbols",
+    "icon": "🎨"
+  },
+  {
+    "id": "wish_026",
+    "name": "睡眠香甜",
+    "prompt": "peaceful sleeping moon, sweet dreams, restful night, comfortable bed, relaxing sleep, dream clouds, tranquil rest symbols",
+    "icon": "🌙"
+  },
+  {
+    "id": "wish_027",
+    "name": "皮肤白嫩",
+    "prompt": "glowing smooth skin, beauty radiance, youthful complexion, skincare success, flawless appearance, natural beauty glow",
+    "icon": "✨"
+  },
+  {
+    "id": "wish_028",
+    "name": "脱发再生",
+    "prompt": "healthy hair growing, lush hair restoration, follicle regeneration, thick hair symbols, hair health, vitality regrowth elements",
+    "icon": "💇"
+  },
+  {
+    "id": "wish_029",
+    "name": "车房双全",
+    "prompt": "luxury car and beautiful house together, property ownership, material success, comfortable lifestyle, wealth achievement symbols",
+    "icon": "🏡"
+  },
+  {
+    "id": "wish_030",
+    "name": "父母健康",
+    "prompt": "elderly couple in good health, family care, parental wellness, longevity symbols, filial piety, multi-generation happiness",
+    "icon": "👴"
+  }
+]
