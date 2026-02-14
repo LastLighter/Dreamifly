@@ -45,7 +45,7 @@ function formatDate(date: Date | null): string {
       hour12: false,
       timeZone: 'Asia/Shanghai',
     }).format(new Date(date))
-  } catch (error) {
+  } catch {
     return String(date)
   }
 }
@@ -132,14 +132,16 @@ export async function POST(request: NextRequest) {
         roleConditions.push(and(eq(user.isPremium, false), eq(user.isAdmin, false)))
       }
       if (roleConditions.length > 0) {
-        conditions.push(or(...roleConditions))
+        conditions.push(or(...roleConditions)!)
       }
     }
 
     // 描述筛选
     if (descriptions && descriptions.length > 0) {
       const descConditions = descriptions.map((desc) => like(userPoints.description, `%${desc}%`))
-      conditions.push(or(...descConditions))
+      if (descConditions.length > 0) {
+        conditions.push(or(...descConditions)!)
+      }
     }
 
     // 积分范围筛选（使用绝对值）
@@ -190,15 +192,17 @@ export async function POST(request: NextRequest) {
     const csvRows = records.map((record) => {
       return fields
         .map((field) => {
-          let value: any = record[field]
+          let value: any
 
           // 特殊字段处理
-          if (field === 'type') {
-            value = value === 'earned' ? '获得' : '消耗'
-          } else if (field === 'userRole') {
+          if (field === 'userRole') {
             value = record.isAdmin ? '管理员' : record.isPremium ? '会员' : '普通用户'
+          } else if (field === 'type') {
+            value = record.type === 'earned' ? '获得' : '消耗'
           } else if (field === 'earnedAt' || field === 'expiresAt' || field === 'createdAt') {
-            value = formatDate(value)
+            value = formatDate(record[field] as Date | null)
+          } else {
+            value = record[field as keyof typeof record]
           }
 
           return escapeCsvValue(value)

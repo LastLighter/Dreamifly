@@ -80,7 +80,12 @@ export async function GET(request: NextRequest) {
     // 用户搜索（姓名/邮箱）
     if (params.userSearch && params.userSearch.trim()) {
       const keyword = `%${params.userSearch.trim()}%`
-      conditions.push(or(like(user.name, keyword), like(user.email, keyword)))
+      conditions.push(
+        or(
+          like(user.name, keyword),
+          like(user.email, keyword)
+        )!
+      )
     }
 
     // 按用户 + 月份聚合

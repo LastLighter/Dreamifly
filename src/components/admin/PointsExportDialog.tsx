@@ -6,7 +6,6 @@ import type {
   ExportFormData,
   ExportField,
   TimeRange,
-  RecordType,
   UserRole,
 } from '@/types/points'
 import { FIELD_LABELS, DEFAULT_EXPORT_FIELDS } from '@/types/points'
@@ -22,7 +21,6 @@ export default function PointsExportDialog() {
     handleSubmit,
     watch,
     setValue,
-    formState: { errors },
   } = useForm<ExportFormData>({
     defaultValues: {
       timeRange: 'today',

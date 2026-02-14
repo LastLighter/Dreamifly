@@ -5,7 +5,7 @@
 'use client'
 
 import * as React from 'react'
-import { X, Sparkles, Download, Upload, RefreshCw } from 'lucide-react'
+import { X, Download, Upload, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
 

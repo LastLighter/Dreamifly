@@ -23,7 +23,6 @@ export default function NewYearWishPage() {
   const [generatedImages, setGeneratedImages] = useState<string[]>([])
   const [wishes, setWishes] = useState<Wish[]>([])
   const [error, setError] = useState<string>('')
-  const [progress, setProgress] = useState<string>('')
   const [currentWishIndex, setCurrentWishIndex] = useState<number>(0)
   const [currentWishName, setCurrentWishName] = useState<string>('')
   const [selectedWishes, setSelectedWishes] = useState<Wish[]>([])
@@ -140,8 +139,6 @@ export default function NewYearWishPage() {
       }
       setSelectedWishes(selected)
       
-      setProgress('已抽取8个愿望，开始生成...')
-      
       const progressInterval = setInterval(() => {
         setCurrentWishIndex(prev => {
           const next = prev + 1
@@ -182,7 +179,6 @@ export default function NewYearWishPage() {
       if (data.success) {
         setGeneratedImages(data.images)
         setWishes(data.wishes)
-        setProgress('生成成功！')
         setCurrentWishIndex(8)
       } else {
         throw new Error('生成失败')
