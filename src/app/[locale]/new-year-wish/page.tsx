@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import NineGridDisplay from '@/components/NineGridDisplay'
-import { generateDynamicToken } from '@/utils/dynamicToken'
+import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import NewYearFooter from '@/components/new-year/NewYearFooter'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -171,7 +171,7 @@ export default function NewYearWishPage() {
         })
       }, 15000)
 
-      const token = generateDynamicToken()
+      const token = await generateDynamicTokenWithServerTime()
       const base64Data = uploadedAvatar.split(',')[1]
 
       const response = await fetch('/api/new-year-wish/generate', {
