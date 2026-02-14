@@ -140,16 +140,34 @@ export default function NewYearWishPage() {
       }
       setSelectedWishes(selected)
       
+      // 智能进度条：前期正常推进，后期减速避免过早到100%
+      let progressStep = 0
       const progressInterval = setInterval(() => {
         setCurrentWishIndex(prev => {
-          const next = prev + 1
-          if (next <= 8) {
+          progressStep++
+          
+          // 0-6步：正常推进（每15秒一个愿望，达到75%）
+          if (progressStep <= 6) {
+            const next = progressStep
             if (next <= selected.length) {
               setCurrentWishName(selected[next - 1].name)
             }
             return next
           }
-          return prev
+          // 7-10步：减速推进到90%（避免过早到100%）
+          else if (progressStep <= 10) {
+            const progress = 6 + (progressStep - 6) * 0.35 // 每步增加0.35
+            const index = Math.floor(progress)
+            if (index < selected.length) {
+              setCurrentWishName(selected[index].name)
+            }
+            return progress
+          }
+          // 10+步：缓慢爬升到95%，等待真实完成
+          else {
+            const progress = 7.6 + Math.min((progressStep - 10) * 0.08, 0.4) // 最多到7.6+0.4=8但不到真正的8
+            return progress
+          }
         })
       }, 15000)
 
@@ -178,9 +196,13 @@ export default function NewYearWishPage() {
       const data = await response.json()
       
       if (data.success) {
+        // 立即跳到100%完成状态
+        setCurrentWishIndex(8)
+        setCurrentWishName('') // 清空当前愿望名称
+        // 短暂延迟后显示结果，让用户看到完成状态
+        await new Promise(resolve => setTimeout(resolve, 500))
         setGeneratedImages(data.images)
         setWishes(data.wishes)
-        setCurrentWishIndex(8)
       } else {
         throw new Error('生成失败')
       }
@@ -536,41 +558,46 @@ export default function NewYearWishPage() {
                   {selectedWishes.length > 0 && (
                     <div className="mb-6">
                       <div className="flex flex-wrap justify-center gap-2">
-                        {selectedWishes.map((wish, index) => (
-                          <div
-                            key={wish.id}
-                            className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-300"
-                            style={{
-                              background: index < currentWishIndex
-                                ? 'color-mix(in srgb, var(--accent) 15%, var(--card))'
-                                : index === currentWishIndex
-                                ? 'color-mix(in srgb, var(--primary) 12%, var(--card))'
-                                : 'var(--muted)',
-                              color: index < currentWishIndex
-                                ? 'color-mix(in srgb, var(--accent) 80%, black)'
-                                : index === currentWishIndex
-                                ? 'var(--primary)'
-                                : 'var(--muted-foreground)',
-                              border: index === currentWishIndex
-                                ? '2px solid color-mix(in srgb, var(--primary) 40%, transparent)'
-                                : index < currentWishIndex
-                                ? '2px solid color-mix(in srgb, var(--accent) 30%, transparent)'
-                                : '2px solid color-mix(in srgb, var(--border) 50%, transparent)',
-                              boxShadow: index === currentWishIndex
-                                ? '0 2px 8px color-mix(in srgb, var(--primary) 15%, transparent)'
-                                : 'none',
-                            }}
-                          >
-                            {wish.name}
-                            {index < currentWishIndex && ' ✓'}
-                          </div>
-                        ))}
+                        {selectedWishes.map((wish, index) => {
+                          const isCompleted = index < Math.floor(currentWishIndex)
+                          const isCurrent = index === Math.floor(currentWishIndex) && currentWishIndex < 8
+                          
+                          return (
+                            <div
+                              key={wish.id}
+                              className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-300"
+                              style={{
+                                background: isCompleted
+                                  ? 'color-mix(in srgb, var(--accent) 15%, var(--card))'
+                                  : isCurrent
+                                  ? 'color-mix(in srgb, var(--primary) 12%, var(--card))'
+                                  : 'var(--muted)',
+                                color: isCompleted
+                                  ? 'color-mix(in srgb, var(--accent) 80%, black)'
+                                  : isCurrent
+                                  ? 'var(--primary)'
+                                  : 'var(--muted-foreground)',
+                                border: isCurrent
+                                  ? '2px solid color-mix(in srgb, var(--primary) 40%, transparent)'
+                                  : isCompleted
+                                  ? '2px solid color-mix(in srgb, var(--accent) 30%, transparent)'
+                                  : '2px solid color-mix(in srgb, var(--border) 50%, transparent)',
+                                boxShadow: isCurrent
+                                  ? '0 2px 8px color-mix(in srgb, var(--primary) 15%, transparent)'
+                                  : 'none',
+                              }}
+                            >
+                              {wish.name}
+                              {isCompleted && ' ✓'}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   )}
 
                   {/* 当前生成的愿望 */}
-                  {currentWishName && currentWishIndex > 0 && currentWishIndex <= 8 && (
+                  {currentWishName && currentWishIndex > 0 && currentWishIndex < 8 && (
                     <div className="text-center mb-6">
                       <div
                         className="inline-block px-5 py-2.5 rounded-2xl text-sm font-bold ny-pulse-soft"
@@ -580,7 +607,7 @@ export default function NewYearWishPage() {
                           border: '2px solid color-mix(in srgb, var(--primary) 25%, transparent)',
                         }}
                       >
-                        {t('generate.progress', { current: currentWishIndex, total: 8 })} — {currentWishName}
+                        {t('generate.progress', { current: Math.ceil(currentWishIndex), total: 8 })} — {currentWishName}
                       </div>
                     </div>
                   )}
@@ -589,7 +616,12 @@ export default function NewYearWishPage() {
                   <div className="mb-5">
                     <div className="flex justify-between text-xs font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>
                       <span>{t('generate.generating')}</span>
-                      <span>{currentWishIndex}/8 ({Math.round((currentWishIndex / 8) * 100)}%)</span>
+                      <span>
+                        {currentWishIndex >= 8 
+                          ? '8/8 (100%)'
+                          : `${Math.ceil(currentWishIndex)}/8 (${Math.round((currentWishIndex / 8) * 100)}%)`
+                        }
+                      </span>
                     </div>
                     <div
                       className="w-full h-3 rounded-full overflow-hidden relative"
@@ -598,7 +630,7 @@ export default function NewYearWishPage() {
                       <div
                         className="h-full rounded-full transition-all duration-700 ease-out relative ny-progress-shine"
                         style={{
-                          width: `${(currentWishIndex / 8) * 100}%`,
+                          width: `${Math.min((currentWishIndex / 8) * 100, 100)}%`,
                           background: 'linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%)',
                         }}
                       />
