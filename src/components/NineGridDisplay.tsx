@@ -55,6 +55,18 @@ export default function NineGridDisplay({
     setPreviewWish(null)
   }
 
+  const handlePreviewDownload = () => {
+    if (!previewImage) return
+    const dataUrl = previewImage.startsWith('data:') ? previewImage : `data:image/png;base64,${previewImage}`
+    const filename = previewWish ? `${previewWish.name}.png` : '我的福照.png'
+    const link = document.createElement('a')
+    link.href = dataUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const handleCopyShareText = async () => {
     try {
       if (navigator.clipboard?.writeText) {
@@ -124,33 +136,6 @@ export default function NineGridDisplay({
               }}
             />
 
-            {/* 愿望标签 */}
-            {!item.isUser && item.wish && (
-              <div
-                className="absolute bottom-0 left-0 right-0 p-2 transition-opacity duration-200"
-                style={{
-                  background: 'linear-gradient(to top, color-mix(in srgb, var(--foreground) 70%, transparent), transparent)',
-                }}
-              >
-                <div className="flex items-center justify-center gap-1 text-white text-[10px] sm:text-xs font-bold">
-                  <span>{item.wish.name}</span>
-                </div>
-              </div>
-            )}
-
-            {/* 用户原图标识 */}
-            {item.isUser && (
-              <div
-                className="absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded-xl font-bold"
-                style={{
-                  background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 80%, black) 100%)',
-                  color: 'var(--primary-foreground)',
-                  boxShadow: '0 2px 6px color-mix(in srgb, var(--primary) 30%, transparent)',
-                }}
-              >
-                ❤️
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -220,15 +205,25 @@ export default function NineGridDisplay({
             className="relative max-w-3xl max-h-[90vh] w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* 关闭按钮 */}
-            <button
-              onClick={closePreview}
-              className="absolute -top-12 right-0 flex items-center gap-1 text-white text-sm transition-all duration-200 hover:scale-[1.05] active:scale-[0.95]"
-              style={{ color: 'rgba(255,255,255,0.8)' }}
-            >
-              <X className="w-4 h-4" />
-              <span>关闭</span>
-            </button>
+            {/* 顶部操作栏：下载 + 关闭 */}
+            <div className="absolute -top-12 left-0 right-0 flex items-center justify-between">
+              <button
+                onClick={handlePreviewDownload}
+                className="flex items-center gap-1.5 text-sm font-medium transition-all duration-200 hover:scale-[1.05] active:scale-[0.95]"
+                style={{ color: 'rgba(255,255,255,0.8)' }}
+              >
+                <Download className="w-4 h-4" />
+                <span>下载</span>
+              </button>
+              <button
+                onClick={closePreview}
+                className="flex items-center gap-1 text-sm transition-all duration-200 hover:scale-[1.05] active:scale-[0.95]"
+                style={{ color: 'rgba(255,255,255,0.8)' }}
+              >
+                <X className="w-4 h-4" />
+                <span>关闭</span>
+              </button>
+            </div>
 
             {/* 预览图片 */}
             <div
@@ -247,21 +242,6 @@ export default function NineGridDisplay({
               />
             </div>
 
-            {/* 愿望信息 */}
-            {previewWish && (
-              <div className="mt-4 text-center">
-                <div
-                  className="inline-block px-6 py-3 rounded-2xl text-lg font-bold"
-                  style={{
-                    background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--accent) 80%, black) 100%)',
-                    color: 'white',
-                    boxShadow: '0 4px 16px color-mix(in srgb, var(--primary) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.1)',
-                  }}
-                >
-                  {previewWish.name}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
