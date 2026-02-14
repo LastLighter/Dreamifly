@@ -4,6 +4,10 @@ import { useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import NineGridDisplay from '@/components/NineGridDisplay'
 import { generateDynamicToken } from '@/utils/dynamicToken'
+import NewYearFooter from '@/components/new-year/NewYearFooter'
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent } from '@/components/ui/Card'
+import { Upload, Sparkles, RefreshCw, Camera, Wand2, Download } from 'lucide-react'
 
 interface Wish {
   id: string
@@ -32,13 +36,11 @@ export default function NewYearWishPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // 验证文件类型
     if (!file.type.startsWith('image/')) {
       setError('请上传图片文件')
       return
     }
 
-    // 验证文件大小 (最大10MB)
     if (file.size > 10 * 1024 * 1024) {
       setError('图片大小不能超过10MB')
       return
@@ -94,19 +96,16 @@ export default function NewYearWishPage() {
     setCurrentWishIndex(0)
     setCurrentWishName('')
     
-    // 先获取愿望列表
     try {
       const wishesResponse = await fetch('/data/wishes.json')
       const allWishes = await wishesResponse.json()
       
-      // 随机抽取8个愿望
       const shuffled = [...allWishes].sort(() => 0.5 - Math.random())
       const selected = shuffled.slice(0, 8)
       setSelectedWishes(selected)
       
       setProgress('已抽取8个愿望，开始生成...')
       
-      // 模拟生成进度
       const progressInterval = setInterval(() => {
         setCurrentWishIndex(prev => {
           const next = prev + 1
@@ -118,11 +117,9 @@ export default function NewYearWishPage() {
           }
           return prev
         })
-      }, 15000) // 每15秒更新一次进度（假设每个愿望生成15秒）
+      }, 15000)
 
       const token = generateDynamicToken()
-      
-      // 提取base64数据（去除data:image/xxx;base64,前缀）
       const base64Data = uploadedAvatar.split(',')[1]
 
       const response = await fetch('/api/new-year-wish/generate', {
@@ -168,14 +165,12 @@ export default function NewYearWishPage() {
     setIsDownloading(true)
 
     try {
-      // 组合所有图片（中间是用户原图，周围是生成的图）
       const allImages = [
         ...generatedImages.slice(0, 4),
         uploadedAvatar,
         ...generatedImages.slice(4, 8),
       ]
 
-      // 依次下载每张图片（延迟300ms避免浏览器拦截）
       for (let i = 0; i < allImages.length; i++) {
         await new Promise(resolve => setTimeout(resolve, 300))
         
@@ -198,213 +193,327 @@ export default function NewYearWishPage() {
     }
   }
 
+  // 重置全部状态
+  const handleReset = () => {
+    setUploadedAvatar('')
+    setGeneratedImages([])
+    setWishes([])
+    setError('')
+    setCurrentWishIndex(0)
+    setCurrentWishName('')
+    setSelectedWishes([])
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-yellow-50 to-red-50 relative overflow-hidden">
-      {/* 背景装饰 - 飘落的烟花粒子 */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-10 left-10 w-20 h-20 bg-red-300 rounded-full opacity-20 animate-pulse"></div>
-        <div className="absolute top-32 right-20 w-16 h-16 bg-yellow-300 rounded-full opacity-20 animate-pulse delay-150"></div>
-        <div className="absolute bottom-20 left-1/4 w-24 h-24 bg-red-400 rounded-full opacity-10 animate-pulse delay-300"></div>
-        <div className="absolute bottom-40 right-1/3 w-12 h-12 bg-yellow-400 rounded-full opacity-20 animate-pulse delay-500"></div>
+    <div
+      className="new-year-theme min-h-screen relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(165deg, var(--background) 0%, color-mix(in srgb, var(--background) 85%, var(--primary)) 50%, color-mix(in srgb, var(--background) 75%, var(--accent)) 100%)',
+      }}
+    >
+      {/* ===== 背景装饰粒子 ===== */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div
+          className="absolute top-[8%] left-[8%] w-16 h-16 rounded-full ny-float"
+          style={{ background: 'color-mix(in srgb, var(--primary) 15%, transparent)' }}
+        />
+        <div
+          className="absolute top-[15%] right-[12%] w-12 h-12 rounded-full ny-float-alt ny-float-delay-1"
+          style={{ background: 'color-mix(in srgb, var(--accent) 12%, transparent)' }}
+        />
+        <div
+          className="absolute bottom-[20%] left-[20%] w-20 h-20 rounded-full ny-float ny-float-delay-2"
+          style={{ background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}
+        />
+        <div
+          className="absolute bottom-[30%] right-[18%] w-10 h-10 rounded-full ny-float-alt ny-float-delay-3"
+          style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}
+        />
+        <div
+          className="absolute top-[45%] left-[5%] w-8 h-8 rounded-full ny-float ny-float-delay-1"
+          style={{ background: 'color-mix(in srgb, var(--primary) 8%, transparent)' }}
+        />
+        <div
+          className="absolute top-[60%] right-[8%] w-14 h-14 rounded-full ny-float-alt ny-float-delay-2"
+          style={{ background: 'color-mix(in srgb, var(--accent) 10%, transparent)' }}
+        />
       </div>
 
-      <div className="container mx-auto px-4 py-8 sm:py-12 lg:py-16 relative z-10">
-        {/* 标题区域 */}
-        <div className="text-center mb-8 sm:mb-12">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black mb-3 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 bg-clip-text text-transparent animate-gradient">
-            {t('title')}
-          </h1>
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-red-600 mb-4">
-            🐍 {t('subtitle')} 🧧
-          </h2>
-          <p className="text-base sm:text-lg text-gray-700 max-w-2xl mx-auto">
+      {/* ===== 主内容 ===== */}
+      <div className="container mx-auto px-4 pt-24 pb-6 sm:pt-8 sm:pb-8 relative z-10 max-w-4xl">
+
+        {/* ===== Hero 区域 ===== */}
+        <section className="text-center mb-8 sm:mb-10">
+          <div className="mb-4">
+            <h1
+              className="text-3xl sm:text-4xl lg:text-5xl font-black mb-2 ny-gradient-animate"
+              style={{
+                background: 'linear-gradient(135deg, var(--primary) 0%, var(--accent) 40%, var(--primary) 80%, var(--accent) 100%)',
+                backgroundSize: '200% 200%',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              {t('title')}
+            </h1>
+            <h2
+              className="text-lg sm:text-xl lg:text-2xl font-bold mb-3"
+              style={{ color: 'var(--primary)' }}
+            >
+              {t('subtitle')}
+            </h2>
+          </div>
+          <p
+            className="text-sm sm:text-base max-w-xl mx-auto"
+            style={{ color: 'var(--muted-foreground)' }}
+          >
             {t('description')}
           </p>
-        </div>
+        </section>
 
-        {/* 主内容区域 */}
-        <div className="max-w-4xl mx-auto">
+        {/* ===== 主功能区域 ===== */}
+        <div className="max-w-3xl mx-auto">
+
           {/* 上传区域 */}
           {!uploadedAvatar && (
             <div className="mb-8">
-              <div
-                className="border-4 border-dashed border-red-300 rounded-2xl p-8 sm:p-12 text-center bg-white/80 backdrop-blur-sm hover:border-yellow-400 transition-all duration-300 cursor-pointer"
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className="text-6xl mb-4">🎊</div>
-                <p className="text-xl sm:text-2xl font-bold text-gray-700 mb-2">
-                  {t('upload.button')}
-                </p>
-                <p className="text-sm sm:text-base text-gray-500 mb-4">
-                  {t('upload.dragTip')}
-                </p>
-                <p className="text-xs sm:text-sm text-gray-400">
-                  {t('upload.fileTip')}
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </div>
+              <Card variant="elevated" noPadding>
+                <div
+                  className="rounded-[20px] p-8 sm:p-12 text-center cursor-pointer transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+                  style={{
+                    border: '3px dashed color-mix(in srgb, var(--primary) 40%, transparent)',
+                    background: 'color-mix(in srgb, var(--primary) 3%, var(--card))',
+                  }}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div
+                    className="w-16 h-16 rounded-[20px] flex items-center justify-center mx-auto mb-4"
+                    style={{
+                      background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 80%, black) 100%)',
+                      boxShadow: '0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.1)',
+                    }}
+                  >
+                    <Upload className="w-7 h-7 text-white" />
+                  </div>
+                  <p className="text-lg sm:text-xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
+                    {t('upload.button')}
+                  </p>
+                  <p className="text-sm mb-2" style={{ color: 'var(--muted-foreground)' }}>
+                    {t('upload.dragTip')}
+                  </p>
+                  <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--muted-foreground) 70%, transparent)' }}>
+                    {t('upload.fileTip')}
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </div>
+              </Card>
             </div>
           )}
 
-          {/* 已上传图片预览 */}
-          {uploadedAvatar && !generatedImages.length && (
+          {/* 已上传图片预览 + 操作 */}
+          {uploadedAvatar && !generatedImages.length && !isGenerating && (
             <div className="mb-8">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl">
-                <div className="flex flex-col sm:flex-row items-center gap-6">
-                  <div className="w-32 h-32 sm:w-40 sm:h-40 relative rounded-2xl overflow-hidden border-4 border-yellow-400 shadow-lg">
-                    <img
-                      src={uploadedAvatar}
-                      alt="上传的照片"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 text-center sm:text-left">
-                    <p className="text-lg font-bold text-gray-700 mb-4">
-                      照片已准备好！点击按钮开始生成 🎉
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={handleGenerate}
-                        disabled={isGenerating}
-                        className={`
-                          px-8 py-4 rounded-full font-bold text-lg
-                          bg-gradient-to-r from-red-600 to-yellow-500
-                          text-white shadow-xl
-                          transform transition-all duration-300
-                          ${isGenerating 
-                            ? 'opacity-50 cursor-not-allowed' 
-                            : 'hover:scale-105 hover:shadow-2xl hover:shadow-yellow-500/50'
-                          }
-                        `}
+              <Card variant="elevated">
+                <CardContent>
+                  <div className="flex flex-col sm:flex-row items-center gap-6">
+                    {/* 头像预览 */}
+                    <div
+                      className="w-32 h-32 sm:w-36 sm:h-36 relative rounded-[20px] overflow-hidden flex-shrink-0"
+                      style={{
+                        border: '3px solid var(--accent)',
+                        boxShadow: '0 4px 16px color-mix(in srgb, var(--accent) 30%, transparent), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.1)',
+                      }}
+                    >
+                      <img
+                        src={uploadedAvatar}
+                        alt="上传的照片"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    {/* 操作区 */}
+                    <div className="flex-1 text-center sm:text-left">
+                      <p
+                        className="text-base font-semibold mb-5"
+                        style={{ color: 'var(--foreground)' }}
                       >
-                        {isGenerating ? (
-                          <span className="flex items-center gap-2">
-                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            {t('generate.generating')}
-                          </span>
-                        ) : (
-                          <span>✨ {t('generate.button')}</span>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setUploadedAvatar('')
-                          setError('')
-                        }}
-                        className="px-6 py-3 rounded-full font-bold text-red-600 border-2 border-red-600 hover:bg-red-50 transition-all"
-                      >
-                        重新上传
-                      </button>
+                        {t('upload.button')}
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                          variant="primary"
+                          size="xl"
+                          onClick={handleGenerate}
+                          disabled={isGenerating}
+                          leftIcon={<Sparkles className="w-5 h-5" />}
+                        >
+                          {t('generate.button')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          onClick={() => {
+                            setUploadedAvatar('')
+                            setError('')
+                          }}
+                          leftIcon={<RefreshCw className="w-4 h-4" />}
+                        >
+                          {t('generate.retry')}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
-          {/* 生成进度 */}
+          {/* ===== 生成进度 ===== */}
           {isGenerating && (
             <div className="mb-8">
-              <div className="max-w-2xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 sm:p-8">
-                {/* 标题 */}
-                <div className="text-center mb-6">
-                  <p className="text-2xl font-bold text-red-600 mb-2">
-                    🎊 福星高照生成中... 🎊
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    预计需要 30-60 秒，请耐心等待
-                  </p>
-                </div>
-
-                {/* 显示抽取的愿望 */}
-                {selectedWishes.length > 0 && (
-                  <div className="mb-6">
-                    <p className="text-center text-sm font-bold text-gray-700 mb-3">
-                      已抽取的8个愿望：
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {selectedWishes.map((wish, index) => (
-                        <div
-                          key={wish.id}
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                            index < currentWishIndex
-                              ? 'bg-green-100 text-green-700 border-2 border-green-300'
-                              : index === currentWishIndex
-                              ? 'bg-red-100 text-red-700 border-2 border-red-400 animate-pulse'
-                              : 'bg-gray-100 text-gray-600 border-2 border-gray-300'
-                          }`}
-                        >
-                          {wish.icon} {wish.name}
-                          {index < currentWishIndex && ' ✓'}
-                          {index === currentWishIndex && ' ⏳'}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 当前生成的愿望 */}
-                {currentWishName && currentWishIndex > 0 && currentWishIndex <= 8 && (
+              <Card variant="elevated">
+                <CardContent>
+                  {/* 标题 */}
                   <div className="text-center mb-6">
-                    <div className="inline-block bg-gradient-to-r from-red-100 to-yellow-100 px-6 py-3 rounded-full border-2 border-red-300">
-                      <p className="text-lg font-bold text-red-700">
-                        正在生成：{currentWishName} ({currentWishIndex}/8)
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* 进度条 */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-sm font-medium text-gray-700 mb-2">
-                    <span>生成进度</span>
-                    <span>{currentWishIndex}/8 ({Math.round((currentWishIndex / 8) * 100)}%)</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-red-500 transition-all duration-500 ease-out rounded-full animate-gradient"
-                      style={{ width: `${(currentWishIndex / 8) * 100}%` }}
+                    <p
+                      className="text-xl font-bold mb-1"
+                      style={{ color: 'var(--primary)' }}
                     >
-                      <div className="h-full w-full bg-white/20 animate-pulse"></div>
+                      {t('generate.generating')}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                      {t('tips.tip2')}
+                    </p>
+                  </div>
+
+                  {/* 已抽取的愿望 */}
+                  {selectedWishes.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {selectedWishes.map((wish, index) => (
+                          <div
+                            key={wish.id}
+                            className="px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-300"
+                            style={{
+                              background: index < currentWishIndex
+                                ? 'color-mix(in srgb, var(--accent) 15%, var(--card))'
+                                : index === currentWishIndex
+                                ? 'color-mix(in srgb, var(--primary) 12%, var(--card))'
+                                : 'var(--muted)',
+                              color: index < currentWishIndex
+                                ? 'color-mix(in srgb, var(--accent) 80%, black)'
+                                : index === currentWishIndex
+                                ? 'var(--primary)'
+                                : 'var(--muted-foreground)',
+                              border: index === currentWishIndex
+                                ? '2px solid color-mix(in srgb, var(--primary) 40%, transparent)'
+                                : index < currentWishIndex
+                                ? '2px solid color-mix(in srgb, var(--accent) 30%, transparent)'
+                                : '2px solid color-mix(in srgb, var(--border) 50%, transparent)',
+                              boxShadow: index === currentWishIndex
+                                ? '0 2px 8px color-mix(in srgb, var(--primary) 15%, transparent)'
+                                : 'none',
+                            }}
+                          >
+                            {wish.icon} {wish.name}
+                            {index < currentWishIndex && ' ✓'}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 当前生成的愿望 */}
+                  {currentWishName && currentWishIndex > 0 && currentWishIndex <= 8 && (
+                    <div className="text-center mb-6">
+                      <div
+                        className="inline-block px-5 py-2.5 rounded-2xl text-sm font-bold ny-pulse-soft"
+                        style={{
+                          background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--card)) 0%, color-mix(in srgb, var(--accent) 10%, var(--card)) 100%)',
+                          color: 'var(--primary)',
+                          border: '2px solid color-mix(in srgb, var(--primary) 25%, transparent)',
+                        }}
+                      >
+                        {t('generate.progress', { current: currentWishIndex, total: 8 })} — {currentWishName}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 进度条 */}
+                  <div className="mb-5">
+                    <div className="flex justify-between text-xs font-medium mb-2" style={{ color: 'var(--muted-foreground)' }}>
+                      <span>{t('generate.generating')}</span>
+                      <span>{currentWishIndex}/8 ({Math.round((currentWishIndex / 8) * 100)}%)</span>
+                    </div>
+                    <div
+                      className="w-full h-3 rounded-full overflow-hidden relative"
+                      style={{ background: 'var(--muted)' }}
+                    >
+                      <div
+                        className="h-full rounded-full transition-all duration-700 ease-out relative ny-progress-shine"
+                        style={{
+                          width: `${(currentWishIndex / 8) * 100}%`,
+                          background: 'linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%)',
+                        }}
+                      />
                     </div>
                   </div>
-                </div>
 
-                {/* 加载动画 */}
-                <div className="flex justify-center">
-                  <div className="flex gap-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full animate-bounce"></div>
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full animate-bounce delay-100"></div>
-                    <div className="w-3 h-3 bg-red-500 rounded-full animate-bounce delay-200"></div>
+                  {/* 加载动画 */}
+                  <div className="flex justify-center gap-2">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full ny-bounce-dot"
+                      style={{ background: 'var(--primary)' }}
+                    />
+                    <div
+                      className="w-2.5 h-2.5 rounded-full ny-bounce-dot ny-bounce-dot-delay-1"
+                      style={{ background: 'var(--accent)' }}
+                    />
+                    <div
+                      className="w-2.5 h-2.5 rounded-full ny-bounce-dot ny-bounce-dot-delay-2"
+                      style={{ background: 'var(--primary)' }}
+                    />
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
           {/* 错误提示 */}
           {error && (
-            <div className="mb-8 bg-red-100 border-2 border-red-300 rounded-xl p-4 text-center">
-              <p className="text-red-700 font-bold">{error}</p>
+            <div className="mb-6">
+              <Card variant="flat">
+                <div
+                  className="px-5 py-3 rounded-[20px] text-center text-sm font-medium"
+                  style={{
+                    background: 'color-mix(in srgb, var(--destructive) 8%, var(--card))',
+                    color: 'var(--destructive)',
+                    border: '2px solid color-mix(in srgb, var(--destructive) 25%, transparent)',
+                  }}
+                >
+                  {error}
+                </div>
+              </Card>
             </div>
           )}
 
-          {/* 九宫格展示 */}
+          {/* ===== 九宫格结果 ===== */}
           {generatedImages.length > 0 && uploadedAvatar && (
-            <div className="mb-12">
-              <h3 className="text-2xl sm:text-3xl font-bold text-center mb-6 text-red-600">
-                🎊 {t('result.title')} 🎊
+            <div className="mb-10">
+              <h3
+                className="text-xl sm:text-2xl font-bold text-center mb-6"
+                style={{ color: 'var(--primary)' }}
+              >
+                {t('result.title')}
               </h3>
               <NineGridDisplay
                 userAvatar={uploadedAvatar}
@@ -414,117 +523,104 @@ export default function NewYearWishPage() {
                 isDownloading={isDownloading}
               />
               <div className="text-center mt-6">
-                <button
-                onClick={() => {
-                  setUploadedAvatar('')
-                  setGeneratedImages([])
-                  setWishes([])
-                  setError('')
-                  setCurrentWishIndex(0)
-                  setCurrentWishName('')
-                  setSelectedWishes([])
-                }}
-                  className="px-6 py-3 rounded-full font-bold text-red-600 border-2 border-red-600 hover:bg-red-50 transition-all"
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleReset}
+                  leftIcon={<RefreshCw className="w-4 h-4" />}
                 >
                   {t('generate.retry')}
-                </button>
+                </Button>
               </div>
             </div>
           )}
 
-          {/* 特色说明 */}
+          {/* ===== 使用步骤 ===== */}
           {!uploadedAvatar && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-12">
-              {[
-                { title: t('features.free'), desc: t('features.freeDesc'), icon: '🎁' },
-                { title: t('features.noLogin'), desc: t('features.noLoginDesc'), icon: '👤' },
-                { title: t('features.fast'), desc: t('features.fastDesc'), icon: '⚡' },
-                { title: t('features.share'), desc: t('features.shareDesc'), icon: '📱' },
-              ].map((feature, index) => (
-                <div
-                  key={index}
-                  className="bg-white/80 backdrop-blur-sm rounded-xl p-4 text-center shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                >
-                  <div className="text-4xl mb-2">{feature.icon}</div>
-                  <h4 className="font-bold text-gray-800 mb-1">{feature.title}</h4>
-                  <p className="text-xs text-gray-600">{feature.desc}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 使用步骤 */}
-          {!uploadedAvatar && (
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 sm:p-8 shadow-xl mb-12">
-              <h3 className="text-2xl font-bold text-center mb-6 text-red-600">
-                {t('steps.title')}
-              </h3>
-              <div className="grid sm:grid-cols-3 gap-6">
-                {[
-                  { step: '1', title: t('steps.step1'), desc: t('steps.step1Desc'), icon: '📸' },
-                  { step: '2', title: t('steps.step2'), desc: t('steps.step2Desc'), icon: '🎨' },
-                  { step: '3', title: t('steps.step3'), desc: t('steps.step3Desc'), icon: '💾' },
-                ].map((item, index) => (
-                  <div key={index} className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-2xl mx-auto mb-3 shadow-lg">
-                      {item.step}
-                    </div>
-                    <div className="text-3xl mb-2">{item.icon}</div>
-                    <h4 className="font-bold text-gray-800 mb-2">{item.title}</h4>
-                    <p className="text-sm text-gray-600">{item.desc}</p>
+            <div className="mb-8">
+              <Card variant="elevated">
+                <CardContent>
+                  <h3
+                    className="text-lg font-bold text-center mb-6"
+                    style={{ color: 'var(--primary)' }}
+                  >
+                    {t('steps.title')}
+                  </h3>
+                  <div className="grid sm:grid-cols-3 gap-6">
+                    {[
+                      { title: t('steps.step1'), desc: t('steps.step1Desc'), Icon: Camera },
+                      { title: t('steps.step2'), desc: t('steps.step2Desc'), Icon: Wand2 },
+                      { title: t('steps.step3'), desc: t('steps.step3Desc'), Icon: Download },
+                    ].map((item, index) => (
+                      <div key={index} className="text-center">
+                        <div
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                          style={{
+                            background: 'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--accent) 80%, black) 100%)',
+                            boxShadow: '0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.1)',
+                            color: 'var(--primary-foreground)',
+                          }}
+                        >
+                          <item.Icon
+                            className="w-5 h-5 sm:w-6 sm:h-6 mx-auto"
+                            style={{ color: 'var(--accent)' }}
+                          />
+                        </div>
+                        <h4
+                          className="text-base sm:text-sm font-bold mb-1"
+                          style={{ color: 'var(--foreground)' }}
+                        >
+                          {item.title}
+                        </h4>
+                        <p className="text-sm sm:text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                          {item.desc}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
-          {/* 温馨提示 */}
+          {/* ===== 温馨提示 ===== */}
           {!uploadedAvatar && (
-            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6 sm:p-8">
-              <h3 className="text-xl font-bold text-center mb-4 text-yellow-800">
-                💡 {t('tips.title')}
-              </h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li className="flex items-start gap-2">
-                  <span className="text-yellow-600 font-bold">•</span>
-                  <span>{t('tips.tip1')}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-yellow-600 font-bold">•</span>
-                  <span>{t('tips.tip2')}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-yellow-600 font-bold">•</span>
-                  <span>{t('tips.tip3')}</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-yellow-600 font-bold">•</span>
-                  <span>{t('tips.tip4')}</span>
-                </li>
-              </ul>
+            <div className="mb-8">
+              <Card variant="flat">
+                <CardContent>
+                  <h3
+                    className="text-base font-bold text-center mb-4"
+                    style={{ color: 'color-mix(in srgb, var(--accent) 80%, black)' }}
+                  >
+                    {t('tips.title')}
+                  </h3>
+                  <ul className="space-y-2">
+                    {[
+                      t('tips.tip1'),
+                      t('tips.tip2'),
+                      t('tips.tip3'),
+                      t('tips.tip4'),
+                    ].map((tip, index) => (
+                      <li key={index} className="flex items-start gap-2 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        <span
+                          className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                          style={{ background: 'var(--accent)' }}
+                        />
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>
-      </div>
 
-      {/* 添加渐变动画 */}
-      <style jsx>{`
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
-        }
-        .delay-100 {
-          animation-delay: 0.1s;
-        }
-        .delay-200 {
-          animation-delay: 0.2s;
-        }
-      `}</style>
+        {/* Footer */}
+        <div className="max-w-3xl mx-auto">
+          <NewYearFooter />
+        </div>
+      </div>
     </div>
   )
 }

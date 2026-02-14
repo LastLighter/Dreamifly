@@ -17,6 +17,46 @@ body:has(.admin-page) footer {
   --background-end-rgb: 255, 237, 213;
   --primary-color: 249, 115, 22;
   --secondary-color: 234, 88, 12;
+
+  /* ===== Design System Tokens ===== */
+  --primary: #f97316;
+  --primary-foreground: #ffffff;
+  --secondary: #78716c;
+  --secondary-foreground: #ffffff;
+  --accent: #f59e0b;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --ring: #f97316;
+  --background: #f9fafb;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+}
+
+/* ===== 春节主题 ===== */
+.new-year-theme {
+  --primary: #C53030;
+  --primary-foreground: #ffffff;
+  --secondary: #B7791F;
+  --secondary-foreground: #ffffff;
+  --accent: #D69E2E;
+  --accent-foreground: #ffffff;
+  --destructive: #E53E3E;
+  --destructive-foreground: #ffffff;
+  --ring: #C53030;
+  --background: #FFFAF0;
+  --foreground: #1C1917;
+  --card: #ffffff;
+  --card-foreground: #292524;
+  --muted: #FEF3C7;
+  --muted-foreground: #78716C;
+  --border: #FCA5A5;
+  --input: #FECACA;
 }
 
 @layer base {
@@ -247,3 +287,84 @@ body:has(.admin-page) footer {
     stroke: inherit !important;
   }
 }
+
+/* ===== New Year Theme Utilities ===== */
+
+/* 微拟物卡片三层阴影 */
+.ny-card-shadow {
+  box-shadow:
+    0 4px 12px color-mix(in srgb, var(--primary) 20%, transparent),
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    inset 0 -1px 0 rgba(0,0,0,0.05);
+}
+
+.ny-card-shadow-hover {
+  box-shadow:
+    0 8px 24px color-mix(in srgb, var(--primary) 30%, transparent),
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    inset 0 -1px 0 rgba(0,0,0,0.08);
+}
+
+/* 新年渐变动画 */
+@keyframes ny-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.ny-gradient-animate {
+  background-size: 200% 200%;
+  animation: ny-gradient-shift 4s ease infinite;
+}
+
+/* 飘落动画 - 灯笼/烟花粒子 */
+@keyframes ny-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.7; }
+  50% { transform: translateY(-18px) rotate(6deg); opacity: 1; }
+}
+
+@keyframes ny-float-alt {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.5; }
+  50% { transform: translateY(-12px) rotate(-4deg); opacity: 0.9; }
+}
+
+.ny-float { animation: ny-float 5s ease-in-out infinite; }
+.ny-float-alt { animation: ny-float-alt 6s ease-in-out infinite; }
+.ny-float-delay-1 { animation-delay: 1s; }
+.ny-float-delay-2 { animation-delay: 2s; }
+.ny-float-delay-3 { animation-delay: 3s; }
+
+/* 进度条动画 */
+@keyframes ny-progress-shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.ny-progress-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: ny-progress-shine 2s ease-in-out infinite;
+}
+
+/* 脉动动画 */
+@keyframes ny-pulse-soft {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.ny-pulse-soft { animation: ny-pulse-soft 3s ease-in-out infinite; }
+
+/* 弹跳加载点 */
+@keyframes ny-bounce-dot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.ny-bounce-dot { animation: ny-bounce-dot 1.4s ease-in-out infinite; }
+.ny-bounce-dot-delay-1 { animation-delay: 0.16s; }
+.ny-bounce-dot-delay-2 { animation-delay: 0.32s; }
