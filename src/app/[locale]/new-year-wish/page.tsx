@@ -7,11 +7,12 @@ import { generateDynamicToken } from '@/utils/dynamicToken'
 import NewYearFooter from '@/components/new-year/NewYearFooter'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
-import { Upload, Sparkles, RefreshCw, Camera, Wand2, Download } from 'lucide-react'
+import { Upload, Sparkles, RefreshCw, Camera, Wand2, Download, CheckCircle, Check } from 'lucide-react'
 
 interface Wish {
   id: string
   name: string
+  image?: string
   prompt?: string
 }
 
@@ -314,50 +315,20 @@ export default function NewYearWishPage() {
           {!uploadedAvatar && (
             <div className="mb-8 overflow-visible">
               <Card variant="elevated" className="overflow-visible">
-                <CardContent className="pt-8 pb-8 px-6 sm:px-8 overflow-visible">
-                  {/* 标题与副标题 */}
-                  <h3
-                    className="text-xl font-bold mb-2 leading-tight"
-                    style={{ color: 'var(--primary)' }}
-                  >
-                    {t('selectFirst.title')}
-                  </h3>
-                  <p
-                    className="text-sm sm:text-base leading-relaxed max-w-xl mb-6"
-                    style={{ color: 'var(--muted-foreground)' }}
-                  >
-                    {t('selectFirst.subtitle')}
-                  </p>
-                  {/* 愿望选项与刷新同一行：overflow-visible 避免选中态被父容器裁切 */}
-                  <div className="flex gap-4 items-stretch min-w-0 overflow-visible">
-                    {availableFirstWishes.map((wish) => {
-                      const isSelected = selectedFirstWish?.id === wish.id
-                      return (
-                        <button
-                          key={wish.id}
-                          type="button"
-                          onClick={() => handleSelectFirstWish(wish)}
-                          className="flex-1 min-w-0 px-3 py-4 rounded-2xl text-center transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--primary)]"
-                          style={{
-                            background: isSelected
-                              ? 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, var(--card)) 0%, color-mix(in srgb, var(--accent) 10%, var(--card)) 100%)'
-                              : 'var(--card)',
-                            border: '2px solid ' + (isSelected ? 'color-mix(in srgb, var(--primary) 50%, transparent)' : 'color-mix(in srgb, var(--primary) 18%, var(--border))'),
-                            boxShadow: isSelected
-                              ? '0 1px 8px color-mix(in srgb, var(--primary) 12%, transparent)'
-                              : 'none',
-                            color: isSelected ? 'var(--primary)' : 'var(--foreground)',
-                          }}
-                        >
-                          <span className="text-sm font-medium leading-snug break-words line-clamp-2">{wish.name}</span>
-                        </button>
-                      )
-                    })}
+                <CardContent className="pt-4 pb-4 px-2 sm:px-3 overflow-visible">
+                  {/* 标题与刷新按钮在同一行 */}
+                  <div className="flex items-center justify-between mb-2">
+                    <h3
+                      className="text-xl font-bold leading-tight"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      {t('selectFirst.title')}
+                    </h3>
                     <button
                       type="button"
                       onClick={handleRefreshFirstWishes}
                       disabled={isLoadingFirstWishes}
-                      className="flex-shrink-0 self-center w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
+                      className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
                       style={{
                         background: 'var(--card)',
                         border: '1.5px solid color-mix(in srgb, var(--primary) 25%, transparent)',
@@ -367,6 +338,74 @@ export default function NewYearWishPage() {
                     >
                       <RefreshCw className={`w-5 h-5 ${isLoadingFirstWishes ? 'animate-spin' : ''}`} />
                     </button>
+                  </div>
+                  {/* 副标题 */}
+                  <p
+                    className="text-sm leading-relaxed max-w-xl mb-5"
+                    style={{ color: 'var(--muted-foreground)' }}
+                  >
+                    {t('selectFirst.subtitle')}
+                  </p>
+                  {/* 愿望选项 */}
+                  <div className="flex gap-3 items-stretch min-w-0 overflow-visible">
+                    {availableFirstWishes.map((wish) => {
+                      const isSelected = selectedFirstWish?.id === wish.id
+                      return (
+                        <button
+                          key={wish.id}
+                          type="button"
+                          onClick={() => handleSelectFirstWish(wish)}
+                          className="flex-1 min-w-0 rounded-2xl text-center transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--primary)] overflow-hidden flex flex-col"
+                          style={{
+                            background: 'var(--card)',
+                            border: '2px solid ' + (isSelected ? 'color-mix(in srgb, var(--primary) 50%, transparent)' : 'color-mix(in srgb, var(--primary) 18%, var(--border))'),
+                            boxShadow: isSelected
+                              ? '0 2px 12px color-mix(in srgb, var(--primary) 20%, transparent)'
+                              : 'none',
+                          }}
+                        >
+                          {/* 正方形图片容器 - 占据更多空间 */}
+                          <div className="relative w-full aspect-square overflow-hidden flex-shrink-0">
+                            {wish.image ? (
+                              <img
+                                src={wish.image}
+                                alt={wish.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div 
+                                className="w-full h-full flex items-center justify-center"
+                                style={{ background: 'color-mix(in srgb, var(--primary) 8%, var(--card))' }}
+                              >
+                                <Sparkles className="w-8 h-8" style={{ color: 'var(--muted-foreground)' }} />
+                              </div>
+                            )}
+                            {/* 选中状态的打勾图标 */}
+                            {isSelected && (
+                              <div className="absolute top-0 right-0 rounded-full bg-green-500 p-1 shadow-lg transition-all duration-200 border-2 border-white z-10">
+                                <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+                              </div>
+                            )}
+                          </div>
+                          {/* 文字标题 - 减少padding */}
+                          <div 
+                            className="px-2 py-1.5 flex-shrink-0"
+                            style={{
+                              background: isSelected
+                                ? 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, var(--card)) 0%, color-mix(in srgb, var(--accent) 10%, var(--card)) 100%)'
+                                : 'transparent',
+                            }}
+                          >
+                            <span 
+                              className="text-xs font-medium leading-snug break-words line-clamp-2"
+                              style={{ color: isSelected ? 'var(--primary)' : 'var(--muted-foreground)' }}
+                            >
+                              {wish.name}
+                            </span>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </CardContent>
               </Card>
