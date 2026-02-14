@@ -54,8 +54,8 @@ export async function POST(request: Request) {
   try {
     const startTime = Date.now()
     
-    // 1. 解析请求
-    const { avatar, token } = await request.json()
+    // 1. 解析请求（可选传入愿望列表，用于首个愿望自选）
+    const { avatar, token, wishes: clientWishes } = await request.json()
     
     // 2. 验证动态token（防爬虫）
     if (!token || !validateDynamicToken(token)) {
@@ -74,14 +74,17 @@ export async function POST(request: Request) {
       )
     }
     
-    // 4. 读取愿望列表
-    const wishesPath = path.join(process.cwd(), 'public/data/wishes.json')
-    const wishesData = fs.readFileSync(wishesPath, 'utf-8')
-    const allWishes = JSON.parse(wishesData)
-    
-    // 5. 随机抽取8个愿望
-    const shuffled = [...allWishes].sort(() => 0.5 - Math.random())
-    const selectedWishes = shuffled.slice(0, 8)
+    // 4. 确定愿望列表：客户端传入则使用，否则服务端随机
+    let selectedWishes: Array<{ id: string; name: string; prompt: string }>
+    if (Array.isArray(clientWishes) && clientWishes.length === 8) {
+      selectedWishes = clientWishes
+    } else {
+      const wishesPath = path.join(process.cwd(), 'public/data/wishes.json')
+      const wishesData = fs.readFileSync(wishesPath, 'utf-8')
+      const allWishes = JSON.parse(wishesData)
+      const shuffled = [...allWishes].sort(() => 0.5 - Math.random())
+      selectedWishes = shuffled.slice(0, 8)
+    }
     
     console.log(`[New Year Wish] Generating 8 images for wishes: ${selectedWishes.map(w => w.name).join(', ')}`)
     

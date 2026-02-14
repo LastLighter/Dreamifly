@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import NineGridDisplay from '@/components/NineGridDisplay'
 import { generateDynamicToken } from '@/utils/dynamicToken'
@@ -12,7 +12,7 @@ import { Upload, Sparkles, RefreshCw, Camera, Wand2, Download } from 'lucide-rea
 interface Wish {
   id: string
   name: string
-  icon: string
+  prompt?: string
 }
 
 export default function NewYearWishPage() {
@@ -28,8 +28,37 @@ export default function NewYearWishPage() {
   const [currentWishName, setCurrentWishName] = useState<string>('')
   const [selectedWishes, setSelectedWishes] = useState<Wish[]>([])
   const [isDownloading, setIsDownloading] = useState(false)
+  const [availableFirstWishes, setAvailableFirstWishes] = useState<Wish[]>([])
+  const [selectedFirstWish, setSelectedFirstWish] = useState<Wish | null>(null)
+  const [isLoadingFirstWishes, setIsLoadingFirstWishes] = useState(false)
   
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // 随机抽取 3 个愿望供用户选为首个愿望
+  const loadRandomFirstWishes = useCallback(async () => {
+    setIsLoadingFirstWishes(true)
+    try {
+      const wishesResponse = await fetch('/data/wishes.json')
+      const allWishes: Wish[] = await wishesResponse.json()
+      const shuffled = [...allWishes].sort(() => 0.5 - Math.random())
+      setAvailableFirstWishes(shuffled.slice(0, 3))
+      setSelectedFirstWish(null)
+    } finally {
+      setIsLoadingFirstWishes(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadRandomFirstWishes()
+  }, [loadRandomFirstWishes])
+
+  const handleRefreshFirstWishes = () => {
+    loadRandomFirstWishes()
+  }
+
+  const handleSelectFirstWish = (wish: Wish) => {
+    setSelectedFirstWish(prev => (prev?.id === wish.id ? null : wish))
+  }
 
   // 处理图片上传
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,10 +127,17 @@ export default function NewYearWishPage() {
     
     try {
       const wishesResponse = await fetch('/data/wishes.json')
-      const allWishes = await wishesResponse.json()
+      const allWishes: Wish[] = await wishesResponse.json()
       
-      const shuffled = [...allWishes].sort(() => 0.5 - Math.random())
-      const selected = shuffled.slice(0, 8)
+      let selected: Wish[]
+      if (selectedFirstWish) {
+        const remaining = allWishes.filter(w => w.id !== selectedFirstWish.id)
+        const shuffled = [...remaining].sort(() => 0.5 - Math.random())
+        selected = [selectedFirstWish, ...shuffled.slice(0, 7)]
+      } else {
+        const shuffled = [...allWishes].sort(() => 0.5 - Math.random())
+        selected = shuffled.slice(0, 8)
+      }
       setSelectedWishes(selected)
       
       setProgress('已抽取8个愿望，开始生成...')
@@ -130,6 +166,7 @@ export default function NewYearWishPage() {
         body: JSON.stringify({
           avatar: base64Data,
           token: token,
+          wishes: selected,
         }),
       })
 
@@ -202,11 +239,13 @@ export default function NewYearWishPage() {
     setCurrentWishIndex(0)
     setCurrentWishName('')
     setSelectedWishes([])
+    setSelectedFirstWish(null)
+    loadRandomFirstWishes()
   }
 
   return (
     <div
-      className="new-year-theme min-h-screen relative overflow-hidden"
+      className="new-year-theme min-h-screen relative overflow-x-hidden overflow-y-auto"
       style={{
         background: 'linear-gradient(165deg, var(--background) 0%, color-mix(in srgb, var(--background) 85%, var(--primary)) 50%, color-mix(in srgb, var(--background) 75%, var(--accent)) 100%)',
       }}
@@ -274,6 +313,69 @@ export default function NewYearWishPage() {
 
         {/* ===== 主功能区域 ===== */}
         <div className="max-w-3xl mx-auto">
+
+          {/* 选择你的新年愿望（首个愿望自选） */}
+          {!uploadedAvatar && (
+            <div className="mb-8 overflow-visible">
+              <Card variant="elevated" className="overflow-visible">
+                <CardContent className="pt-8 pb-8 px-6 sm:px-8 overflow-visible">
+                  {/* 标题与副标题 */}
+                  <h3
+                    className="text-xl font-bold mb-2 leading-tight"
+                    style={{ color: 'var(--primary)' }}
+                  >
+                    {t('selectFirst.title')}
+                  </h3>
+                  <p
+                    className="text-sm sm:text-base leading-relaxed max-w-xl mb-6"
+                    style={{ color: 'var(--muted-foreground)' }}
+                  >
+                    {t('selectFirst.subtitle')}
+                  </p>
+                  {/* 愿望选项与刷新同一行：overflow-visible 避免选中态被父容器裁切 */}
+                  <div className="flex gap-4 items-stretch min-w-0 overflow-visible">
+                    {availableFirstWishes.map((wish) => {
+                      const isSelected = selectedFirstWish?.id === wish.id
+                      return (
+                        <button
+                          key={wish.id}
+                          type="button"
+                          onClick={() => handleSelectFirstWish(wish)}
+                          className="flex-1 min-w-0 px-3 py-4 rounded-2xl text-center transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--primary)]"
+                          style={{
+                            background: isSelected
+                              ? 'linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, var(--card)) 0%, color-mix(in srgb, var(--accent) 10%, var(--card)) 100%)'
+                              : 'var(--card)',
+                            border: '2px solid ' + (isSelected ? 'color-mix(in srgb, var(--primary) 50%, transparent)' : 'color-mix(in srgb, var(--primary) 18%, var(--border))'),
+                            boxShadow: isSelected
+                              ? '0 1px 8px color-mix(in srgb, var(--primary) 12%, transparent)'
+                              : 'none',
+                            color: isSelected ? 'var(--primary)' : 'var(--foreground)',
+                          }}
+                        >
+                          <span className="text-sm font-medium leading-snug break-words line-clamp-2">{wish.name}</span>
+                        </button>
+                      )
+                    })}
+                    <button
+                      type="button"
+                      onClick={handleRefreshFirstWishes}
+                      disabled={isLoadingFirstWishes}
+                      className="flex-shrink-0 self-center w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50"
+                      style={{
+                        background: 'var(--card)',
+                        border: '1.5px solid color-mix(in srgb, var(--primary) 25%, transparent)',
+                        color: 'var(--primary)',
+                      }}
+                      title={t('selectFirst.refresh')}
+                    >
+                      <RefreshCw className={`w-5 h-5 ${isLoadingFirstWishes ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* 上传区域 */}
           {!uploadedAvatar && (
@@ -424,7 +526,7 @@ export default function NewYearWishPage() {
                                 : 'none',
                             }}
                           >
-                            {wish.icon} {wish.name}
+                            {wish.name}
                             {index < currentWishIndex && ' ✓'}
                           </div>
                         ))}

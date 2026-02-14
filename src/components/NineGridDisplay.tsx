@@ -9,7 +9,6 @@ import { Check, Copy, Download, X } from 'lucide-react'
 interface Wish {
   id: string
   name: string
-  icon: string
 }
 
 interface NineGridDisplayProps {
@@ -134,7 +133,6 @@ export default function NineGridDisplay({
                 }}
               >
                 <div className="flex items-center justify-center gap-1 text-white text-[10px] sm:text-xs font-bold">
-                  <span>{item.wish.icon}</span>
                   <span>{item.wish.name}</span>
                 </div>
               </div>
@@ -260,7 +258,7 @@ export default function NineGridDisplay({
                     boxShadow: '0 4px 16px color-mix(in srgb, var(--primary) 40%, transparent), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.1)',
                   }}
                 >
-                  {previewWish.icon} {previewWish.name}
+                  {previewWish.name}
                 </div>
               </div>
             )}

@@ -664,6 +664,11 @@
     "title": "2026 新年许愿机",
     "subtitle": "好运九宫格",
     "description": "上传你的照片，让AI为你定制专属新年愿望图",
+    "selectFirst": {
+      "title": "选择首个新年愿望",
+      "subtitle": "听说放在首个的愿望更容易实现哦",
+      "refresh": "换一批"
+    },
     "upload": {
       "button": "选择我的福照",
       "dragTip": "或拖拽图片到这里",

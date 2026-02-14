@@ -659,6 +659,11 @@
     "title": "2026 New Year Wish Machine",
     "subtitle": "Lucky Grid of Nine",
     "description": "Upload your photo and let AI create your personalized New Year wish images",
+    "selectFirst": {
+      "title": "Choose Your First Wish",
+      "subtitle": "They say the first wish comes true more easily",
+      "refresh": "Shuffle"
+    },
     "upload": {
       "button": "Choose My Lucky Photo",
       "dragTip": "Or drag image here",
