@@ -7,7 +7,7 @@ import { generateDynamicToken } from '@/utils/dynamicToken'
 import NewYearFooter from '@/components/new-year/NewYearFooter'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
-import { Upload, Sparkles, RefreshCw, Camera, Wand2, Download, CheckCircle, Check } from 'lucide-react'
+import { Upload, Sparkles, RefreshCw, Camera, Wand2, Download, Check } from 'lucide-react'
 
 interface Wish {
   id: string
@@ -143,7 +143,7 @@ export default function NewYearWishPage() {
       // 智能进度条：前期正常推进，后期减速避免过早到100%
       let progressStep = 0
       const progressInterval = setInterval(() => {
-        setCurrentWishIndex(prev => {
+        setCurrentWishIndex(() => {
           progressStep++
           
           // 0-6步：正常推进（每15秒一个愿望，达到75%）
