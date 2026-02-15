@@ -214,6 +214,7 @@ export const pointsPackage = pgTable("points_package", {
   originalPrice: real("original_price"), // 原价（用于显示折扣）
   isPopular: boolean("is_popular").default(false), // 是否热门
   isActive: boolean("is_active").default(true), // 是否上架
+  showOnFrontend: boolean("show_on_frontend").default(true), // 是否在前端展示，默认 true
   sortOrder: integer("sort_order").default(0), // 排序
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
