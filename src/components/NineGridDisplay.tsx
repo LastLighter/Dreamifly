@@ -167,7 +167,7 @@ export default function NineGridDisplay({
               </Button>
             </div>
             <p className="text-[11px] sm:text-xs mt-2.5" style={{ color: 'var(--muted-foreground)' }}>
-              携带文案发布至任意社交媒体平台，可私信QQ群管理员抽奖， 每人限一次
+              携带文案发布至任意社交媒体平台，可私信QQ群管理员赠送积分并解锁隐藏活动， 每人限一次
             </p>
           </CardContent>
         </Card>
