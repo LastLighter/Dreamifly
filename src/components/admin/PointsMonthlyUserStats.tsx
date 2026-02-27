@@ -3,20 +3,97 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { MonthlyUserStatsResponse } from '@/types/points'
 
-// 日期格式化为 YYYY-MM-DD
-function formatDateToYMD(date: Date): string {
+function formatDateToYM(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return `${year}-${month}`
+}
+
+function formatRatio(part: number, total: number): string {
+  if (total === 0) return '0%'
+  return ((part / total) * 100).toFixed(1) + '%'
+}
+
+// 年月拆分
+function splitYM(ym: string): { year: number; month: number } {
+  const [y, m] = ym.split('-').map(Number)
+  return { year: y, month: m }
+}
+
+// 年月选择器组件
+function MonthPicker({
+  label,
+  value,
+  onChange,
+  yearRange,
+  minYM,
+}: {
+  label: string
+  value: string
+  onChange: (val: string) => void
+  yearRange: number[]
+  minYM?: string // 最小可选值 YYYY-MM，用于结束月份限制
+}) {
+  const { year, month } = splitYM(value)
+  const { year: minYear, month: minMonth } = minYM ? splitYM(minYM) : { year: 0, month: 0 }
+
+  const handleYearChange = (newYear: string) => {
+    const ny = Number(newYear)
+    // 若新年份等于最小年份且当前月份早于最小月份，自动修正月份
+    const newMonth = minYM && ny === minYear && month < minMonth ? minMonth : month
+    onChange(`${newYear}-${String(newMonth).padStart(2, '0')}`)
+  }
+
+  const handleMonthChange = (newMonth: string) => {
+    onChange(`${year}-${String(newMonth).padStart(2, '0')}`)
+  }
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <div className="flex gap-2">
+        <select
+          value={year}
+          onChange={(e) => handleYearChange(e.target.value)}
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent text-sm bg-white"
+        >
+          {yearRange.map((y) => (
+            <option key={y} value={y} disabled={minYM ? y < minYear : false}>
+              {y} 年
+            </option>
+          ))}
+        </select>
+        <select
+          value={month}
+          onChange={(e) => handleMonthChange(e.target.value)}
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent text-sm bg-white"
+        >
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+            <option
+              key={m}
+              value={m}
+              disabled={minYM ? year === minYear && m < minMonth : false}
+            >
+              {m} 月
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  )
 }
 
 export default function PointsMonthlyUserStats() {
   const today = useMemo(() => new Date(), [])
-  const defaultEndDate = useMemo(() => formatDateToYMD(today), [today])
-  const defaultStartDate = useMemo(() => {
-    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
-    return formatDateToYMD(firstDay)
+  const defaultEndDate = useMemo(() => formatDateToYM(today), [today])
+  const defaultStartDate = useMemo(() => formatDateToYM(today), [today])
+
+  // 年份列表：2025 年到当前年
+  const yearRange = useMemo(() => {
+    const currentYear = today.getFullYear()
+    const years: number[] = []
+    for (let y = 2025; y <= currentYear; y++) years.push(y)
+    return years
   }, [today])
 
   const [startDate, setStartDate] = useState<string>(defaultStartDate)
@@ -61,38 +138,19 @@ export default function PointsMonthlyUserStats() {
     }
   }
 
-  // 初次加载：本月数据
   useEffect(() => {
     fetchStats(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSearchClick = () => {
-    // 简单校验日期
-    if (startDate && endDate) {
-      const start = new Date(startDate)
-      const end = new Date(endDate)
-      if (start > end) {
-        alert('开始日期不能晚于结束日期')
-        return
-      }
-    }
     fetchStats(1)
   }
 
   const handleExport = async () => {
     try {
-      // 简单校验
-      if (startDate && endDate) {
-        const start = new Date(startDate)
-        const end = new Date(endDate)
-        if (start > end) {
-          alert('开始日期不能晚于结束日期')
-          return
-        }
-      }
 
-      const body: any = {
+      const body: Record<string, unknown> = {
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         userSearch: userSearch.trim() || undefined,
@@ -100,9 +158,7 @@ export default function PointsMonthlyUserStats() {
 
       const response = await fetch('/api/admin/points/monthly-user-stats-export', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
 
@@ -132,35 +188,31 @@ export default function PointsMonthlyUserStats() {
     }
   }
 
-  const months = data?.months ?? []
+  const roleLabel = (role: string) =>
+    role === 'admin' ? '管理员' : role === 'premium' ? '会员' : '普通用户'
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-4">
       {/* 筛选区域 */}
       <div className="flex flex-col lg:flex-row lg:items-end gap-4">
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              开始日期
-            </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              结束日期
-            </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-transparent text-sm"
-            />
-          </div>
+          <MonthPicker
+            label="开始月份"
+            value={startDate}
+            onChange={(val) => {
+              setStartDate(val)
+              // 开始月份晚于结束月份时，自动将结束月份同步
+              if (val > endDate) setEndDate(val)
+            }}
+            yearRange={yearRange}
+          />
+          <MonthPicker
+            label="结束月份"
+            value={endDate}
+            onChange={setEndDate}
+            yearRange={yearRange}
+            minYM={startDate}
+          />
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               用户搜索（姓名 / 邮箱）
@@ -197,7 +249,7 @@ export default function PointsMonthlyUserStats() {
         <div className="py-10 text-center text-gray-500 text-sm">加载中...</div>
       ) : error ? (
         <div className="py-10 text-center text-red-500 text-sm">{error}</div>
-      ) : !data || data.users.length === 0 ? (
+      ) : !data || data.rows.length === 0 ? (
         <div className="py-10 text-center text-gray-500 text-sm">
           当前筛选条件下没有积分消耗记录
         </div>
@@ -207,25 +259,14 @@ export default function PointsMonthlyUserStats() {
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
             <div>
               共{' '}
-              <span className="font-semibold text-gray-900">
-                {data.totalUsers}
-              </span>{' '}
-              位用户，时间范围内总消耗{' '}
-              <span className="font-semibold text-orange-600">
-                {data.totalConsumedPoints}
-              </span>{' '}
+              <span className="font-semibold text-gray-900">{data.totalRows}</span>{' '}
+              条记录，时间范围内总消耗{' '}
+              <span className="font-semibold text-orange-600">{data.totalConsumedPoints}</span>{' '}
               积分
             </div>
             <div>
-              第{' '}
-              <span className="font-semibold text-gray-900">
-                {page}
-              </span>{' '}
-              /{' '}
-              <span className="font-semibold text-gray-900">
-                {totalPages}
-              </span>{' '}
-              页
+              第 <span className="font-semibold text-gray-900">{page}</span> /{' '}
+              <span className="font-semibold text-gray-900">{totalPages}</span> 页
             </div>
           </div>
 
@@ -234,63 +275,94 @@ export default function PointsMonthlyUserStats() {
             <table className="min-w-full text-xs md:text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                    月份
+                  </th>
+                  <th className="px-3 py-2 text-left font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
                     用户名
                   </th>
-                  <th className="sticky left-[8rem] z-10 bg-gray-50 px-3 py-2 text-left font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                  <th className="px-3 py-2 text-left font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
                     邮箱
                   </th>
                   <th className="px-3 py-2 text-left font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
                     角色
                   </th>
                   <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
-                    总消耗积分
+                    总积分消耗
                   </th>
                   <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
-                    总消耗次数
+                    购买积分消耗
                   </th>
-                  {months.map((m) => (
-                    <th
-                      key={m}
-                      className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap"
-                    >
-                      {m}
-                    </th>
-                  ))}
+                  <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                    赠送积分消耗
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                    混合积分消耗
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                    其他积分消耗
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                    购买积分占比
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                    赠送积分占比
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                    混合积分占比
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
+                    其他积分占比
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white">
-                {data.users.map((u) => (
-                  <tr key={u.userId} className="hover:bg-orange-50/40">
-                    <td className="sticky left-0 z-10 bg-white px-3 py-2 text-gray-900 border-b border-gray-100 whitespace-nowrap">
-                      {u.name || '(未设置昵称)'}
-                    </td>
-                    <td className="sticky left-[8rem] z-10 bg-white px-3 py-2 text-gray-700 border-b border-gray-100 whitespace-nowrap">
-                      {u.email}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700 border-b border-gray-100 whitespace-nowrap">
-                      {u.role === 'admin'
-                        ? '管理员'
-                        : u.role === 'premium'
-                        ? '会员'
-                        : '普通用户'}
-                    </td>
-                    <td className="px-3 py-2 text-right text-orange-600 font-semibold border-b border-gray-100 whitespace-nowrap">
-                      {u.totalConsumedPoints}
-                    </td>
-                    <td className="px-3 py-2 text-right text-gray-700 border-b border-gray-100 whitespace-nowrap">
-                      {u.totalConsumedCount}
-                    </td>
-                    {months.map((m) => (
-                      <td
-                        key={m}
-                        className="px-3 py-2 text-right text-gray-700 border-b border-gray-100 whitespace-nowrap"
-                      >
-                        {u.monthlyPoints[m] ?? 0}
+                {data.rows.map((row, idx) => {
+                  const total = row.totalConsumedPoints
+                  return (
+                    <tr key={`${row.userId}-${row.month}-${idx}`} className="hover:bg-orange-50/40">
+                      <td className="px-3 py-2 text-gray-700 border-b border-gray-100 whitespace-nowrap font-medium">
+                        {row.month}
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                      <td className="px-3 py-2 text-gray-900 border-b border-gray-100 whitespace-nowrap">
+                        {row.name || '(未设置昵称)'}
+                      </td>
+                      <td className="px-3 py-2 text-gray-600 border-b border-gray-100 whitespace-nowrap">
+                        {row.email}
+                      </td>
+                      <td className="px-3 py-2 text-gray-700 border-b border-gray-100 whitespace-nowrap">
+                        {roleLabel(row.role)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-orange-600 font-semibold border-b border-gray-100 whitespace-nowrap">
+                        {total}
+                      </td>
+                      <td className="px-3 py-2 text-right text-blue-600 border-b border-gray-100 whitespace-nowrap">
+                        {row.purchasedPoints}
+                      </td>
+                      <td className="px-3 py-2 text-right text-green-600 border-b border-gray-100 whitespace-nowrap">
+                        {row.giftedPoints}
+                      </td>
+                      <td className="px-3 py-2 text-right text-purple-600 border-b border-gray-100 whitespace-nowrap">
+                        {row.mixedPoints}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-500 border-b border-gray-100 whitespace-nowrap">
+                        {row.otherPoints}
+                      </td>
+                      <td className="px-3 py-2 text-right text-blue-500 border-b border-gray-100 whitespace-nowrap">
+                        {formatRatio(row.purchasedPoints, total)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-green-500 border-b border-gray-100 whitespace-nowrap">
+                        {formatRatio(row.giftedPoints, total)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-purple-500 border-b border-gray-100 whitespace-nowrap">
+                        {formatRatio(row.mixedPoints, total)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-400 border-b border-gray-100 whitespace-nowrap">
+                        {formatRatio(row.otherPoints, total)}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -307,15 +379,8 @@ export default function PointsMonthlyUserStats() {
                 上一页
               </button>
               <span>
-                第{' '}
-                <span className="font-semibold text-gray-900">
-                  {page}
-                </span>{' '}
-                /{' '}
-                <span className="font-semibold text-gray-900">
-                  {totalPages}
-                </span>{' '}
-                页
+                第 <span className="font-semibold text-gray-900">{page}</span> /{' '}
+                <span className="font-semibold text-gray-900">{totalPages}</span> 页
               </span>
               <button
                 type="button"
@@ -332,4 +397,3 @@ export default function PointsMonthlyUserStats() {
     </div>
   )
 }
-

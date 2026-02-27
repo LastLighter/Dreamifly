@@ -6,24 +6,24 @@ import { and, eq, gte, lte, like, or, sql } from 'drizzle-orm'
 import type {
   MonthlyUserStatsExportParams,
   MonthlyUserStatsParams,
-  MonthlyUserStatsUser,
+  MonthlyUserStatsRow,
   UserRole,
 } from '@/types/points'
 
-// 解析并规范化日期范围（精确到天）
+// 将 YYYY-MM 格式解析为月份的开始/结束时间戳
 function buildDateRange(params: MonthlyUserStatsParams) {
   const { startDate, endDate } = params
   let start: Date | undefined
   let end: Date | undefined
 
   if (startDate) {
-    start = new Date(startDate)
-    start.setHours(0, 0, 0, 0)
+    const [year, month] = startDate.split('-').map(Number)
+    start = new Date(year, month - 1, 1, 0, 0, 0, 0) // 月份第一天 00:00:00
   }
 
   if (endDate) {
-    end = new Date(endDate)
-    end.setHours(23, 59, 59, 999)
+    const [year, month] = endDate.split('-').map(Number)
+    end = new Date(year, month, 0, 23, 59, 59, 999) // 月份最后一天 23:59:59
   }
 
   return { start, end }
@@ -35,7 +35,6 @@ function getUserRole(isAdmin: boolean, isPremium: boolean): UserRole {
   return 'regular'
 }
 
-// CSV 转义
 function escapeCsvValue(value: any): string {
   const str = String(value ?? '')
   if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
@@ -44,7 +43,6 @@ function escapeCsvValue(value: any): string {
   return str
 }
 
-// 生成上海时区时间戳字符串
 function formatShanghaiTimestampForFilename(date: Date): string {
   return new Intl.DateTimeFormat('zh-CN', {
     year: 'numeric',
@@ -63,7 +61,6 @@ function formatShanghaiTimestampForFilename(date: Date): string {
 
 export async function POST(request: NextRequest) {
   try {
-    // 管理员鉴权
     const session = await auth.api.getSession({ headers: request.headers })
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -84,25 +81,14 @@ export async function POST(request: NextRequest) {
 
     const conditions = [eq(userPoints.type, 'spent' as const)]
 
-    if (start) {
-      conditions.push(gte(userPoints.earnedAt, start))
-    }
-    if (end) {
-      conditions.push(lte(userPoints.earnedAt, end))
-    }
+    if (start) conditions.push(gte(userPoints.earnedAt, start))
+    if (end) conditions.push(lte(userPoints.earnedAt, end))
 
-    // 用户搜索（姓名/邮箱）
     if (params.userSearch && params.userSearch.trim()) {
       const keyword = `%${params.userSearch.trim()}%`
-      conditions.push(
-        or(
-          like(user.name, keyword),
-          like(user.email, keyword)
-        )!
-      )
+      conditions.push(or(like(user.name, keyword), like(user.email, keyword))!)
     }
 
-    // 按用户 + 月份聚合
     const monthlyRows = await db
       .select({
         userId: userPoints.userId,
@@ -111,8 +97,11 @@ export async function POST(request: NextRequest) {
         isAdmin: user.isAdmin,
         isPremium: user.isPremium,
         month: sql<string>`to_char(date_trunc('month', ${userPoints.earnedAt}), 'YYYY-MM')`,
-        consumedPoints: sql<number>`COALESCE(SUM(-${userPoints.points}), 0)`,
-        consumedCount: sql<number>`COUNT(${userPoints.id})`,
+        totalConsumedPoints: sql<number>`COALESCE(SUM(-${userPoints.points}), 0)`,
+        purchasedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} = 'purchased' THEN -${userPoints.points} ELSE 0 END), 0)`,
+        giftedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} = 'gifted' THEN -${userPoints.points} ELSE 0 END), 0)`,
+        mixedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} = 'mixed' THEN -${userPoints.points} ELSE 0 END), 0)`,
+        otherPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} IN ('other', 'refund') OR ${userPoints.sourceType} IS NULL THEN -${userPoints.points} ELSE 0 END), 0)`,
       })
       .from(userPoints)
       .innerJoin(user, eq(userPoints.userId, user.id))
@@ -126,77 +115,62 @@ export async function POST(request: NextRequest) {
         sql`date_trunc('month', ${userPoints.earnedAt})`,
       )
       .orderBy(
-        userPoints.userId,
         sql`date_trunc('month', ${userPoints.earnedAt}) ASC`,
+        sql`SUM(-${userPoints.points}) DESC`,
       )
 
-    // 汇总为每用户一行结构
-    const monthsSet = new Set<string>()
-    const userMap = new Map<string, MonthlyUserStatsUser>()
+    const rows: MonthlyUserStatsRow[] = monthlyRows.map((row) => ({
+      userId: row.userId,
+      name: row.name,
+      email: row.email,
+      role: getUserRole(row.isAdmin ?? false, row.isPremium ?? false),
+      month: row.month,
+      totalConsumedPoints: Number(row.totalConsumedPoints ?? 0),
+      purchasedPoints: Number(row.purchasedPoints ?? 0),
+      giftedPoints: Number(row.giftedPoints ?? 0),
+      mixedPoints: Number(row.mixedPoints ?? 0),
+      otherPoints: Number(row.otherPoints ?? 0),
+    }))
 
-    for (const row of monthlyRows) {
-      const monthKey = row.month
-      monthsSet.add(monthKey)
-
-      let userEntry = userMap.get(row.userId)
-      if (!userEntry) {
-        const role = getUserRole(row.isAdmin ?? false, row.isPremium ?? false)
-        userEntry = {
-          userId: row.userId,
-          name: row.name,
-          email: row.email,
-          role,
-          totalConsumedPoints: 0,
-          totalConsumedCount: 0,
-          monthlyPoints: {},
-          monthlyCounts: {},
-        }
-        userMap.set(row.userId, userEntry)
-      }
-
-      userEntry.totalConsumedPoints += Number(row.consumedPoints ?? 0)
-      userEntry.totalConsumedCount += Number(row.consumedCount ?? 0)
-      userEntry.monthlyPoints[monthKey] = Number(row.consumedPoints ?? 0)
-      userEntry.monthlyCounts[monthKey] = Number(row.consumedCount ?? 0)
-    }
-
-    let users = Array.from(userMap.values()).sort(
-      (a, b) => b.totalConsumedPoints - a.totalConsumedPoints,
-    )
-
-    if (users.length === 0) {
-      // 没有数据时也返回一个只有表头的空 CSV
-      users = []
-    }
-
-    const months = Array.from(monthsSet).sort()
-
-    // 生成 CSV 表头
-    const headerColumns = [
+    // CSV 表头
+    const csvHeader = [
+      '月份',
       '用户名',
       '用户邮箱',
       '用户角色',
-      '总消耗积分',
-      '总消耗次数',
-      ...months,
-    ]
-    const csvHeader = headerColumns.join(',')
+      '总积分消耗',
+      '购买积分消耗',
+      '赠送积分消耗',
+      '混合积分消耗',
+      '其他积分消耗',
+      '购买积分占比',
+      '赠送积分占比',
+      '混合积分占比',
+      '其他积分占比',
+    ].join(',')
 
-    // 生成数据行
-    const csvRows = users.map((u) => {
-      const baseCols = [
-        escapeCsvValue(u.name ?? ''),
-        escapeCsvValue(u.email),
-        escapeCsvValue(
-          u.role === 'admin' ? '管理员' : u.role === 'premium' ? '会员' : '普通用户',
-        ),
-        escapeCsvValue(u.totalConsumedPoints),
-        escapeCsvValue(u.totalConsumedCount),
-      ]
+    const csvRows = rows.map((r) => {
+      const total = r.totalConsumedPoints || 0
+      const ratio = (part: number) =>
+        total > 0 ? ((part / total) * 100).toFixed(1) + '%' : '0%'
+      const roleLabel =
+        r.role === 'admin' ? '管理员' : r.role === 'premium' ? '会员' : '普通用户'
 
-      const monthCols = months.map((m) => escapeCsvValue(u.monthlyPoints[m] ?? 0))
-
-      return [...baseCols, ...monthCols].join(',')
+      return [
+        escapeCsvValue(r.month),
+        escapeCsvValue(r.name ?? ''),
+        escapeCsvValue(r.email),
+        escapeCsvValue(roleLabel),
+        escapeCsvValue(total),
+        escapeCsvValue(r.purchasedPoints),
+        escapeCsvValue(r.giftedPoints),
+        escapeCsvValue(r.mixedPoints),
+        escapeCsvValue(r.otherPoints),
+        escapeCsvValue(ratio(r.purchasedPoints)),
+        escapeCsvValue(ratio(r.giftedPoints)),
+        escapeCsvValue(ratio(r.mixedPoints)),
+        escapeCsvValue(ratio(r.otherPoints)),
+      ].join(',')
     })
 
     const BOM = '\uFEFF'
@@ -222,4 +196,3 @@ export async function POST(request: NextRequest) {
     )
   }
 }
-

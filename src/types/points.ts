@@ -132,32 +132,28 @@ export interface MonthlyUserStatsParams {
   limit?: number
 }
 
-// 单个用户的月度统计数据
-export interface MonthlyUserStatsUser {
+// 单行月度统计数据（用户 + 月份）
+export interface MonthlyUserStatsRow {
   userId: string
   name: string | null
   email: string
   role: UserRole
+  month: string
   totalConsumedPoints: number
-  totalConsumedCount: number
-  // 按月份键值对，例如 { '2026-01': 120, '2026-02': 300 }
-  monthlyPoints: Record<string, number>
-  monthlyCounts: Record<string, number>
+  purchasedPoints: number  // source_type='purchased'
+  giftedPoints: number     // source_type='gifted'
+  mixedPoints: number      // source_type='mixed'
+  otherPoints: number      // source_type='other' | 'refund' | null
 }
 
 // 月度统计查询接口响应
 export interface MonthlyUserStatsResponse {
-  // 参与统计的月份列表，例如 ['2026-01', '2026-02']
-  months: string[]
   page: number
   totalPages: number
-  totalUsers: number
+  totalRows: number
   totalConsumedPoints: number
-  users: MonthlyUserStatsUser[]
+  rows: MonthlyUserStatsRow[]
 }
 
 // 月度统计导出参数
-export interface MonthlyUserStatsExportParams extends MonthlyUserStatsParams {
-  // 是否在后续版本中导出类型占比相关列（当前实现可忽略，仅为兼容保留）
-  includeTypeBreakdown?: boolean
-}
+export interface MonthlyUserStatsExportParams extends MonthlyUserStatsParams {}
