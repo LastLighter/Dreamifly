@@ -156,4 +156,4 @@ export interface MonthlyUserStatsResponse {
 }
 
 // 月度统计导出参数
-export interface MonthlyUserStatsExportParams extends MonthlyUserStatsParams {}
+export type MonthlyUserStatsExportParams = MonthlyUserStatsParams
