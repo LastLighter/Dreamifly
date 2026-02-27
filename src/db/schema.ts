@@ -167,6 +167,7 @@ export const userPoints = pgTable("user_points", {
     .references(() => user.id, { onDelete: "cascade" }), // 用户ID，外键关联user表
   points: integer("points").notNull(), // 积分数量，正数表示获得，负数表示消费
   type: text("type").notNull(), // 积分类型：'earned' | 'spent'
+  sourceType: text("source_type").default('other'), // 来源类型：'purchased' | 'gifted' | 'refund' | 'mixed' | 'other'
   description: text("description"), // 描述
   earnedAt: timestamp("earned_at").defaultNow().notNull(), // 获得/消费时间
   expiresAt: timestamp("expires_at"), // 过期时间，仅对获得的积分有效

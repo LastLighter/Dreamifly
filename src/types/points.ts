@@ -6,6 +6,9 @@ export type RecordType = 'all' | 'earned' | 'spent'
 
 export type UserRole = 'admin' | 'premium' | 'regular'
 
+// 积分来源类型
+export type PointsSourceType = 'purchased' | 'gifted' | 'refund' | 'mixed' | 'other'
+
 // 可导出的字段
 export type ExportField =
   | 'id'
@@ -15,6 +18,7 @@ export type ExportField =
   | 'userRole'
   | 'points'
   | 'type'
+  | 'sourceType'
   | 'description'
   | 'earnedAt'
   | 'expiresAt'
@@ -29,6 +33,7 @@ export const FIELD_LABELS: Record<ExportField, string> = {
   userRole: '用户角色',
   points: '积分数量',
   type: '记录类型',
+  sourceType: '积分来源类型',
   description: '描述说明',
   earnedAt: '发生时间',
   expiresAt: '过期时间',
@@ -95,6 +100,7 @@ export interface PointsRecord {
   isPremium: boolean
   points: number
   type: 'earned' | 'spent'
+  sourceType: PointsSourceType
   description: string | null
   earnedAt: Date
   expiresAt: Date | null
