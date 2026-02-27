@@ -14,6 +14,7 @@ const fieldLabels: Record<ExportField, string> = {
   userRole: '用户角色',
   points: '积分数量',
   type: '记录类型',
+  sourceType: '积分来源类型',
   description: '描述说明',
   earnedAt: '发生时间',
   expiresAt: '过期时间',
@@ -174,6 +175,7 @@ export async function POST(request: NextRequest) {
         isPremium: user.isPremium,
         points: userPoints.points,
         type: userPoints.type,
+        sourceType: userPoints.sourceType,
         description: userPoints.description,
         earnedAt: userPoints.earnedAt,
         expiresAt: userPoints.expiresAt,
@@ -199,6 +201,15 @@ export async function POST(request: NextRequest) {
             value = record.isAdmin ? '管理员' : record.isPremium ? '会员' : '普通用户'
           } else if (field === 'type') {
             value = record.type === 'earned' ? '获得' : '消耗'
+          } else if (field === 'sourceType') {
+            const sourceTypeLabels: Record<string, string> = {
+              purchased: '购买积分',
+              gifted: '赠送积分',
+              refund: '返还积分',
+              mixed: '混合积分',
+              other: '其他',
+            }
+            value = sourceTypeLabels[record.sourceType ?? 'other'] ?? record.sourceType ?? '其他'
           } else if (field === 'earnedAt' || field === 'expiresAt' || field === 'createdAt') {
             value = formatDate(record[field] as Date | null)
           } else {
