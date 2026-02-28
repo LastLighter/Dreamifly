@@ -99,7 +99,7 @@
             "Z-Image": "区别于 Turbo 的轻量化设计，Z-Image 深耕 Lumina2 架构，精准拿捏中文提示词细节。",
             "Z-Image-Turbo": "Z-Image-Turbo 是一个支持中文的快速文生图模型，基于 Lumina2 架构，能够快速生成高质量的图像，特别适合中文提示词输入。",
             "Flux-2": "Flux-2 是 Black Forest Labs 开发的最新文本到图像生成模型，采用改进的架构和更强大的 CLIP 编码器，能够生成更高质量、更细节丰富的图像。",
-            "grok-imagine-10": "Grok Imagine 是 xAI 开发的闭源文生图模型，支持 1:1、16:9、9:16 三种比例，仅限登录用户使用。"
+            "grok-imagine-10": "Grok Imagine 是 xAI 开发的闭源文生图模型，具备出色的提示词理解能力与画质表现，支持中文输入。"
           }
         },
         "steps": {
