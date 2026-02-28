@@ -12,7 +12,8 @@ const MODEL_ENV_MAP = {
   "Wai-SDXL-V150": "Wai_SDXL_V150_URL",
   "Z-Image": "Z_IMAGE_URL",
   "Z-Image-Turbo": "Z_Image_Turbo_URL",
-  "Flux-2": "Flux_2_URL"
+  "Flux-2": "Flux_2_URL",
+  "grok-imagine-1.0": "GROK_IMAGINE_API_URL"
 } as const;
 
 // 基础模型配置
@@ -28,6 +29,7 @@ export interface ModelConfig {
   tags?: string[];
   isRecommended?: boolean;
   isAvailable?: boolean; // 动态添加的属性，表示模型是否可用
+  requiresLogin?: boolean; // 仅限登录用户使用
 }
 
 // 完整的模型配置列表
@@ -159,6 +161,18 @@ export const ALL_MODELS: ModelConfig[] = [
     maxImages: 0,
     tags: ["fastGeneration"],
     isRecommended: true
+  },
+  {
+    id: "grok-imagine-1.0",
+    name: "Grok-Imagine-1.0",
+    image: "/models/grok-imagine-1.0.jpg",
+    homepageCover: "/models/homepageModelCover/demo.jpg",
+    description: "Grok Imagine 是 xAI 开发的闭源文生图模型，支持 1:1、16:9、9:16 三种比例。",
+    use_i2i: false,
+    use_t2i: true,
+    maxImages: 0,
+    tags: ["fastGeneration","chineseSupport"],
+    requiresLogin: true
   }
 ];
 
@@ -323,7 +337,25 @@ export const MODEL_THRESHOLDS: Record<string, ModelThresholds> = {
     normalResolutionPixels: 1024 * 1024,
     highResolutionPixels: 1416 * 1416,
   },
+  "grok-imagine-1.0": {
+    normalSteps: null,
+    highSteps: null,
+    normalResolutionPixels: null,
+    highResolutionPixels: null,
+  },
 };
+
+/** grok-imagine-1.0 固定尺寸映射（比例 → 宽高） */
+export const GROK_RATIO_SIZES: Record<string, { width: number; height: number }> = {
+  '1:1':  { width: 1024, height: 1024 },
+  '16:9': { width: 1280, height: 720 },
+  '9:16': { width: 720,  height: 1280 },
+  '7:4':{width: 1792, height: 1024},
+  '4:7':{width: 1024, height: 1792},
+};
+
+/** grok-imagine-1.0 支持的比例列表 */
+export const GROK_ALLOWED_RATIOS = [ '16:9', '7:4','1:1', '4:7', '9:16'];
 
 /**
  * 获取模型的步数和分辨率阈值配置
@@ -357,4 +389,32 @@ export function supportsStepsModification(modelId: string): boolean {
 export function supportsResolutionModification(modelId: string): boolean {
   const thresholds = getModelThresholds(modelId);
   return thresholds.normalResolutionPixels !== null && thresholds.highResolutionPixels !== null;
+}
+
+/**
+ * 检查模型是否必须登录使用
+ * @param modelId 模型ID
+ * @returns 是否仅限登录用户
+ */
+export function isLoginRequiredModel(modelId: string): boolean {
+  const model = ALL_MODELS.find(m => m.id === modelId);
+  return model?.requiresLogin === true;
+}
+
+/**
+ * 将宽高转为 grok API 的 size 字符串（如 "1024x1024"）
+ * @param width 宽度
+ * @param height 高度
+ * @returns size 字符串
+ */
+export function getGrokSizeString(width: number, height: number): string {
+  const pairs: Array<[number, number, string]> = [
+    [1024, 1024, '1024x1024'],
+    [1280, 720, '1280x720'],
+    [720, 1280, '720x1280'],
+  ];
+  for (const [w, h, size] of pairs) {
+    if (width === w && height === h) return size;
+  }
+  return '1024x1024';
 }

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { styleOptions } from './StyleTransferForm';
 import LoginHint from './LoginHint';
+import { GROK_ALLOWED_RATIOS } from '@/utils/modelConfig';
 
 interface PromptInputProps {
   prompt: string;
@@ -23,6 +24,7 @@ interface PromptInputProps {
   isQueuing?: boolean;
   estimatedCost?: number | null;
   extraCost?: number | null;
+  model?: string;
 }
 
 const PromptInput = ({
@@ -42,7 +44,8 @@ const PromptInput = ({
   onStyleChange,
   isQueuing = false,
   estimatedCost = null,
-  extraCost = null
+  extraCost = null,
+  model
 }: PromptInputProps) => {
   const t = useTranslations('home.generate')
   const [isRatioOpen, setIsRatioOpen] = useState(false);
@@ -70,7 +73,9 @@ const PromptInput = ({
     };
   }, [isStyleOpen, isRatioOpen]);
 
-  const ratios = ['10:3', '16:9', '3:2', '5:4', '1:1', '4:5', '2:3', '9:16'];
+  const ratios = model === 'grok-imagine-1.0'
+    ? GROK_ALLOWED_RATIOS
+    : ['10:3', '16:9', '3:2', '5:4','7:4', '1:1', '4:7', '4:5', '2:3', '9:16'];
 
   return (
     <div>

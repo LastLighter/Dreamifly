@@ -98,7 +98,8 @@
             "Wai-SDXL-V150": "A third-party community model based on SDXL and the Brilliant series, specializing in drawing anime-style characters.",
             "Z-Image": "Z-Image is a text-to-image model with Chinese support based on the Lumina2 architecture, suitable for high-quality Chinese prompt creation.",
             "Z-Image-Turbo": "Z-Image-Turbo is a fast text-to-image model with Chinese support, based on Lumina2 architecture, capable of quickly generating high-quality images, especially suitable for Chinese prompt input.",
-            "Flux-2": "Flux-2 is the latest text-to-image generation model developed by Black Forest Labs, featuring an improved architecture and more powerful CLIP encoder, capable of generating higher quality and more detailed images."
+            "Flux-2": "Flux-2 is the latest text-to-image generation model developed by Black Forest Labs, featuring an improved architecture and more powerful CLIP encoder, capable of generating higher quality and more detailed images.",
+            "grok-imagine-10": "Grok Imagine is xAI's closed-source text-to-image model, supporting 1:1, 16:9, and 9:16 aspect ratios. Login required."
           }
         },
         "steps": {
