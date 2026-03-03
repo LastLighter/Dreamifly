@@ -475,6 +475,20 @@ export default function CDKAdminPage() {
     // 可以添加一个临时提示
   }
 
+  // 批量复制选中的CDK代码到剪贴板（每行一个）
+  const handleBatchCopy = async () => {
+    if (selectedCdks.length === 0) return
+    const codes = cdks.filter(c => selectedCdks.includes(c.id)).map(c => c.code)
+    const text = codes.join('\n')
+    try {
+      await navigator.clipboard.writeText(text)
+      alert(`已复制 ${codes.length} 个CDK到剪贴板`)
+    } catch (err) {
+      console.error('复制失败:', err)
+      alert('复制失败，请重试')
+    }
+  }
+
   // 获取包选项
   const getPackageOptions = (type: 'points_package' | 'subscription_plan') => {
     const packages = type === 'points_package' ? pointsPackages : subscriptionPlans
@@ -709,6 +723,12 @@ export default function CDKAdminPage() {
                       已选择 {selectedCdks.length} 个CDK
                     </span>
                     <div className="flex gap-2">
+                      <button
+                        onClick={handleBatchCopy}
+                        className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm"
+                      >
+                        批量复制
+                      </button>
                       <button
                         onClick={handleBatchDelete}
                         className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"

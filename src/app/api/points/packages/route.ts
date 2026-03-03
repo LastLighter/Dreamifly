@@ -1,15 +1,20 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { pointsPackage } from '@/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, and } from 'drizzle-orm';
 
-// 获取所有激活的积分套餐
+// 获取所有激活且需在前端展示的积分套餐
 export async function GET() {
   try {
     const packages = await db
       .select()
       .from(pointsPackage)
-      .where(eq(pointsPackage.isActive, true))
+      .where(
+        and(
+          eq(pointsPackage.isActive, true),
+          eq(pointsPackage.showOnFrontend, true)
+        )
+      )
       .orderBy(asc(pointsPackage.sortOrder));
 
     return NextResponse.json({

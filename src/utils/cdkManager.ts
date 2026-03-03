@@ -272,7 +272,8 @@ export async function redeemCDK(code: string, userId: string, ipAddress?: string
         userId,
         packageData.points,
         `CDK兑换积分包 - ${packageName}`,
-        30 // 30天过期
+        30, // 30天过期
+        'purchased'
       );
 
       if (!pointsAdded) {
@@ -312,7 +313,8 @@ export async function redeemCDK(code: string, userId: string, ipAddress?: string
           userId,
           packageData.bonusPoints,
           `订阅赠送积分 - ${packageName}`,
-          365
+          365,
+          'purchased'
         );
       }
 

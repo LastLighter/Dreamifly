@@ -9,6 +9,7 @@ import { transferUrl } from '@/utils/locale'
 import Link from 'next/link'
 import Image from 'next/image'
 import { isEncryptedImage, getImageDisplayUrl, getVideoDisplayUrl } from '@/utils/imageDisplay'
+import { useDownloadWithTerms } from '@/hooks/useDownloadWithTerms'
 
 interface UserImage {
   id: string
@@ -39,6 +40,7 @@ export default function MyWorksPage() {
   const params = useParams()
   const locale = params?.locale as string || 'zh'
   const t = useTranslations('myWorks')
+  const { checkAndDownload, DownloadTermsModalWrapper } = useDownloadWithTerms()
   
   const [images, setImages] = useState<UserImage[]>([])
   const [loading, setLoading] = useState(true)
@@ -248,30 +250,32 @@ export default function MyWorksPage() {
 
   const handleDownload = async (imageUrl: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    try {
-      // 如果是加密图片，需要先解码
-      const displayUrl = getDisplayUrl(imageUrl)
-      // 如果还在解码中，等待解码完成
-      if (isEncryptedImage(imageUrl) && !decodedImages[imageUrl]) {
-        const decodedUrl = await getImageDisplayUrl(imageUrl, decodedImages)
-        setDecodedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
-        const link = document.createElement('a')
-        link.href = decodedUrl
-        link.download = `image-${Date.now()}.png`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-      } else {
-        const link = document.createElement('a')
-        link.href = displayUrl
-        link.download = `image-${Date.now()}.png`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+    await checkAndDownload(async () => {
+      try {
+        // 如果是加密图片，需要先解码
+        const displayUrl = getDisplayUrl(imageUrl)
+        // 如果还在解码中，等待解码完成
+        if (isEncryptedImage(imageUrl) && !decodedImages[imageUrl]) {
+          const decodedUrl = await getImageDisplayUrl(imageUrl, decodedImages)
+          setDecodedImages(prev => ({ ...prev, [imageUrl]: decodedUrl }))
+          const link = document.createElement('a')
+          link.href = decodedUrl
+          link.download = `image-${Date.now()}.png`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        } else {
+          const link = document.createElement('a')
+          link.href = displayUrl
+          link.download = `image-${Date.now()}.png`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        }
+      } catch (error) {
+        console.error('下载图片失败:', error)
       }
-    } catch (error) {
-      console.error('下载图片失败:', error)
-    }
+    })
   }
 
   const handleImageClick = async (imageUrl: string, e: React.MouseEvent, mediaType?: string | null) => {
@@ -506,7 +510,7 @@ export default function MyWorksPage() {
                     <button
                       data-action-button
                       onClick={(e) => handleDownload(image.imageUrl, e)}
-                      className="absolute top-3 right-3 p-2 bg-gray-500/60 backdrop-blur-md rounded-lg hover:bg-gray-600/70 transition-all duration-200 shadow-lg z-20"
+                      className="absolute top-3 right-3 p-2 bg-gray-500/60 backdrop-blur-md rounded-lg hover:bg-gray-600/70 transition-all duration-200 shadow-lg z-20 focus:outline-none"
                       title={isVideo ? "保存视频" : "保存图片"}
                     >
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -677,6 +681,9 @@ export default function MyWorksPage() {
           </>
         )}
       </div>
+      
+      {/* 下载协议弹窗 */}
+      <DownloadTermsModalWrapper />
     </div>
   )
 }

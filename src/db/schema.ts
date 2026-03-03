@@ -35,6 +35,7 @@ export const user = pgTable("user", {
   isSubscribed: boolean("is_subscribed").default(false), // 是否为订阅用户
   subscriptionExpiresAt: timestamp("subscription_expires_at"), // 订阅过期时间
   lastDailyAwardDate: timestamp("last_daily_award_date"), // 数据库字段名: last_daily_award_date，最后签到日期（东八区凌晨4点刷新）
+  acceptedDownloadTerms: boolean("accepted_download_terms").default(false), // 数据库字段名: accepted_download_terms，是否同意无水印下载协议
   banReason: text("ban_reason"), // 数据库字段名: ban_reason，封禁原因
 });
 
@@ -166,6 +167,7 @@ export const userPoints = pgTable("user_points", {
     .references(() => user.id, { onDelete: "cascade" }), // 用户ID，外键关联user表
   points: integer("points").notNull(), // 积分数量，正数表示获得，负数表示消费
   type: text("type").notNull(), // 积分类型：'earned' | 'spent'
+  sourceType: text("source_type").default('other'), // 来源类型：'purchased' | 'gifted' | 'refund' | 'mixed' | 'other'
   description: text("description"), // 描述
   earnedAt: timestamp("earned_at").defaultNow().notNull(), // 获得/消费时间
   expiresAt: timestamp("expires_at"), // 过期时间，仅对获得的积分有效
@@ -185,6 +187,7 @@ export const pointsConfig = pgTable("points_config", {
   qwenImageEditCost: integer("qwen_image_edit_cost"), // Qwen-Image-Edit模型积分消耗，null表示使用环境变量
   waiSdxlV150Cost: integer("wai_sdxl_v150_cost"), // Wai-SDXL-V150模型积分消耗，null表示使用环境变量
   wanVideoCost: integer("wan_video_cost"), // Wan视频模型积分消耗，null表示使用环境变量
+  grokImagine1Cost: integer("grok_imagine_1_cost"), // grok-imagine-1.0模型积分消耗，null表示使用环境变量
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -213,6 +216,7 @@ export const pointsPackage = pgTable("points_package", {
   originalPrice: real("original_price"), // 原价（用于显示折扣）
   isPopular: boolean("is_popular").default(false), // 是否热门
   isActive: boolean("is_active").default(true), // 是否上架
+  showOnFrontend: boolean("show_on_frontend").default(true), // 是否在前端展示，默认 true
   sortOrder: integer("sort_order").default(0), // 排序
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

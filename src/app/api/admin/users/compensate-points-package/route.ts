@@ -82,6 +82,7 @@ export async function POST(request: NextRequest) {
       userId,
       points: packageData.points,
       type: 'earned',
+      sourceType: 'purchased',
       description: `管理员补偿积分套餐 - ${packageData.name}`,
       earnedAt: now,
       expiresAt: pointsExpiresAt,

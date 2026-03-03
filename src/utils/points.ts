@@ -30,6 +30,7 @@ export async function getPointsConfig() {
   const envQwenImageEditCost = parseInt(process.env.QWEN_IMAGE_EDIT_COST || '4', 10);
   const envWaiSdxlV150Cost = parseInt(process.env.WAI_SDXL_V150_COST || '2', 10);
   const envWanVideoCost = parseInt(process.env.WAN_VIDEO_COST || '150', 10);
+  const envGrokImagine1Cost = parseInt(process.env.GROK_IMAGINE_1_COST || '10', 10);
 
   return {
     regularUserDailyPoints: configData?.regularUserDailyPoints ?? envRegularPoints,
@@ -42,6 +43,7 @@ export async function getPointsConfig() {
     qwenImageEditCost: configData?.qwenImageEditCost ?? envQwenImageEditCost,
     waiSdxlV150Cost: configData?.waiSdxlV150Cost ?? envWaiSdxlV150Cost,
     wanVideoCost: configData?.wanVideoCost ?? envWanVideoCost,
+    grokImagine1Cost: configData?.grokImagine1Cost ?? envGrokImagine1Cost,
   };
 }
 
@@ -91,6 +93,8 @@ export async function getModelBaseCost(modelId: string): Promise<number | null> 
       return config.waiSdxlV150Cost;
     case 'Wan2.2-I2V-Lightning':
       return config.wanVideoCost;
+    case 'grok-imagine-1.0':
+      return config.grokImagine1Cost;
     default:
       return null; // 其他模型未配置积分消耗
   }
@@ -212,7 +216,7 @@ export async function deductPoints(
     const nowISO = now.toISOString();
     const availablePointsResult = await tx
       .execute(sql`
-        SELECT id, points, earned_at, expires_at
+        SELECT id, points, earned_at, expires_at, source_type
         FROM user_points
         WHERE user_id = ${userId}
           AND type = 'earned'
@@ -232,6 +236,7 @@ export async function deductPoints(
         points: points,
         earnedAt: row.earned_at instanceof Date ? row.earned_at : new Date(row.earned_at),
         expiresAt: row.expires_at instanceof Date ? row.expires_at : new Date(row.expires_at),
+        sourceType: (row.source_type as string) || 'other',
       };
     });
 
@@ -241,7 +246,7 @@ export async function deductPoints(
     }
 
     let remaining = amount;
-    const deductions: Array<{ id: string; points: number; originalPoints: number; earnedAt: Date }> = [];
+    const deductions: Array<{ id: string; points: number; originalPoints: number; earnedAt: Date; sourceType: string }> = [];
 
     // 按FIFO原则扣除积分
     for (const pointRecord of availablePoints) {
@@ -255,7 +260,8 @@ export async function deductPoints(
           id: pointRecord.id, 
           points: recordPoints,
           originalPoints: recordPoints,
-          earnedAt: pointRecord.earnedAt
+          earnedAt: pointRecord.earnedAt,
+          sourceType: pointRecord.sourceType,
         });
         remaining -= recordPoints;
         
@@ -267,7 +273,8 @@ export async function deductPoints(
           id: pointRecord.id, 
           points: remaining,
           originalPoints: recordPoints,
-          earnedAt: pointRecord.earnedAt
+          earnedAt: pointRecord.earnedAt,
+          sourceType: pointRecord.sourceType,
         });
         // 更新原记录，减少积分
         // 如果是今天的签到记录，即使剩余积分为0也要保留
@@ -304,6 +311,10 @@ export async function deductPoints(
       }
     }
 
+    // 推导消耗记录的 sourceType：单一来源保持原值，多种来源标记为 'mixed'
+    const uniqueSourceTypes = [...new Set(deductions.map(d => d.sourceType))];
+    const spentSourceType = uniqueSourceTypes.length === 1 ? uniqueSourceTypes[0] : 'mixed';
+
     // 创建消费记录 - 生成ID并返回
     const spentRecordId = randomUUID();
     await tx.insert(userPoints).values({
@@ -311,6 +322,7 @@ export async function deductPoints(
       userId,
       points: -amount,
       type: 'spent',
+      sourceType: spentSourceType,
       description,
       earnedAt: new Date(),
       expiresAt: null,
@@ -390,7 +402,8 @@ export async function addPoints(
   userId: string,
   amount: number,
   description: string = '积分奖励',
-  expiresInDays: number = 7
+  expiresInDays: number = 7,
+  sourceType: 'purchased' | 'gifted' | 'refund' | 'other' = 'other'
 ): Promise<boolean> {
   try {
     if (amount <= 0) {
@@ -407,6 +420,7 @@ export async function addPoints(
       userId,
       points: amount,
       type: 'earned',
+      sourceType,
       description,
       earnedAt: new Date(),
       expiresAt,
@@ -473,6 +487,7 @@ export async function refundPoints(
       userId: record.userId,
       points: Math.abs(record.points), // 转为正数
       type: 'earned',
+      sourceType: 'refund',
       description: `${record.description} - ${reason}`,
       earnedAt: new Date(),
       expiresAt: refundExpiryDate, // 返还的积分一个月后过期

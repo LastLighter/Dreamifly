@@ -195,6 +195,7 @@ const schemaDefinition = {
     original_price: 'real',
     is_popular: 'boolean',
     is_active: 'boolean',
+    show_on_frontend: 'boolean',
     sort_order: 'integer',
     created_at: 'timestamp',
     updated_at: 'timestamp',

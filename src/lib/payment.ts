@@ -68,6 +68,7 @@ export async function processOrderPaid(
         userId: order.userId,
         points: order.pointsAmount,
         type: 'earned',
+        sourceType: 'purchased',
         description: `积分充值 - 订单号: ${order.id}`,
         expiresAt,
       });
@@ -178,6 +179,7 @@ export async function processOrderPaid(
           userId: order.userId,
           points: plan.bonusPoints,
           type: 'earned',
+          sourceType: 'purchased',
           description: `订阅赠送积分 - ${plan.name}`,
           expiresAt: pointsExpiresAt,
         });

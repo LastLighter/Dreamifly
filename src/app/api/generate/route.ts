@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { generateImage } from '@/utils/comfyApi'
+import { generateGrokImage } from '@/utils/grokApi'
 import { db } from '@/db'
 import { siteStats, modelUsageStats, user, userLimitConfig, ipBlacklist, ipDailyUsage } from '@/db/schema'
 import { eq, sql, and, lt } from 'drizzle-orm'
@@ -10,7 +11,7 @@ import { ipConcurrencyManager } from '@/utils/ipConcurrencyManager'
 import { randomUUID, createHash } from 'crypto'
 import { addWatermark } from '@/utils/watermark'
 import { getModelBaseCost, calculateGenerationCost, checkPointsSufficient, deductPoints, getPointsBalance } from '@/utils/points'
-import { getModelThresholds } from '@/utils/modelConfig'
+import { getModelThresholds, isLoginRequiredModel } from '@/utils/modelConfig'
 
 /**
  * 验证动态API token
@@ -899,6 +900,22 @@ export async function POST(request: Request) {
         }, { status: 401 })
       }
     }
+
+    // 检查仅限登录使用的模型（如 grok-imagine-1.0）
+    if (!session?.user && isLoginRequiredModel(model)) {
+      if (clientIP) {
+        await ipConcurrencyManager.end(clientIP).catch(err => {
+          console.error('Error decrementing IP concurrency after grok login check:', err)
+        })
+      }
+      if (generationId) {
+        concurrencyManager.end(generationId)
+      }
+      return NextResponse.json({
+        error: '该模型仅限登录用户使用，请先登录后再使用',
+        code: 'LOGIN_REQUIRED'
+      }, { status: 401 })
+    }
     
     // 如果用户未登录，添加延迟（未登录用户不受用户并发限制）
     // 注意：未登录用户的IP并发计数已在前面增加，所以排队期间也算IP并发
@@ -963,18 +980,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // 调用 ComfyUI API
-    let imageUrl = await generateImage({
-      prompt,
-      width,
-      height,
-      steps,
-      seed: seed ? parseInt(seed) : undefined,
-      batch_size,
-      model,
-      images,
-      negative_prompt,
-    })
+    // 调用图片生成 API（grok 使用独立 API，其他模型使用 ComfyUI）
+    let imageUrl: string
+    if (model === 'grok-imagine-1.0') {
+      imageUrl = await generateGrokImage({ prompt, width, height })
+    } else {
+      imageUrl = await generateImage({
+        prompt,
+        width,
+        height,
+        steps,
+        seed: seed ? parseInt(seed) : undefined,
+        batch_size,
+        model,
+        images,
+        negative_prompt,
+      })
+    }
 
     // 如果用户未登录，检查是否需要添加水印
     if (!session?.user) {

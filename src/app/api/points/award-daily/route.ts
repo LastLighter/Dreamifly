@@ -129,6 +129,7 @@ export async function POST(request: NextRequest) {
       userId: session.user.id,
       points: pointsToAward,
       type: 'earned',
+      sourceType: 'gifted',
       description,
       earnedAt,
       expiresAt,

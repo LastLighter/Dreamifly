@@ -10,7 +10,7 @@ import PromptInput from './PromptInput'
 import { optimizePrompt } from '../utils/promptOptimizer'
 import { useSession } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
-import { getModelThresholds, getAllModels } from '@/utils/modelConfig'
+import { getModelThresholds, getAllModels, GROK_RATIO_SIZES, GROK_ALLOWED_RATIOS } from '@/utils/modelConfig'
 import { usePoints } from '@/contexts/PointsContext'
 import { calculateEstimatedCost } from '@/utils/pointsClient'
 import { transferUrl } from '@/utils/locale'
@@ -301,16 +301,22 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
         id: "Z-Image-Turbo",
         maxImages: 0,
         tags: ["chineseSupport", "fastGeneration"]
+      },
+      {
+        id: "grok-imagine-1.0",
+        maxImages: 0,
+        tags: ["chineseSupport", "fastGeneration"]
       }
     ];
     
     const currentModel = models.find(m => m.id === model);
-    const maxImages = currentModel?.maxImages || 1;
-    const supportsChinese = currentModel?.tags?.includes("chineseSupport") || false;
+    const maxImages = currentModel?.maxImages ?? 1;
     
     // 首先检查图生图模型是否上传了图片（优先级最高，避免被后续逻辑覆盖）
     const allModels = getAllModels();
     const modelConfig = allModels.find(m => m.id === model);
+    // 支持中文以 modelConfig（ALL_MODELS）为准，避免硬编码列表漏掉新模型（如 grok-imagine-1.0）
+    const supportsChinese = modelConfig?.tags?.includes('chineseSupport') ?? false;
     
     if (modelConfig) {
       // 如果模型只支持图生图（不支持文生图），必须上传图片
@@ -595,8 +601,27 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
   // 高分辨率开关状态（独立控制，不受图片比例影响）
   const [isHighResolution, setIsHighResolution] = useState(false);
 
+  // 切换到 grok-imagine-1.0 时，若当前比例不在支持列表内，重置为 1:1
+  useEffect(() => {
+    if (model === 'grok-imagine-1.0' && !GROK_ALLOWED_RATIOS.includes(aspectRatio)) {
+      setAspectRatio('1:1');
+      setWidth(1024);
+      setHeight(1024);
+      setIsHighResolution(false);
+    }
+  }, [model, aspectRatio]);
+
   const handleRatioChange = (ratio: string) => {
     setAspectRatio(ratio);
+
+    // grok-imagine-1.0 使用固定尺寸，不按像素计算
+    if (model === 'grok-imagine-1.0') {
+      const size = GROK_RATIO_SIZES[ratio] || GROK_RATIO_SIZES['1:1'];
+      setWidth(size.width);
+      setHeight(size.height);
+      return;
+    }
+
     const [wStr, hStr] = ratio.split(':');
     const w = parseInt(wStr);
     const h = parseInt(hStr);
@@ -802,6 +827,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
                   promptRef={promptRef}
                   aspectRatio={aspectRatio}
                   onRatioChange={handleRatioChange}
+                  model={model}
                   selectedStyle={selectedStyle}
                   onStyleChange={setSelectedStyle}
                   isQueuing={isQueuing}

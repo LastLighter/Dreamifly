@@ -1,4 +1,7 @@
+'use client'
+
 import { useTranslations } from 'next-intl'
+import { useDownloadWithTerms } from '@/hooks/useDownloadWithTerms'
 
 interface GeneratePreviewProps {
   generatedImages: string[];
@@ -23,19 +26,35 @@ export default function GeneratePreview({
   onDownloadImage
 }: GeneratePreviewProps) {
   const t = useTranslations('home.generate')
+  const { checkAndDownload, DownloadTermsModalWrapper } = useDownloadWithTerms()
 
-  const handleDownloadImage = (image: string, index: number) => {
-    if (onDownloadImage) {
-      onDownloadImage(image, index);
-    } else {
-      // 默认下载行为
-      const link = document.createElement('a');
-      link.href = image;
-      link.download = `generated-image-${index + 1}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+  const handleDownloadImage = async (image: string, index: number) => {
+    await checkAndDownload(async () => {
+      if (onDownloadImage) {
+        onDownloadImage(image, index);
+      } else {
+        // 默认下载行为
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `generated-image-${index + 1}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    });
+  };
+
+  const handleBatchDownload = async () => {
+    await checkAndDownload(async () => {
+      generatedImages.forEach((image, index) => {
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = `generated-image-${index + 1}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    });
   };
 
   const handleSetAsReference = (image: string) => {
@@ -53,20 +72,11 @@ export default function GeneratePreview({
         </div>
         {generatedImages && generatedImages.length > 0 && (
           <button
-            onClick={() => {
-              generatedImages.forEach((image, index) => {
-                const link = document.createElement('a');
-                link.href = image;
-                link.download = `generated-image-${index + 1}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              });
-            }}
-            className="group px-6 py-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-white rounded-xl hover:from-amber-300 hover:to-yellow-300 transition-all duration-300 shadow-lg shadow-orange-400/20 hover:shadow-xl hover:shadow-orange-400/30 hover:-translate-y-0.5 relative overflow-hidden"
+            onClick={handleBatchDownload}
+            className="group px-6 py-3 bg-gradient-to-r from-amber-400 to-yellow-400 text-white rounded-xl hover:from-amber-300 hover:to-yellow-300 transition-all duration-300 shadow-lg shadow-orange-400/20 hover:shadow-xl hover:shadow-orange-400/30 hover:-translate-y-0.5 relative overflow-hidden focus:outline-none"
           >
             <span className="relative z-10">{t('preview.download')}</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-400 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-amber-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           </button>
         )}
       </div>
@@ -138,7 +148,7 @@ export default function GeneratePreview({
                       e.stopPropagation();
                       handleSetAsReference(generatedImages[index]);
                     }}
-                    className="relative p-2.5 bg-white/80 hover:bg-yellow-100/80 rounded-lg transition-colors duration-200 group/btn"
+                    className="relative p-2.5 bg-white/80 hover:bg-yellow-100/80 rounded-lg transition-colors duration-200 group/btn focus:outline-none"
                     title="设置为参考图片"
                   >
                     <svg className="w-4 h-4 text-yellow-500 group-hover/btn:text-yellow-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,7 +167,7 @@ export default function GeneratePreview({
                       e.stopPropagation();
                       handleDownloadImage(generatedImages[index], index);
                     }}
-                    className="relative p-2.5 bg-white/80 hover:bg-yellow-100/80 rounded-lg transition-colors duration-200 group/btn"
+                    className="relative p-2.5 bg-white/80 hover:bg-yellow-100/80 rounded-lg transition-colors duration-200 group/btn focus:outline-none"
                     title="下载图片"
                   >
                     <svg className="w-4 h-4 text-yellow-500 group-hover/btn:text-yellow-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,6 +210,9 @@ export default function GeneratePreview({
           </span>
         </div>
       )}
+      
+      {/* 下载协议弹窗 */}
+      <DownloadTermsModalWrapper />
     </div>
   )
 } 
