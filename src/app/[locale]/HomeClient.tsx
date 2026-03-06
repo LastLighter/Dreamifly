@@ -12,6 +12,7 @@ import { getAvailableModels } from '@/utils/modelConfig'
 import { getAvailableWorkflows } from '@/utils/workflowConfig'
 import AIPlazaCard from '@/components/AIPlazaCard'
 import VideoToVideoPlazaCard from '@/components/VideoToVideoPlazaCard'
+import GrokVideoPlazaCard from '@/components/GrokVideoPlazaCard'
 import { ModelConfig } from '@/utils/modelConfig'
 import { WorkflowConfig } from '@/utils/workflowConfig'
 import CommunityMasonry, { type CommunityWork } from '@/components/CommunityMasonry'
@@ -459,7 +460,7 @@ export default function HomeClient() {
                     <AIPlazaCard item={model} type="model" />
                   </div>
                 ))}
-                {/* 图生视频卡片 - 放在文生图模型后面 */}
+                {/* 图生视频卡片 - Wan 2.2 I2V Lightning */}
                 <div className="animate-fadeInUp" style={{ animationDelay: `${availableModels.length * 100}ms` }}>
                   <VideoToVideoPlazaCard
                     name="Wan 2.2 I2V Lightning"
@@ -468,9 +469,18 @@ export default function HomeClient() {
                     thumbnailSrc="/images/video-community/video-demo-8.png"
                   />
                 </div>
+                {/* Grok 视频生成卡片 */}
+                <div className="animate-fadeInUp" style={{ animationDelay: `${(availableModels.length + 1) * 100}ms` }}>
+                  <GrokVideoPlazaCard
+                    name="grok-imagine-1.0-video"
+                    description="基于 Grok Imagine 的图生视频模型，支持中文提示词、快速生成，并可输出带音频的视频效果。"
+                    videoSrc="/images/video-community/video-demo-10.mp4"
+                    thumbnailSrc="/images/video-community/video-demo-10.png"
+                  />
+                </div>
                 {/* 显示所有可用的工作流 */}
                 {availableWorkflows.map((workflow, index) => (
-                  <div key={`workflow-${workflow.id}`} className="animate-fadeInUp" style={{ animationDelay: `${(availableModels.length + 1 + index) * 100}ms` }}>
+                  <div key={`workflow-${workflow.id}`} className="animate-fadeInUp" style={{ animationDelay: `${(availableModels.length + 2 + index) * 100}ms` }}>
                     <AIPlazaCard item={workflow} type="workflow" />
                   </div>
                 ))}
