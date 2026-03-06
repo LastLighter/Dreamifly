@@ -117,6 +117,24 @@ export async function callGrokImagineVideo(params: {
     },
   }
 
+  // 打印一份精简的调试信息，方便在本地或日志中查看
+  try {
+    const imageLength = imageBase64DataUrl?.length ?? 0
+    const imagePrefix = imageBase64DataUrl?.slice(0, 64) ?? ''
+    const bodySize = JSON.stringify(body).length
+
+    console.log('[grok-imagine-1.0-video] 即将请求 grok2api', {
+      url: apiUrl,
+      video_config: body.video_config,
+      promptPreview: promptText.slice(0, 80),
+      imageUrlPrefix: imagePrefix,
+      imageUrlLength: imageLength,
+      estimatedJsonSizeBytes: bodySize,
+    })
+  } catch {
+    // 打印调试信息失败不影响主流程
+  }
+
   const response = await fetchWithTimeout(
     apiUrl,
     {

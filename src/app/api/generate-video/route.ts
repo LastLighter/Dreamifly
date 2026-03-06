@@ -118,7 +118,25 @@ export async function POST(request: Request) {
 
     // 解析请求体
     const body = await request.json();
-    const { prompt, width, height, aspectRatio, length, fps, seed, steps, model, image, negative_prompt, videoSeconds } = body;
+    const { prompt, width, height, aspectRatio, length, fps, seed, steps, model, image, negative_prompt, videoSeconds } = body as {
+      prompt?: string
+      width?: number
+      height?: number
+      /**
+       * 宽高比：
+       * - 数字：直接表示 width / height
+       * - 字符串：支持 "16:9" | "9:16" | "3:2" | "2:3" | "1:1" 等形式
+       */
+      aspectRatio?: number | string
+      length?: number
+      fps?: number
+      seed?: number | string
+      steps?: number
+      model: string
+      image?: string
+      negative_prompt?: string
+      videoSeconds?: number
+    };
     
     // 验证模型是否存在
     const modelConfig = getVideoModelById(model);
@@ -127,9 +145,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '视频模型不存在' }, { status: 400 });
     }
     
+    // 规范化宽高比：支持数字和 "16:9" / "9:16" / "3:2" / "2:3" / "1:1" 字符串形式
+    let aspectRatioNumber: number | undefined
+    if (typeof aspectRatio === 'number') {
+      if (Number.isFinite(aspectRatio) && aspectRatio > 0) {
+        aspectRatioNumber = aspectRatio
+      }
+    } else if (typeof aspectRatio === 'string' && aspectRatio.includes(':')) {
+      const [wStr, hStr] = aspectRatio.split(':')
+      const w = parseFloat(wStr)
+      const h = parseFloat(hStr)
+      if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+        aspectRatioNumber = w / h
+      }
+    }
+
     const ratioFromInput =
-      (typeof aspectRatio === 'number' && Number.isFinite(aspectRatio) && aspectRatio > 0)
-        ? aspectRatio
+      (typeof aspectRatioNumber === 'number' && Number.isFinite(aspectRatioNumber) && aspectRatioNumber > 0)
+        ? aspectRatioNumber
         : (typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0)
             ? (width / height)
             : NaN
@@ -151,9 +184,9 @@ export async function POST(request: Request) {
       finalWidth = resolution.width
       finalHeight = resolution.height
     } else {
-      // 兼容旧请求：如果提供了aspectRatio且没提供宽高，用比例计算；否则用宽高并做像素上限约束
-      if (aspectRatio && !width && !height) {
-        const resolution = calculateVideoResolution(modelConfig, aspectRatio)
+      // 兼容旧请求：如果提供了 aspectRatio（数字或字符串）且没提供宽高，用比例计算；否则用宽高并做像素上限约束
+      if (typeof aspectRatioNumber === 'number' && !width && !height) {
+        const resolution = calculateVideoResolution(modelConfig, aspectRatioNumber)
         finalWidth = resolution.width
         finalHeight = resolution.height
       } else if (width && height) {
@@ -272,7 +305,7 @@ export async function POST(request: Request) {
       const apiUrl = process.env.GROK_VIDEO_API_URL || ''
       const apiKey = process.env.GROK_VIDEO_API_KEY || 'xxx'
 
-      let imageUrl = image
+      let imageUrl: string = image
       if (typeof imageUrl === 'string' && !imageUrl.startsWith('data:')) {
         imageUrl = `data:image/jpeg;base64,${imageUrl}`
       }
@@ -297,12 +330,14 @@ export async function POST(request: Request) {
       videoFrameCount = undefined
     } else {
       videoUrl = await generateVideo({
-        prompt,
+        prompt: prompt ?? '',
         width: finalWidth,
         height: finalHeight,
         length: length || modelConfig.defaultLength || 100,
         fps: fps || modelConfig.defaultFps || 20,
-        seed: seed ? parseInt(seed) : undefined,
+        seed: typeof seed === 'number'
+          ? seed
+          : (typeof seed === 'string' && seed.trim() !== '' ? parseInt(seed, 10) : undefined),
         steps: steps || 4,
         model,
         image,
