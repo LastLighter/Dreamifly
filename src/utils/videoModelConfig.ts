@@ -3,8 +3,38 @@
 // 视频模型环境变量映射
 const VIDEO_MODEL_ENV_MAP = {
   "Wan2.2-I2V-Lightning": "WAN_I2V_URL",
+  "grok-imagine-1.0-video": "GROK_VIDEO_API_URL",
   // 可以添加更多视频模型
 } as const;
+
+export type VideoAspectRatioLabel = '16:9' | '9:16' | '3:2' | '2:3' | '1:1' | '4:3' | '3:4'
+
+export function aspectRatioLabelToNumber(label: VideoAspectRatioLabel): number {
+  const [w, h] = label.split(':').map(Number)
+  return w / h
+}
+
+export function pickClosestAspectRatioLabel(
+  ratio: number,
+  allowed: VideoAspectRatioLabel[],
+  fallback: VideoAspectRatioLabel = '1:1'
+): VideoAspectRatioLabel {
+  if (!Number.isFinite(ratio) || ratio <= 0) return fallback
+  if (!allowed.length) return fallback
+
+  let best = allowed[0]
+  let bestDiff = Math.abs(aspectRatioLabelToNumber(best) - ratio)
+
+  for (const label of allowed) {
+    const diff = Math.abs(aspectRatioLabelToNumber(label) - ratio)
+    if (diff < bestDiff) {
+      best = label
+      bestDiff = diff
+    }
+  }
+
+  return best ?? fallback
+}
 
 // 视频模型文件配置
 export interface VideoModelFiles {
@@ -23,15 +53,20 @@ export interface VideoModelConfig {
   description?: string;        // 模型描述
   image?: string;              // 模型预览图路径
   homepageCover?: string;       // 主页封面图
-  files: VideoModelFiles;       // 模型文件配置
+  files?: VideoModelFiles;       // 模型文件配置（ComfyUI类模型使用）
   tags?: string[];              // 标签
   isRecommended?: boolean;      // 是否推荐
   isAvailable?: boolean;        // 是否可用（动态属性）
+  provider?: 'comfy' | 'grok';  // 模型提供方（用于后端分流）
   // 视频生成参数配置
   defaultFps?: number;          // 默认帧率
   defaultLength?: number;       // 默认视频长度（帧数）
   maxLength?: number;           // 最大视频长度
   totalPixels?: number;        // 总像素数（用于分辨率计算）
+  // Grok 视频模型专用配置
+  allowedAspectRatios?: VideoAspectRatioLabel[]; // 允许的宽高比（字符串标签）
+  fixedResolutionName?: '480p'; // 固定分辨率档位
+  defaultVideoSeconds?: number; // 默认视频长度（秒）
 }
 
 // 视频模型配置列表
@@ -52,10 +87,24 @@ export const ALL_VIDEO_MODELS: VideoModelConfig[] = [
     },
     tags: ["fastGeneration", "i2v"],
     isRecommended: true,
+    provider: 'comfy',
     defaultFps: 20,
     defaultLength: 100,
     maxLength: 200,
     totalPixels: 1280 * 720, // 720p 总像素
+  },
+  {
+    id: 'grok-imagine-1.0-video',
+    name: 'Grok Imagine Video',
+    description: 'Grok 图生视频模型（480p 固定档位），支持限定宽高比集合快速生成视频。',
+    image: '/models/video/grok-imagine-1.0-video.jpg',
+    homepageCover: '/models/homepageModelCover/grok-video.png',
+    tags: ['i2v'],
+    isRecommended: false,
+    provider: 'grok',
+    fixedResolutionName: '480p',
+    allowedAspectRatios: ['16:9', '9:16', '3:2', '2:3', '1:1'],
+    defaultVideoSeconds: 6,
   },
   // 可以在这里添加更多视频模型配置
 ];
@@ -112,6 +161,31 @@ export function getAllVideoModels(): VideoModelConfig[] {
  */
 export function getVideoModelById(modelId: string): VideoModelConfig | null {
   return ALL_VIDEO_MODELS.find(model => model.id === modelId) || null;
+}
+
+export function getVideoAspectRatioOptions(modelConfig: VideoModelConfig): Array<{ label: VideoAspectRatioLabel; value: number }> {
+  const defaultLabels: VideoAspectRatioLabel[] = ['16:9', '4:3', '1:1', '3:4', '9:16']
+  const labels = (modelConfig.allowedAspectRatios?.length ? modelConfig.allowedAspectRatios : defaultLabels)
+  return labels.map(label => ({ label, value: aspectRatioLabelToNumber(label) }))
+}
+
+export function calculateVideoResolutionForModel(
+  modelConfig: VideoModelConfig,
+  aspectRatioLabel: VideoAspectRatioLabel
+): { width: number; height: number } {
+  if (modelConfig.provider === 'grok' && modelConfig.fixedResolutionName === '480p') {
+    const map: Record<Exclude<VideoAspectRatioLabel, '4:3' | '3:4'>, { width: number; height: number }> = {
+      '16:9': { width: 854, height: 480 },
+      '9:16': { width: 480, height: 854 },
+      '3:2': { width: 720, height: 480 },
+      '2:3': { width: 480, height: 720 },
+      '1:1': { width: 480, height: 480 },
+    }
+    const preset = map[aspectRatioLabel as Exclude<VideoAspectRatioLabel, '4:3' | '3:4'>] ?? map['1:1']
+    return { width: preset.width, height: preset.height }
+  }
+
+  return calculateVideoResolution(modelConfig, aspectRatioLabelToNumber(aspectRatioLabel))
 }
 
 /**

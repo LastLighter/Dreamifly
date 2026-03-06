@@ -31,6 +31,7 @@ export async function getPointsConfig() {
   const envWaiSdxlV150Cost = parseInt(process.env.WAI_SDXL_V150_COST || '2', 10);
   const envWanVideoCost = parseInt(process.env.WAN_VIDEO_COST || '150', 10);
   const envGrokImagine1Cost = parseInt(process.env.GROK_IMAGINE_1_COST || '10', 10);
+  const envGrokVideoCost = parseInt(process.env.GROK_VIDEO_COST || '150', 10);
 
   return {
     regularUserDailyPoints: configData?.regularUserDailyPoints ?? envRegularPoints,
@@ -44,6 +45,8 @@ export async function getPointsConfig() {
     waiSdxlV150Cost: configData?.waiSdxlV150Cost ?? envWaiSdxlV150Cost,
     wanVideoCost: configData?.wanVideoCost ?? envWanVideoCost,
     grokImagine1Cost: configData?.grokImagine1Cost ?? envGrokImagine1Cost,
+    // 目前 points_config 表没有该字段，先仅使用环境变量作为默认值
+    grokVideoCost: envGrokVideoCost,
   };
 }
 
@@ -95,6 +98,8 @@ export async function getModelBaseCost(modelId: string): Promise<number | null> 
       return config.wanVideoCost;
     case 'grok-imagine-1.0':
       return config.grokImagine1Cost;
+    case 'grok-imagine-1.0-video':
+      return config.grokVideoCost;
     default:
       return null; // 其他模型未配置积分消耗
   }

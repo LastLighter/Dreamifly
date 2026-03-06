@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
 import { useSession } from '@/lib/auth-client'
 import { usePoints } from '@/contexts/PointsContext'
-import { getVideoModelById, calculateVideoResolution } from '@/utils/videoModelConfig'
+import { aspectRatioLabelToNumber, calculateVideoResolution, calculateVideoResolutionForModel, getVideoAspectRatioOptions, getVideoModelById, pickClosestAspectRatioLabel, type VideoAspectRatioLabel } from '@/utils/videoModelConfig'
 import { optimizeVideoPrompt } from '@/utils/videoPromptOptimizer'
 import Toast from '@/components/Toast'
 
@@ -80,6 +80,11 @@ const VideoGenerateForm = ({
   // 用户认证状态
   const authStatus = isPending ? 'loading' : (session?.user ? 'authenticated' : 'unauthenticated')
 
+  // 当前模型配置：优先使用后端返回的可用模型列表（字段最贴近运行时），取不到再回退到本地静态配置
+  const currentModelConfig =
+    (model ? (availableModels.find((m: any) => m?.id === model) ?? null) : null) ??
+    (model ? getVideoModelById(model) : null)
+
   // 点击外部关闭宽高比下拉菜单
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -150,6 +155,20 @@ const VideoGenerateForm = ({
 
     calculateCost()
   }, [model])
+
+  // 切换模型时：如果是 Grok 视频模型，自动夹取到允许的宽高比，并更新固定 480p 分辨率
+  useEffect(() => {
+    if (!currentModelConfig) return
+    if (currentModelConfig.provider !== 'grok') return
+
+    const allowed = getVideoAspectRatioOptions(currentModelConfig).map(o => o.label)
+    const clampedLabel = pickClosestAspectRatioLabel(aspectRatio, allowed as VideoAspectRatioLabel[], '1:1')
+    const resolution = calculateVideoResolutionForModel(currentModelConfig, clampedLabel)
+
+    setAspectRatio(aspectRatioLabelToNumber(clampedLabel))
+    setWidth(resolution.width)
+    setHeight(resolution.height)
+  }, [model]) // 仅在模型切换时运行
 
   // 视频生成进度条动画
   useEffect(() => {
@@ -252,14 +271,22 @@ const VideoGenerateForm = ({
           img.onload = () => {
             // 计算宽高比
             const imageAspectRatio = img.width / img.height
-            setAspectRatio(imageAspectRatio)
-
-            // 根据宽高比计算视频分辨率（保持总像素不变）
             const modelConfig = getVideoModelById(model)
-            if (modelConfig) {
-              const resolution = calculateVideoResolution(modelConfig, imageAspectRatio)
+            if (modelConfig?.provider === 'grok') {
+              const allowed = getVideoAspectRatioOptions(modelConfig).map(o => o.label)
+              const clampedLabel = pickClosestAspectRatioLabel(imageAspectRatio, allowed as VideoAspectRatioLabel[], '1:1')
+              const resolution = calculateVideoResolutionForModel(modelConfig, clampedLabel)
+              setAspectRatio(aspectRatioLabelToNumber(clampedLabel))
               setWidth(resolution.width)
               setHeight(resolution.height)
+            } else {
+              setAspectRatio(imageAspectRatio)
+              // 根据宽高比计算视频分辨率（保持总像素不变）
+              if (modelConfig) {
+                const resolution = calculateVideoResolution(modelConfig, imageAspectRatio)
+                setWidth(resolution.width)
+                setHeight(resolution.height)
+              }
             }
 
             // 设置上传的图片
@@ -387,25 +414,29 @@ const VideoGenerateForm = ({
   }
 
   // 处理宽高比变化
-  const handleAspectRatioChange = (newAspectRatio: number) => {
+  const handleAspectRatioChange = (newLabel: VideoAspectRatioLabel) => {
+    const newAspectRatio = aspectRatioLabelToNumber(newLabel)
     setAspectRatio(newAspectRatio)
-    if (model) {
-      const modelConfig = getVideoModelById(model)
-      if (modelConfig) {
-        const resolution = calculateVideoResolution(modelConfig, newAspectRatio)
-        setWidth(resolution.width)
-        setHeight(resolution.height)
-      }
-    }
+
+    const modelConfig = getVideoModelById(model)
+    if (!modelConfig) return
+
+    const resolution =
+      modelConfig.provider === 'grok'
+        ? calculateVideoResolutionForModel(modelConfig, newLabel)
+        : calculateVideoResolution(modelConfig, newAspectRatio)
+
+    setWidth(resolution.width)
+    setHeight(resolution.height)
   }
 
-  // 预设宽高比选项
-  const aspectRatioOptions = [
-    { value: 16/9, label: '16:9' },
-    { value: 4/3, label: '4:3' },
-    { value: 1, label: '1:1' },
-    { value: 3/4, label: '3:4' },
-    { value: 9/16, label: '9:16' },
+  // 预设宽高比选项（随模型动态变化；Grok 仅允许特定比例集合）
+  const aspectRatioOptions = currentModelConfig ? getVideoAspectRatioOptions(currentModelConfig) : [
+    { value: 16/9, label: '16:9' as const },
+    { value: 4/3, label: '4:3' as const },
+    { value: 1, label: '1:1' as const },
+    { value: 3/4, label: '3:4' as const },
+    { value: 9/16, label: '9:16' as const },
   ]
 
   // 将数字宽高比转换为字符串格式（如 1.777... -> "16:9"）
@@ -626,7 +657,7 @@ const VideoGenerateForm = ({
                                 <div
                                   key={option.value}
                                   onClick={() => { 
-                                    handleAspectRatioChange(option.value); 
+                                    handleAspectRatioChange(option.label); 
                                     setIsRatioOpen(false); 
                                   }}
                                   className={`flex items-center px-3 py-2 text-sm text-gray-900 hover:bg-gray-100/50 w-full rounded-lg cursor-pointer ${isSelected ? 'bg-amber-100/50' : ''}`}

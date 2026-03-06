@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { generateVideo } from '@/utils/videoComfyApi'
-import { getVideoModelById, calculateVideoResolution } from '@/utils/videoModelConfig'
+import { calculateVideoResolution, calculateVideoResolutionForModel, getVideoAspectRatioOptions, getVideoModelById, pickClosestAspectRatioLabel, type VideoAspectRatioLabel } from '@/utils/videoModelConfig'
 import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import { createHash } from 'crypto'
@@ -9,6 +9,7 @@ import { db } from '@/db'
 import { siteStats, user } from '@/db/schema'
 import { eq, sql } from 'drizzle-orm'
 import { saveUserGeneratedVideo } from '@/utils/userVideoStorage'
+import { callGrokImagineVideo, downloadMp4AsDataUrl } from '@/utils/grokVideoApi'
 
 // 设置 API 路由最大执行时间为 25 分钟（1500 秒），确保比视频生成超时时间（20 分钟）更长
 // 这样即使需要轮询获取视频，也不会因为 Next.js 的路由超时而失败
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
 
     // 解析请求体
     const body = await request.json();
-    const { prompt, width, height, aspectRatio, length, fps, seed, steps, model, image, negative_prompt } = body;
+    const { prompt, width, height, aspectRatio, length, fps, seed, steps, model, image, negative_prompt, videoSeconds } = body;
     
     // 验证模型是否存在
     const modelConfig = getVideoModelById(model);
@@ -126,36 +127,55 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: '视频模型不存在' }, { status: 400 });
     }
     
-    // 计算分辨率（如果提供了aspectRatio，使用比例计算；否则使用提供的width和height）
-    let finalWidth = width;
-    let finalHeight = height;
-    
-    if (aspectRatio && !width && !height) {
-      // 根据比例计算分辨率（保持总像素不变）
-      const resolution = calculateVideoResolution(modelConfig, aspectRatio);
-      finalWidth = resolution.width;
-      finalHeight = resolution.height;
-    } else if (width && height) {
-      // 使用提供的分辨率，但需要确保总像素不超过模型限制
-      const totalPixels = width * height;
-      const maxPixels = modelConfig.totalPixels || 1280 * 720;
-      
-      if (totalPixels > maxPixels) {
-        // 如果超过限制，按比例缩放
-        const scale = Math.sqrt(maxPixels / totalPixels);
-        finalWidth = Math.round(width * scale / 8) * 8;
-        finalHeight = Math.round(height * scale / 8) * 8;
-      } else {
-        // 确保宽高都是8的倍数
-        finalWidth = Math.round(width / 8) * 8;
-        finalHeight = Math.round(height / 8) * 8;
-      }
+    const ratioFromInput =
+      (typeof aspectRatio === 'number' && Number.isFinite(aspectRatio) && aspectRatio > 0)
+        ? aspectRatio
+        : (typeof width === 'number' && typeof height === 'number' && width > 0 && height > 0)
+            ? (width / height)
+            : NaN
+
+    const allowedRatioOptions = getVideoAspectRatioOptions(modelConfig)
+    const allowedLabels = allowedRatioOptions.map(o => o.label)
+    const closestLabel = pickClosestAspectRatioLabel(
+      ratioFromInput,
+      allowedLabels,
+      (allowedLabels.includes('1:1' as VideoAspectRatioLabel) ? ('1:1' as VideoAspectRatioLabel) : allowedLabels[0])
+    )
+
+    // 计算分辨率（Grok: 固定480p档位按比例映射；Comfy: 维持原先像素约束逻辑）
+    let finalWidth: number | undefined
+    let finalHeight: number | undefined
+
+    if (modelConfig.provider === 'grok') {
+      const resolution = calculateVideoResolutionForModel(modelConfig, closestLabel)
+      finalWidth = resolution.width
+      finalHeight = resolution.height
     } else {
-      return NextResponse.json({ error: '请提供分辨率或宽高比' }, { status: 400 })
+      // 兼容旧请求：如果提供了aspectRatio且没提供宽高，用比例计算；否则用宽高并做像素上限约束
+      if (aspectRatio && !width && !height) {
+        const resolution = calculateVideoResolution(modelConfig, aspectRatio)
+        finalWidth = resolution.width
+        finalHeight = resolution.height
+      } else if (width && height) {
+        // 这里沿用旧逻辑（像素上限 + 8倍数），避免影响现有 Comfy 模型
+        const totalPixels = width * height;
+        const maxPixels = modelConfig.totalPixels || 1280 * 720;
+        
+        if (totalPixels > maxPixels) {
+          const scale = Math.sqrt(maxPixels / totalPixels);
+          finalWidth = Math.round(width * scale / 8) * 8;
+          finalHeight = Math.round(height * scale / 8) * 8;
+        } else {
+          finalWidth = Math.round(width / 8) * 8;
+          finalHeight = Math.round(height / 8) * 8;
+        }
+      } else {
+        return NextResponse.json({ error: '请提供分辨率或宽高比' }, { status: 400 })
+      }
     }
     
     // 验证输入
-    if (finalWidth < 64 || finalHeight < 64) {
+    if (!finalWidth || !finalHeight || finalWidth < 64 || finalHeight < 64) {
       return NextResponse.json({ error: 'Invalid video dimensions' }, { status: 400 })
     }
     
@@ -198,10 +218,20 @@ export async function POST(request: Request) {
       }
 
       // 扣除积分
+      const secondsForSpend =
+        (typeof videoSeconds === 'number' && Number.isFinite(videoSeconds) && videoSeconds > 0)
+          ? Math.round(videoSeconds)
+          : (modelConfig.defaultVideoSeconds || 6)
+
+      const spendDesc =
+        modelConfig.provider === 'grok'
+          ? `视频生成 - ${model} (分辨率: ${finalWidth}x${finalHeight}, 时长: ${secondsForSpend}秒)`
+          : `视频生成 - ${model} (分辨率: ${finalWidth}x${finalHeight}, 长度: ${length || modelConfig.defaultLength || 100}帧)`
+
       spentRecordId = await deductPoints(
         userId,
         pointsCost,
-        `视频生成 - ${model} (分辨率: ${finalWidth}x${finalHeight}, 长度: ${length || modelConfig.defaultLength || 100}帧)`
+        spendDesc
       );
 
       if (!spentRecordId) {
@@ -233,24 +263,59 @@ export async function POST(request: Request) {
 
     // 调用视频生成 API
     // 注意：视频生成可能需要较长时间，这里不设置超时限制
-    const videoUrl = await generateVideo({
-      prompt,
-      width: finalWidth,
-      height: finalHeight,
-      length: length || modelConfig.defaultLength || 100,
-      fps: fps || modelConfig.defaultFps || 20,
-      seed: seed ? parseInt(seed) : undefined,
-      steps: steps || 4,
-      model,
-      image,
-      negative_prompt,
-    });
-    
-    // 计算视频元数据
-    const videoLength = length || modelConfig.defaultLength || 100;
-    const videoFps = fps || modelConfig.defaultFps || 20;
-    const videoDuration = videoLength / videoFps; // 视频时长（秒）
+    let videoUrl: string
+    let videoDurationSeconds: number
+    let videoFps: number | undefined
+    let videoFrameCount: number | undefined
 
+    if (modelConfig.provider === 'grok') {
+      const apiUrl = process.env.GROK_VIDEO_API_URL || ''
+      const apiKey = process.env.GROK_VIDEO_API_KEY || 'xxx'
+
+      let imageUrl = image
+      if (typeof imageUrl === 'string' && !imageUrl.startsWith('data:')) {
+        imageUrl = `data:image/jpeg;base64,${imageUrl}`
+      }
+
+      const seconds =
+        (typeof videoSeconds === 'number' && Number.isFinite(videoSeconds) && videoSeconds > 0)
+          ? Math.round(videoSeconds)
+          : (modelConfig.defaultVideoSeconds || 6)
+
+      const { mp4Url } = await callGrokImagineVideo({
+        apiUrl,
+        apiKey,
+        imageBase64DataUrl: imageUrl,
+        promptText: String(prompt ?? '').trim() || '让画面动起来',
+        aspectRatio: closestLabel as any,
+        videoSeconds: seconds,
+      })
+
+      videoUrl = await downloadMp4AsDataUrl({ url: mp4Url, apiKey })
+      videoDurationSeconds = seconds
+      videoFps = undefined
+      videoFrameCount = undefined
+    } else {
+      videoUrl = await generateVideo({
+        prompt,
+        width: finalWidth,
+        height: finalHeight,
+        length: length || modelConfig.defaultLength || 100,
+        fps: fps || modelConfig.defaultFps || 20,
+        seed: seed ? parseInt(seed) : undefined,
+        steps: steps || 4,
+        model,
+        image,
+        negative_prompt,
+      });
+
+      const videoLength = length || modelConfig.defaultLength || 100;
+      const comfyFps = fps || modelConfig.defaultFps || 20;
+      videoDurationSeconds = videoLength / comfyFps;
+      videoFps = comfyFps
+      videoFrameCount = videoLength
+    }
+    
     // 先计算总响应时间（秒）
     const responseTime = (Date.now() - totalStartTime) / 1000;
 
@@ -288,9 +353,9 @@ export async function POST(request: Request) {
               model: model,
               width: finalWidth,
               height: finalHeight,
-              duration: Math.round(videoDuration), // 视频时长（秒）
+              duration: Math.round(videoDurationSeconds), // 视频时长（秒）
               fps: videoFps,
-              frameCount: videoLength, // 总帧数
+              frameCount: videoFrameCount, // 总帧数（Grok可能为空）
               ipAddress: ipAddress,
               referenceImages: referenceImages, // 参考图（输入图片，加密存储）
             }
