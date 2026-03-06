@@ -113,6 +113,18 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
     videoModelRef.current = videoModel
   }, [videoModel])
 
+  // 当从路由参数传入 initialModel 且当前处于视频生成 Tab 时，如果 initialModel 是有效的视频模型，则用它初始化视频模型
+  useEffect(() => {
+    if (activeTab !== 'video-generation') return
+    if (!initialModel) return
+    if (videoModel === initialModel) return
+
+    const videoConfig = getVideoModelById(initialModel)
+    if (videoConfig) {
+      setVideoModel(initialModel)
+    }
+  }, [activeTab, initialModel, videoModel])
+
   // 监听视频参考图片就绪事件
   useEffect(() => {
     const handleVideoReferenceImageReady = (event: CustomEvent) => {

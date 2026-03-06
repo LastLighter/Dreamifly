@@ -5,19 +5,19 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 
-interface VideoToVideoPlazaCardProps {
+interface GrokVideoPlazaCardProps {
   name: string
   description?: string
   videoSrc: string
   thumbnailSrc: string
 }
 
-export default function VideoToVideoPlazaCard({
+export default function GrokVideoPlazaCard({
   name,
   description,
   videoSrc,
-  thumbnailSrc
-}: VideoToVideoPlazaCardProps) {
+  thumbnailSrc,
+}: GrokVideoPlazaCardProps) {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false)
   const [showInfoModal, setShowInfoModal] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -38,7 +38,7 @@ export default function VideoToVideoPlazaCard({
     document.removeEventListener('mousedown', handleClickOutside)
   }
 
-  // 组件挂载时自动播放视频
+  // 组件挂载时自动播放视频（静音循环预览）
   useEffect(() => {
     if (videoRef.current && isVideoLoaded) {
       videoRef.current.play().catch(() => {
@@ -50,7 +50,7 @@ export default function VideoToVideoPlazaCard({
   return (
     <div className="relative group">
       <Link
-        href={transferUrl('/create?tab=video&model=Wan2.2-I2V-Lightning', locale)}
+        href={transferUrl('/create?tab=video&model=grok-imagine-1.0-video', locale)}
         className="block"
       >
         {/* 视频卡片 */}
@@ -81,7 +81,6 @@ export default function VideoToVideoPlazaCard({
                 />
               </div>
             )}
-
           </div>
 
           {/* 左上角类型标签 */}
@@ -91,7 +90,7 @@ export default function VideoToVideoPlazaCard({
           >
             <div className="relative">
               <button
-                className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500/40 to-pink-500/40 backdrop-blur-sm text-white text-[10px] font-medium rounded whitespace-nowrap hover:from-purple-500/60 hover:to-pink-500/60 transition-all duration-300"
+                className="px-1.5 py-0.5 bg-gradient-to-r from-indigo-500/50 via-purple-500/50 to-pink-500/50 backdrop-blur-sm text-white text-[10px] font-medium rounded whitespace-nowrap hover:from-indigo-500/70 hover:via-purple-500/70 hover:to-pink-500/70 transition-all duration-300"
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
@@ -102,15 +101,18 @@ export default function VideoToVideoPlazaCard({
               </button>
               {showInfoModal && (
                 <div className="absolute top-full left-0 mt-2 px-4 py-3 bg-black/90 backdrop-blur-md text-white text-sm rounded-lg shadow-2xl min-w-[250px] z-20">
-                  <p className="font-semibold mb-1">Wan 2.2 I2V Lightning</p>
+                  <p className="font-semibold mb-1">Grok Imagine 视频生成</p>
                   {description && (
                     <p className="text-xs text-gray-300 mt-2 mb-2">{description}</p>
                   )}
                   <div className="flex flex-wrap gap-1 mt-2">
                     <span className="px-2 py-0.5 bg-purple-500/30 rounded text-xs">
-                      图生视频
+                      支持音频
                     </span>
                     <span className="px-2 py-0.5 bg-pink-500/30 rounded text-xs">
+                      快速生成
+                    </span>
+                    <span className="px-2 py-0.5 bg-indigo-500/30 rounded text-xs">
                       支持中文
                     </span>
                   </div>
@@ -123,9 +125,12 @@ export default function VideoToVideoPlazaCard({
           <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 z-10">
             <div className="flex gap-1 justify-end flex-wrap-reverse items-end">
               <span className="px-1.5 py-0.5 bg-gradient-to-r from-purple-500/40 to-pink-500/40 backdrop-blur-sm text-white text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap">
-                图生视频
+                支持音频
               </span>
-              <span className="px-1.5 py-0.5 bg-gradient-to-r from-pink-500/40 to-purple-500/40 backdrop-blur-sm text-white text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap">
+              <span className="px-1.5 py-0.5 bg-gradient-to-r from-pink-500/40 to-orange-500/40 backdrop-blur-sm text-white text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap">
+                快速生成
+              </span>
+              <span className="px-1.5 py-0.5 bg-gradient-to-r from-indigo-500/40 to-purple-500/40 backdrop-blur-sm text-white text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap">
                 支持中文
               </span>
             </div>
@@ -142,3 +147,4 @@ export default function VideoToVideoPlazaCard({
     </div>
   )
 }
+
