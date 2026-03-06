@@ -170,6 +170,32 @@ const VideoGenerateForm = ({
     setHeight(resolution.height)
   }, [model]) // 仅在模型切换时运行
 
+  // 当参考图（包括“画同款”从社区带来的图片）变化时，如果是 Grok 视频模型，则根据图片实际比例重新选择最近的允许比例并更新分辨率
+  useEffect(() => {
+    if (!uploadedImage) return
+    const modelConfig = getVideoModelById(model)
+    if (!modelConfig || modelConfig.provider !== 'grok') return
+
+    try {
+      const img = new window.Image()
+      img.onload = () => {
+        const imageAspectRatio = img.width / img.height
+        const allowed = getVideoAspectRatioOptions(modelConfig).map(o => o.label)
+        const clampedLabel = pickClosestAspectRatioLabel(imageAspectRatio, allowed as VideoAspectRatioLabel[], '1:1')
+        const resolution = calculateVideoResolutionForModel(modelConfig, clampedLabel)
+
+        setAspectRatio(aspectRatioLabelToNumber(clampedLabel))
+        setWidth(resolution.width)
+        setHeight(resolution.height)
+      }
+      img.src = uploadedImage.startsWith('data:')
+        ? uploadedImage
+        : `data:image/jpeg;base64,${uploadedImage}`
+    } catch (error) {
+      console.error('Error recalculating Grok video resolution from reference image:', error)
+    }
+  }, [uploadedImage, model])
+
   // 视频生成进度条动画
   useEffect(() => {
     let timer: NodeJS.Timeout
