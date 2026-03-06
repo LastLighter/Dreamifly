@@ -70,6 +70,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+  const [isVideoMuted, setIsVideoMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const activeTab = externalActiveTab || 'generate';
   // 视频生成相关状态
@@ -977,7 +978,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
                           src={generatedVideo}
                           className="w-full h-full rounded-xl shadow-lg border border-orange-400/30 object-contain"
                           autoPlay
-                          muted
+                          muted={isVideoMuted}
                           playsInline
                           onTimeUpdate={(e) => {
                             const video = e.currentTarget;
@@ -1066,18 +1067,47 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
                               <span className="text-white/60">{formatTime(videoDuration)}</span>
                             </div>
                             
-                            {/* 全屏按钮 */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setZoomedVideo(generatedVideo);
-                              }}
-                              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all"
-                            >
-                              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                              </svg>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {/* 音量按钮（静音/取消静音） */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const nextMuted = !isVideoMuted;
+                                  setIsVideoMuted(nextMuted);
+                                  if (videoRef.current) {
+                                    videoRef.current.muted = nextMuted;
+                                    if (!nextMuted) {
+                                      // 用户主动打开声音时，确保视频在播放
+                                      void videoRef.current.play().catch(() => {});
+                                    }
+                                  }
+                                }}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all"
+                              >
+                                {isVideoMuted ? (
+                                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9v6l-2.5-2.5H4v-1h2.5L9 9zm3-5l-3 3H7v8h2l3 3V4zm4.54 4.46L15.41 9.59 17 11.17l1.59-1.58-1.05-1.13zm0 7.08L17 12.83l-1.59 1.58 1.13 1.13z" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9v6l-2.5-2.5H4v-1h2.5L9 9zm3-5l-3 3H7v8h2l3 3V4zm4.5 4a3.5 3.5 0 010 7m0-11a7.5 7.5 0 010 15" />
+                                  </svg>
+                                )}
+                              </button>
+
+                              {/* 全屏按钮 */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setZoomedVideo(generatedVideo);
+                                }}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all"
+                              >
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
