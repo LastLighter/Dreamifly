@@ -140,9 +140,8 @@ export interface MonthlyUserStatsRow {
   role: UserRole
   month: string
   totalConsumedPoints: number
-  purchasedPoints: number  // source_type='purchased'
+  purchasedPoints: number  // source_type='purchased' + 'mixed'（展示合并）
   giftedPoints: number     // source_type='gifted'
-  mixedPoints: number      // source_type='mixed'
   otherPoints: number      // source_type='other' | 'refund' | null
 }
 
