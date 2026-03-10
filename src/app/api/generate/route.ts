@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { generateImage } from '@/utils/comfyApi'
 import { generateGrokImage } from '@/utils/grokApi'
+import { generateNanoBananaImage } from '@/utils/nanoBananaApi'
 import { db } from '@/db'
 import { siteStats, modelUsageStats, user, userLimitConfig, ipBlacklist, ipDailyUsage } from '@/db/schema'
 import { eq, sql, and, lt } from 'drizzle-orm'
@@ -980,10 +981,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // 调用图片生成 API（grok 使用独立 API，其他模型使用 ComfyUI）
+    // 调用图片生成 API（grok/nano-banana-2 使用独立 API，其他模型使用 ComfyUI）
     let imageUrl: string
     if (model === 'grok-imagine-1.0') {
       imageUrl = await generateGrokImage({ prompt, width, height })
+    } else if (model === 'nano-banana-2') {
+      imageUrl = await generateNanoBananaImage({ prompt, width, height, negative_prompt, seed: seed ? parseInt(seed) : undefined })
     } else {
       imageUrl = await generateImage({
         prompt,

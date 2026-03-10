@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { styleOptions } from './StyleTransferForm';
 import LoginHint from './LoginHint';
-import { GROK_ALLOWED_RATIOS } from '@/utils/modelConfig';
+import { GROK_ALLOWED_RATIOS, NANO_BANANA_ALLOWED_RATIOS } from '@/utils/modelConfig';
 
 interface PromptInputProps {
   prompt: string;
@@ -75,7 +75,9 @@ const PromptInput = ({
 
   const ratios = model === 'grok-imagine-1.0'
     ? GROK_ALLOWED_RATIOS
-    : ['10:3', '16:9', '3:2', '5:4','7:4', '1:1', '4:7', '4:5', '2:3', '9:16'];
+    : model === 'nano-banana-2'
+      ? NANO_BANANA_ALLOWED_RATIOS
+      : ['10:3', '16:9', '3:2', '5:4','7:4', '1:1', '4:7', '4:5', '2:3', '9:16'];
 
   return (
     <div>

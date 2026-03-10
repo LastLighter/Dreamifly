@@ -13,7 +13,8 @@ const MODEL_ENV_MAP = {
   "Z-Image": "Z_IMAGE_URL",
   "Z-Image-Turbo": "Z_Image_Turbo_URL",
   "Flux-2": "Flux_2_URL",
-  "grok-imagine-1.0": "GROK_IMAGINE_API_URL"
+  "grok-imagine-1.0": "GROK_IMAGINE_API_URL",
+  "nano-banana-2": "REPLICATE_API_TOKEN"
 } as const;
 
 // 基础模型配置
@@ -172,6 +173,18 @@ export const ALL_MODELS: ModelConfig[] = [
     use_t2i: true,
     maxImages: 0,
     tags: ["fastGeneration","chineseSupport"],
+    requiresLogin: true
+  },
+  {
+    id: "nano-banana-2",
+    name: "Nano Banana 2",
+    image: "/models/nano-banana-2.jpg",
+    homepageCover: "/models/homepageModelCover/demo.jpg",
+    description: "Google 基于 Gemini 3.1 Flash Image 构建的高效文生图模型，支持高保真输出、精准文字渲染与14种画面比例，兼顾速度与质量。",
+    use_i2i: false,
+    use_t2i: true,
+    maxImages: 0,
+    tags: ["fastGeneration"],
     requiresLogin: true
   }
 ];
@@ -343,6 +356,12 @@ export const MODEL_THRESHOLDS: Record<string, ModelThresholds> = {
     normalResolutionPixels: null,
     highResolutionPixels: null,
   },
+  "nano-banana-2": {
+    normalSteps: null,
+    highSteps: null,
+    normalResolutionPixels: 1024 * 1024,
+    highResolutionPixels: 2048 * 2048,
+  },
 };
 
 /** grok-imagine-1.0 固定尺寸映射（比例 → 宽高） */
@@ -356,6 +375,29 @@ export const GROK_RATIO_SIZES: Record<string, { width: number; height: number }>
 
 /** grok-imagine-1.0 支持的比例列表 */
 export const GROK_ALLOWED_RATIOS = [ '16:9', '7:4','1:1', '4:7', '9:16'];
+
+/**
+ * nano-banana-2 支持的比例列表
+ * 注意：这是独立的比例体系，不与其他模型共享
+ */
+export const NANO_BANANA_ALLOWED_RATIOS = ['1:1', '16:9', '9:16', '4:3', '3:4', '3:2', '2:3', '4:5', '5:4', '21:9'];
+
+/**
+ * nano-banana-2 各比例对应的 1K 基准尺寸（普通画质）
+ * 高画质时前端会通过像素计算自动翻倍（normalResolutionPixels → highResolutionPixels）
+ */
+export const NANO_BANANA_RATIO_SIZES: Record<string, { width: number; height: number }> = {
+  '1:1':  { width: 1024, height: 1024 },
+  '16:9': { width: 1368, height: 768 },
+  '9:16': { width: 768,  height: 1368 },
+  '4:3':  { width: 1024, height: 768 },
+  '3:4':  { width: 768,  height: 1024 },
+  '3:2':  { width: 1024, height: 680 },
+  '2:3':  { width: 680,  height: 1024 },
+  '4:5':  { width: 816,  height: 1024 },
+  '5:4':  { width: 1024, height: 816 },
+  '21:9': { width: 1024, height: 440 },
+};
 
 /**
  * 获取模型的步数和分辨率阈值配置

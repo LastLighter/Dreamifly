@@ -32,6 +32,7 @@ export async function getPointsConfig() {
   const envWanVideoCost = parseInt(process.env.WAN_VIDEO_COST || '150', 10);
   const envGrokImagine1Cost = parseInt(process.env.GROK_IMAGINE_1_COST || '10', 10);
   const envGrokVideoCost = parseInt(process.env.GROK_VIDEO_COST || '150', 10);
+  const envNanoBanana2Cost = parseInt(process.env.NANO_BANANA_2_COST || '10', 10);
 
   return {
     regularUserDailyPoints: configData?.regularUserDailyPoints ?? envRegularPoints,
@@ -47,6 +48,7 @@ export async function getPointsConfig() {
     grokImagine1Cost: configData?.grokImagine1Cost ?? envGrokImagine1Cost,
     // 目前 points_config 表没有该字段，先仅使用环境变量作为默认值
     grokVideoCost: envGrokVideoCost,
+    nanoBanana2Cost: envNanoBanana2Cost,
   };
 }
 
@@ -100,6 +102,8 @@ export async function getModelBaseCost(modelId: string): Promise<number | null> 
       return config.grokImagine1Cost;
     case 'grok-imagine-1.0-video':
       return config.grokVideoCost;
+    case 'nano-banana-2':
+      return config.nanoBanana2Cost;
     default:
       return null; // 其他模型未配置积分消耗
   }

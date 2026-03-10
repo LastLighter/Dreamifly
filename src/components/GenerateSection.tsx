@@ -10,7 +10,7 @@ import PromptInput from './PromptInput'
 import { optimizePrompt } from '../utils/promptOptimizer'
 import { useSession } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
-import { getModelThresholds, getAllModels, GROK_RATIO_SIZES, GROK_ALLOWED_RATIOS } from '@/utils/modelConfig'
+import { getModelThresholds, getAllModels, GROK_RATIO_SIZES, GROK_ALLOWED_RATIOS, NANO_BANANA_ALLOWED_RATIOS, NANO_BANANA_RATIO_SIZES } from '@/utils/modelConfig'
 import { usePoints } from '@/contexts/PointsContext'
 import { calculateEstimatedCost } from '@/utils/pointsClient'
 import { transferUrl } from '@/utils/locale'
@@ -624,6 +624,17 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
     }
   }, [model, aspectRatio]);
 
+  // 切换到 nano-banana-2 时，若当前比例不在支持列表内，重置为 1:1（1K）
+  useEffect(() => {
+    if (model === 'nano-banana-2' && !NANO_BANANA_ALLOWED_RATIOS.includes(aspectRatio)) {
+      const defaultSize = NANO_BANANA_RATIO_SIZES['1:1'];
+      setAspectRatio('1:1');
+      setWidth(defaultSize.width);
+      setHeight(defaultSize.height);
+      setIsHighResolution(false);
+    }
+  }, [model, aspectRatio]);
+
   const handleRatioChange = (ratio: string) => {
     setAspectRatio(ratio);
 
@@ -632,6 +643,20 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
       const size = GROK_RATIO_SIZES[ratio] || GROK_RATIO_SIZES['1:1'];
       setWidth(size.width);
       setHeight(size.height);
+      return;
+    }
+
+    // nano-banana-2 使用独立的比例 → 像素体系
+    // 普通画质对应 1K 基准尺寸，高画质由后续的高分辨率开关自动放大到 2K
+    if (model === 'nano-banana-2') {
+      const baseSize = NANO_BANANA_RATIO_SIZES[ratio] || NANO_BANANA_RATIO_SIZES['1:1'];
+      if (isHighResolution) {
+        setWidth(baseSize.width * 2);
+        setHeight(baseSize.height * 2);
+      } else {
+        setWidth(baseSize.width);
+        setHeight(baseSize.height);
+      }
       return;
     }
 
