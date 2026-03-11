@@ -11,7 +11,7 @@ import { concurrencyManager } from '@/utils/concurrencyManager'
 import { ipConcurrencyManager } from '@/utils/ipConcurrencyManager'
 import { randomUUID, createHash } from 'crypto'
 import { addWatermark } from '@/utils/watermark'
-import { getModelBaseCost, calculateGenerationCost, checkPointsSufficient, deductPoints, getPointsBalance } from '@/utils/points'
+import { getModelBaseCost, calculateGenerationCost, checkPointsSufficient, deductPoints, getPointsBalance, refundPoints } from '@/utils/points'
 import { getModelThresholds, isLoginRequiredModel } from '@/utils/modelConfig'
 
 /**
@@ -95,6 +95,10 @@ export async function POST(request: Request) {
   // 在 try 块外声明，以便在 catch 块中也能访问
   let isAdmin = false
   let isSubscribed = false
+  // 当前请求使用的模型ID（用于在 catch 中判断是否为 nano-banana-2）
+  let currentModelId: string | null = null
+  // 如果本次请求已成功扣除积分，则记录消费记录ID，方便失败时返还
+  let spentRecordId: string | null = null
   
   try {
     // 记录总开始时间（包含排队延迟）
@@ -696,6 +700,8 @@ export async function POST(request: Request) {
     let prompt: string
     const { prompt: originalPrompt, width, height, steps, seed, batch_size, model, images, negative_prompt } = body
     prompt = originalPrompt
+    // 记录当前模型ID，供 catch 中使用（例如仅对 nano-banana-2 做积分返还）
+    currentModelId = model
     
     // 对 prompt 进行违禁词过滤（文生图和图生图模式都生效）
     try {
@@ -822,14 +828,14 @@ export async function POST(request: Request) {
               }, { status: 402 }); // 402 Payment Required
             }
             
-            // 扣除积分
-            const deductSuccess = await deductPoints(
+            // 扣除积分，返回本次消费记录ID
+            const deductResult = await deductPoints(
               userId,
               pointsCost,
               `图像生成 - ${model} (步数: ${steps}, 分辨率: ${width}x${height})`
             );
             
-            if (!deductSuccess) {
+            if (!deductResult) {
               // 清理并发跟踪
               if (generationId) {
                 concurrencyManager.end(generationId);
@@ -858,6 +864,11 @@ export async function POST(request: Request) {
                   code: 'POINTS_DEDUCTION_FAILED'
                 }, { status: 500 });
               }
+            }
+
+            // 仅对 nano-banana-2 记录消费记录ID，方便后续失败时返还积分
+            if (model === 'nano-banana-2') {
+              spentRecordId = deductResult
             }
           }
         } else if (!hasQuota) {
@@ -1099,6 +1110,26 @@ export async function POST(request: Request) {
     // 立即返回响应，不等待保存完成
     return NextResponse.json({ imageUrl })
   } catch (error) {
+    // 如果已经扣除了积分且当前模型为 nano-banana-2，但图像生成流程失败（包括第三方服务调用失败），则尝试返还积分
+    if (spentRecordId && currentModelId === 'nano-banana-2') {
+      console.log('[图像生成API] 图像生成失败，开始返还积分', { spentRecordId })
+      try {
+        const refundSuccess = await refundPoints(
+          spentRecordId,
+          `图像生成失败 - ${error instanceof Error ? error.message : '未知错误'}`
+        )
+        if (refundSuccess) {
+          console.log('[图像生成API] 积分返还成功', { spentRecordId })
+        } else {
+          console.error('[图像生成API] 积分返还失败', { spentRecordId })
+        }
+      } catch (refundError) {
+        console.error('[图像生成API] 返还积分时发生异常', {
+          spentRecordId,
+          refundError,
+        })
+      }
+    }
     console.error('Error generating image:', error)
     
     // 发生错误，清理并发跟踪

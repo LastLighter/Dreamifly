@@ -54,8 +54,13 @@ const RETRY_DELAY_MS = 3000
 function isRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
     const msg = error.message.toLowerCase()
-    // 网络层瞬时错误
-    if (msg.includes('timeout') || msg.includes('fetch failed') || msg.includes('econnreset')) {
+    // 网络层瞬时错误 / 第三方超时
+    if (
+      msg.includes('timeout') ||
+      msg.includes('httpx.readtimeout') ||
+      msg.includes('fetch failed') ||
+      msg.includes('econnreset')
+    ) {
       return true
     }
     // Replicate 服务过载（E003）或其他服务暂时不可用
@@ -130,10 +135,14 @@ export async function generateNanoBananaImage(params: NanoBananaParams): Promise
         console.log(`[nano-banana-2] 轮询 status=${finalPrediction.status}`)
       }
 
-      console.log(`[nano-banana-2] 最终 status=${finalPrediction.status}，error=${JSON.stringify(finalPrediction.error)}，logs=${finalPrediction.logs ?? '(无)'}`)
+      const logs = finalPrediction.logs ?? ''
+      console.log(`[nano-banana-2] 最终 status=${finalPrediction.status}，error=${JSON.stringify(finalPrediction.error)}，logs=${logs || '(无)'}`)
 
       if (finalPrediction.status === 'failed' || finalPrediction.status === 'canceled') {
-        throw new Error(`Prediction ${finalPrediction.status}: ${JSON.stringify(finalPrediction.error)}`)
+        // 把 logs 也拼进 message，便于 isRetryableError 判断（例如 httpx.ReadTimeout）
+        throw new Error(
+          `Prediction ${finalPrediction.status}: ${JSON.stringify(finalPrediction.error)}; logs=${logs}`
+        )
       }
 
       const output = finalPrediction.output

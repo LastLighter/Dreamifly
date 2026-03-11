@@ -813,7 +813,10 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
       // 计算有额度时需要扣除的积分（总消耗 - 基础消耗）
       if (totalCostWithBatch !== null && hasQuota !== null) {
         const baseCostWithBatch = modelBaseCost * batch_size;
-        if (hasQuota) {
+        // nano-banana-2 不享受额度减免：始终展示全额消耗
+        if (model === 'nano-banana-2') {
+          setEstimatedCost(totalCostWithBatch);
+        } else if (hasQuota) {
           // 有额度：显示额外消耗（总消耗 - 基础消耗）
           setEstimatedCost(Math.max(0, totalCostWithBatch - baseCostWithBatch));
         } else {

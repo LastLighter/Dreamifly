@@ -300,7 +300,7 @@ const PromptInput = ({
             </button>
             <LoginHint className="text-xs md:text-sm" />
             {/* 额外消耗提示 - 仅对已登录用户显示，无论是否有额度都显示 */}
-            {extraCost !== null && extraCost > 0 && (
+            {model !== 'nano-banana-2' && extraCost !== null && extraCost > 0 && (
               <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600 whitespace-nowrap">
                 <svg
                   className="w-4 h-4 text-amber-500"

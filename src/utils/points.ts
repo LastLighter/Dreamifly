@@ -154,14 +154,19 @@ export function calculateGenerationCost(
   if (isHighResolution) multiplier *= 2;
   
   const totalCost = baseCost * multiplier;
-  
+
+  // nano-banana-2 不享受免费额度减免：无论是否有额度，都扣除全部积分
+  if (modelId === 'nano-banana-2') {
+    return totalCost
+  }
+
   // 如果有额度，只扣除额外部分（总消耗 - 基础消耗）
   if (hasQuota) {
     return Math.max(0, totalCost - baseCost);
-  } else {
-    // 超出额度，扣除全部积分
-    return totalCost;
   }
+
+  // 超出额度，扣除全部积分
+  return totalCost;
 }
 
 /**
