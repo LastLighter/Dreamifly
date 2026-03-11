@@ -184,7 +184,7 @@ export const ALL_MODELS: ModelConfig[] = [
     use_i2i: true,
     use_t2i: true,
     maxImages: 3,
-    tags: ["fastGeneration"],
+    tags: ["chineseSupport"],
     requiresLogin: true
   }
 ];

@@ -208,7 +208,9 @@ export default function GenerateForm({
         'Qwen-Image-Edit': 1.2,
         'Wai-SDXL-V150': 0.1,
         'Z-Image': 0.325,
-        'Z-Image-Turbo': 0.325       // 20步1024*1024=13秒，换算到30步基准：13*(30/20)/60 = 0.325
+        'Z-Image-Turbo': 0.325,      // 20步1024*1024=13秒，换算到30步基准：13*(30/20)/60 = 0.325
+        // nano-banana-2 使用云端大模型，整体耗时相对更长，适当放大系数
+        'nano-banana-2': 2.0,
       };
       
       const currentPixels = width * height;
