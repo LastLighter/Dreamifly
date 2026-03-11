@@ -180,10 +180,10 @@ export const ALL_MODELS: ModelConfig[] = [
     name: "Nano Banana 2",
     image: "/models/nano-banana-2.jpg",
     homepageCover: "/models/homepageModelCover/demo.jpg",
-    description: "Google 基于 Gemini 3.1 Flash Image 构建的高效文生图模型，支持高保真输出、精准文字渲染与14种画面比例，兼顾速度与质量。",
-    use_i2i: false,
+    description: "Google 基于 Gemini 3.1 Flash Image 构建的高效图像生成与编辑模型，支持文生图与图生图（最多3张参考图），具备高保真输出、精准文字渲染与多种画面比例。",
+    use_i2i: true,
     use_t2i: true,
-    maxImages: 0,
+    maxImages: 3,
     tags: ["fastGeneration"],
     requiresLogin: true
   }

@@ -986,7 +986,7 @@ export async function POST(request: Request) {
     if (model === 'grok-imagine-1.0') {
       imageUrl = await generateGrokImage({ prompt, width, height })
     } else if (model === 'nano-banana-2') {
-      imageUrl = await generateNanoBananaImage({ prompt, width, height, negative_prompt, seed: seed ? parseInt(seed) : undefined })
+      imageUrl = await generateNanoBananaImage({ prompt, width, height, negative_prompt, seed: seed ? parseInt(seed) : undefined, images })
     } else {
       imageUrl = await generateImage({
         prompt,

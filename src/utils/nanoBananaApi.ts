@@ -6,6 +6,7 @@ interface NanoBananaParams {
   height: number
   negative_prompt?: string
   seed?: number
+  images?: string[]
 }
 
 // nano-banana-2 支持的比例及其对应的浮点数
@@ -47,13 +48,18 @@ function deriveResolution(width: number, height: number): '1K' | '2K' {
 }
 
 const MAX_RETRIES = 3
-const RETRY_DELAY_MS = 2000
+const RETRY_DELAY_MS = 3000
 
 /** 判断错误是否可重试 */
 function isRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
     const msg = error.message.toLowerCase()
+    // 网络层瞬时错误
     if (msg.includes('timeout') || msg.includes('fetch failed') || msg.includes('econnreset')) {
+      return true
+    }
+    // Replicate 服务过载（E003）或其他服务暂时不可用
+    if (msg.includes('e003') || msg.includes('high demand') || msg.includes('unavailable')) {
       return true
     }
   }
@@ -77,9 +83,24 @@ export async function generateNanoBananaImage(params: NanoBananaParams): Promise
 
   const input: Record<string, unknown> = {
     prompt: params.prompt,
-    aspect_ratio,
+    aspect_ratio: params.images && params.images.length > 0 ? 'match_input_image' : aspect_ratio,
     resolution,           // "1K" | "2K"，API 要求带 K 后缀
     output_format: 'png',
+  }
+
+  if (params.images && params.images.length > 0) {
+    // 上传图片至 Replicate，统一以 jpg 格式处理
+    const uploadedUrls = await Promise.all(
+      params.images.map(async (b64, idx) => {
+        const buffer = Buffer.from(b64, 'base64')
+        const blob = new Blob([buffer], { type: 'image/jpeg' })
+        console.log(`[nano-banana-2] 上传图片 ${idx}，size=${buffer.byteLength} bytes`)
+        const uploaded = await replicate.files.create(blob, { filename: `input_${idx}.jpg` })
+        console.log(`[nano-banana-2] 图片 ${idx} 上传成功，url=${uploaded.urls.get}`)
+        return uploaded.urls.get
+      })
+    )
+    input.image_input = uploadedUrls
   }
 
   if (params.negative_prompt) {
@@ -89,12 +110,33 @@ export async function generateNanoBananaImage(params: NanoBananaParams): Promise
     input.seed = params.seed
   }
 
-  console.log(`[nano-banana-2] 开始生成，aspect_ratio=${aspect_ratio}, resolution=${resolution}`)
+  const effectiveAspectRatio = params.images && params.images.length > 0 ? 'match_input_image' : aspect_ratio
+  console.log(`[nano-banana-2] 开始生成，完整 input：`, JSON.stringify(input, null, 2))
 
   let lastError: unknown
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const output = await replicate.run('google/nano-banana-2', { input })
+      // 使用 predictions.create + wait 以捕获完整的服务端错误信息
+      const prediction = await replicate.predictions.create({
+        model: 'google/nano-banana-2',
+        input,
+      })
+      console.log(`[nano-banana-2] prediction 已创建 id=${prediction.id}，开始等待...`)
+
+      let finalPrediction = prediction
+      while (finalPrediction.status !== 'succeeded' && finalPrediction.status !== 'failed' && finalPrediction.status !== 'canceled') {
+        await new Promise(r => setTimeout(r, 2000))
+        finalPrediction = await replicate.predictions.get(finalPrediction.id)
+        console.log(`[nano-banana-2] 轮询 status=${finalPrediction.status}`)
+      }
+
+      console.log(`[nano-banana-2] 最终 status=${finalPrediction.status}，error=${JSON.stringify(finalPrediction.error)}，logs=${finalPrediction.logs ?? '(无)'}`)
+
+      if (finalPrediction.status === 'failed' || finalPrediction.status === 'canceled') {
+        throw new Error(`Prediction ${finalPrediction.status}: ${JSON.stringify(finalPrediction.error)}`)
+      }
+
+      const output = finalPrediction.output
 
       // Replicate SDK 返回 string / URL / FileOutput 或其数组
       let imageUrl: string
