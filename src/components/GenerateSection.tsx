@@ -10,7 +10,7 @@ import PromptInput from './PromptInput'
 import { optimizePrompt } from '../utils/promptOptimizer'
 import { useSession } from '@/lib/auth-client'
 import { generateDynamicTokenWithServerTime } from '@/utils/dynamicToken'
-import { getModelThresholds, getAllModels, GROK_RATIO_SIZES, GROK_ALLOWED_RATIOS } from '@/utils/modelConfig'
+import { getModelThresholds, getAllModels, GROK_RATIO_SIZES, GROK_ALLOWED_RATIOS, NANO_BANANA_ALLOWED_RATIOS, NANO_BANANA_RATIO_SIZES } from '@/utils/modelConfig'
 import { usePoints } from '@/contexts/PointsContext'
 import { calculateEstimatedCost } from '@/utils/pointsClient'
 import { transferUrl } from '@/utils/locale'
@@ -70,6 +70,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+  const [isVideoMuted, setIsVideoMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const activeTab = externalActiveTab || 'generate';
   // 视频生成相关状态
@@ -111,6 +112,18 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
   useEffect(() => {
     videoModelRef.current = videoModel
   }, [videoModel])
+
+  // 当从路由参数传入 initialModel 且当前处于视频生成 Tab 时，如果 initialModel 是有效的视频模型，则用它初始化视频模型
+  useEffect(() => {
+    if (activeTab !== 'video-generation') return
+    if (!initialModel) return
+    if (videoModel === initialModel) return
+
+    const videoConfig = getVideoModelById(initialModel)
+    if (videoConfig) {
+      setVideoModel(initialModel)
+    }
+  }, [activeTab, initialModel, videoModel])
 
   // 监听视频参考图片就绪事件
   useEffect(() => {
@@ -611,6 +624,17 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
     }
   }, [model, aspectRatio]);
 
+  // 切换到 nano-banana-2 时，若当前比例不在支持列表内，重置为 1:1（1K）
+  useEffect(() => {
+    if (model === 'nano-banana-2' && !NANO_BANANA_ALLOWED_RATIOS.includes(aspectRatio)) {
+      const defaultSize = NANO_BANANA_RATIO_SIZES['1:1'];
+      setAspectRatio('1:1');
+      setWidth(defaultSize.width);
+      setHeight(defaultSize.height);
+      setIsHighResolution(false);
+    }
+  }, [model, aspectRatio]);
+
   const handleRatioChange = (ratio: string) => {
     setAspectRatio(ratio);
 
@@ -619,6 +643,20 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
       const size = GROK_RATIO_SIZES[ratio] || GROK_RATIO_SIZES['1:1'];
       setWidth(size.width);
       setHeight(size.height);
+      return;
+    }
+
+    // nano-banana-2 使用独立的比例 → 像素体系
+    // 普通画质对应 1K 基准尺寸，高画质由后续的高分辨率开关自动放大到 2K
+    if (model === 'nano-banana-2') {
+      const baseSize = NANO_BANANA_RATIO_SIZES[ratio] || NANO_BANANA_RATIO_SIZES['1:1'];
+      if (isHighResolution) {
+        setWidth(baseSize.width * 2);
+        setHeight(baseSize.height * 2);
+      } else {
+        setWidth(baseSize.width);
+        setHeight(baseSize.height);
+      }
       return;
     }
 
@@ -775,7 +813,10 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
       // 计算有额度时需要扣除的积分（总消耗 - 基础消耗）
       if (totalCostWithBatch !== null && hasQuota !== null) {
         const baseCostWithBatch = modelBaseCost * batch_size;
-        if (hasQuota) {
+        // nano-banana-2 不享受额度减免：始终展示全额消耗
+        if (model === 'nano-banana-2') {
+          setEstimatedCost(totalCostWithBatch);
+        } else if (hasQuota) {
           // 有额度：显示额外消耗（总消耗 - 基础消耗）
           setEstimatedCost(Math.max(0, totalCostWithBatch - baseCostWithBatch));
         } else {
@@ -977,7 +1018,7 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
                           src={generatedVideo}
                           className="w-full h-full rounded-xl shadow-lg border border-orange-400/30 object-contain"
                           autoPlay
-                          muted
+                          muted={isVideoMuted}
                           playsInline
                           onTimeUpdate={(e) => {
                             const video = e.currentTarget;
@@ -1066,18 +1107,47 @@ const GenerateSection = ({ communityWorks, initialPrompt, initialModel, activeTa
                               <span className="text-white/60">{formatTime(videoDuration)}</span>
                             </div>
                             
-                            {/* 全屏按钮 */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setZoomedVideo(generatedVideo);
-                              }}
-                              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all"
-                            >
-                              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                              </svg>
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {/* 音量按钮（静音/取消静音） */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const nextMuted = !isVideoMuted;
+                                  setIsVideoMuted(nextMuted);
+                                  if (videoRef.current) {
+                                    videoRef.current.muted = nextMuted;
+                                    if (!nextMuted) {
+                                      // 用户主动打开声音时，确保视频在播放
+                                      void videoRef.current.play().catch(() => {});
+                                    }
+                                  }
+                                }}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all"
+                              >
+                                {isVideoMuted ? (
+                                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9v6l-2.5-2.5H4v-1h2.5L9 9zm3-5l-3 3H7v8h2l3 3V4zm4.54 4.46L15.41 9.59 17 11.17l1.59-1.58-1.05-1.13zm0 7.08L17 12.83l-1.59 1.58 1.13 1.13z" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 9v6l-2.5-2.5H4v-1h2.5L9 9zm3-5l-3 3H7v8h2l3 3V4zm4.5 4a3.5 3.5 0 010 7m0-11a7.5 7.5 0 010 15" />
+                                  </svg>
+                                )}
+                              </button>
+
+                              {/* 全屏按钮 */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setZoomedVideo(generatedVideo);
+                                }}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm transition-all"
+                              >
+                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>

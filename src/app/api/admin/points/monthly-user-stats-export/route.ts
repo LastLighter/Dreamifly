@@ -98,9 +98,8 @@ export async function POST(request: NextRequest) {
         isPremium: user.isPremium,
         month: sql<string>`to_char(date_trunc('month', ${userPoints.earnedAt}), 'YYYY-MM')`,
         totalConsumedPoints: sql<number>`COALESCE(SUM(-${userPoints.points}), 0)`,
-        purchasedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} = 'purchased' THEN -${userPoints.points} ELSE 0 END), 0)`,
+        purchasedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} IN ('purchased', 'mixed') THEN -${userPoints.points} ELSE 0 END), 0)`,
         giftedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} = 'gifted' THEN -${userPoints.points} ELSE 0 END), 0)`,
-        mixedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} = 'mixed' THEN -${userPoints.points} ELSE 0 END), 0)`,
         otherPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} IN ('other', 'refund') OR ${userPoints.sourceType} IS NULL THEN -${userPoints.points} ELSE 0 END), 0)`,
       })
       .from(userPoints)
@@ -128,7 +127,6 @@ export async function POST(request: NextRequest) {
       totalConsumedPoints: Number(row.totalConsumedPoints ?? 0),
       purchasedPoints: Number(row.purchasedPoints ?? 0),
       giftedPoints: Number(row.giftedPoints ?? 0),
-      mixedPoints: Number(row.mixedPoints ?? 0),
       otherPoints: Number(row.otherPoints ?? 0),
     }))
 
@@ -141,11 +139,9 @@ export async function POST(request: NextRequest) {
       '总积分消耗',
       '购买积分消耗',
       '赠送积分消耗',
-      '混合积分消耗',
       '其他积分消耗',
       '购买积分占比',
       '赠送积分占比',
-      '混合积分占比',
       '其他积分占比',
     ].join(',')
 
@@ -164,11 +160,9 @@ export async function POST(request: NextRequest) {
         escapeCsvValue(total),
         escapeCsvValue(r.purchasedPoints),
         escapeCsvValue(r.giftedPoints),
-        escapeCsvValue(r.mixedPoints),
         escapeCsvValue(r.otherPoints),
         escapeCsvValue(ratio(r.purchasedPoints)),
         escapeCsvValue(ratio(r.giftedPoints)),
-        escapeCsvValue(ratio(r.mixedPoints)),
         escapeCsvValue(ratio(r.otherPoints)),
       ].join(',')
     })

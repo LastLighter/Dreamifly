@@ -2,7 +2,6 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 import { ModelConfig } from '@/utils/modelConfig'
@@ -14,32 +13,12 @@ interface AIPlazaCardProps {
 }
 
 export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
-  const [showNameModal, setShowNameModal] = useState(false)
-  const modalRef = useRef<HTMLDivElement>(null)
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
-
-  // 点击外部关闭模态框
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-        setShowNameModal(false)
-      }
-    }
-
-    if (showNameModal) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [showNameModal])
 
   // 获取标签文本（仅用于模型）
   const getTagText = (tag: string) => {
     const tagMap: Record<string, string> = {
-      'fastGeneration': '快速生成',
       'animeSpecialty': '动漫风格',
       'chineseSupport': '支持中文',
       'realisticStyle': '写实风格'
@@ -47,17 +26,29 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
     return tagMap[tag] || tag
   }
 
+  // 获取标签颜色
+  const getTagColor = (tag: string) => {
+    const colorMap: Record<string, string> = {
+      '支持中文': 'bg-pink-100 text-pink-700',
+      '文生图':   'bg-sky-100 text-sky-700',
+      '图生图':   'bg-teal-100 text-teal-700',
+      '动漫风格': 'bg-purple-100 text-purple-700',
+      '写实风格': 'bg-stone-100 text-stone-700',
+      '图生视频': 'bg-indigo-100 text-indigo-700',
+      '支持音频': 'bg-amber-100 text-amber-700',
+    }
+    return colorMap[tag] || 'bg-gray-100 text-gray-600'
+  }
+
   // 生成特征标签
   let featureTags: string[] = []
   let coverImage = ''
   let route = ''
-  let isZImageModel = false
 
   if (type === 'model') {
     const model = item as ModelConfig
     coverImage = model.homepageCover || '/models/homepageModelCover/demo.jpg'
     route = `/create?model=${encodeURIComponent(model.id)}`
-    isZImageModel = model.id === 'Z-Image'
     
     if (model.use_t2i) featureTags.push('文生图')
     if (model.use_i2i) featureTags.push('图生图')
@@ -81,11 +72,6 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
     }
   }
 
-  // 获取描述文本
-  const description = type === 'model' 
-    ? (item as ModelConfig).description 
-    : (item as WorkflowConfig).description
-
   return (
     <div className="relative group">
       <Link
@@ -103,84 +89,23 @@ export default function AIPlazaCard({ item, type }: AIPlazaCardProps) {
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
           </div>
-          
-          {/* 左上角类型标签 */}
-          <div 
-            className="absolute top-3 left-3 z-10"
-            ref={modalRef}
-          >
-            <div className="relative">
-              <button
-                className={`px-1.5 py-0.5 backdrop-blur-sm text-[10px] font-medium rounded whitespace-nowrap transition-all duration-300 ${
-                  isZImageModel
-                    ? 'bg-amber-400/40 text-amber-50 hover:bg-amber-400/60 shadow-sm'
-                    : 'bg-gray-500/40 text-white hover:bg-gray-500/60'
-                }`}
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setShowNameModal(!showNameModal)
-                }}
-              >
-                {type === 'model' ? '模型' : '工作流'}
-              </button>
-              {showNameModal && (
-                <div className="absolute top-full left-0 mt-2 px-4 py-3 bg-black/90 backdrop-blur-md text-white text-sm rounded-lg shadow-2xl min-w-[200px] z-20">
-                  <p className="font-semibold mb-1">{item.name}</p>
-                  {description && (
-                    <p className="text-xs text-gray-300 mt-2 mb-2">{description}</p>
-                  )}
-                  {type === 'model' && (item as ModelConfig).tags && (item as ModelConfig).tags!.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {(item as ModelConfig).tags!.map((tag, index) => (
-                        <span key={index} className="px-2 py-0.5 bg-orange-500/30 rounded text-xs">
-                          {getTagText(tag)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {type === 'workflow' && (item as WorkflowConfig).tags && (item as WorkflowConfig).tags!.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {(item as WorkflowConfig).tags!.map((tag, index) => (
-                        <span key={index} className="px-2 py-0.5 bg-orange-500/30 rounded text-xs">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 右下角特征标签 - 自适应：宽度足够单行，不足则换行 */}
-          {featureTags.length > 0 && (
-            <div 
-              className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 z-10" 
-              style={{ 
-                maxWidth: 'calc(100% - 1rem)'
-              }}
-            >
-              <div className="flex gap-1 justify-end flex-wrap-reverse items-end">
-                {featureTags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className={`px-1.5 py-0.5 backdrop-blur-sm text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap ${
-                      isZImageModel
-                        ? 'bg-amber-400/40 text-amber-50 shadow-sm'
-                        : 'bg-gray-500/40 text-white'
-                    }`}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* 底部标题区域（在图片外部） */}
         <div className="px-1">
+          {/* 特征标签 - 位于标题上方 */}
+          {featureTags.length > 0 && (
+            <div className="flex gap-1 flex-wrap mb-1.5">
+              {featureTags.map((tag, index) => (
+                <span
+                  key={index}
+                  className={`px-1.5 py-0.5 text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap ${getTagColor(tag)}`}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
           <h3 className="text-base font-semibold text-gray-900 line-clamp-1">
             {item.name}
           </h3>

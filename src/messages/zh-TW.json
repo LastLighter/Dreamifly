@@ -1,18 +1,18 @@
 {
   "site": {
-    "title": "Dreamifly - 免費AI繪畫線上生成工具 | 一鍵生成動漫、插畫、藝術圖",
-    "description": "Dreamifly 是一款免費AI繪畫網站，無需註冊，支援動漫、插畫、3D藝術等風格。用戶可通過文字或參考圖快速生成高質量圖像，作為先進AI生圖工具，提供流暢智能創作體驗。適合設計師與繪畫愛好者，輕鬆AI作圖，可隨時利用AI生成圖片"
+    "title": "Dreamifly - 免費 AI 繪畫/視頻線上生成工具 | 一鍵生成動漫、插畫、藝術圖，多樣化視頻創作",
+    "description": "Dreamifly 提供免費 AI 繪畫與視頻生成服務，支援文生圖、圖生圖、圖生視頻等多種創作方式，涵蓋動漫、插畫、寫實等風格，無需註冊即可免費使用，適合設計師與創作愛好者。"
   },
   "home": {
     "hero": {
-      "titlePrefix": "通過AI釋放你的",
-      "titleHighlight": "無限想像力，只需一鍵！",
+      "titlePrefix": "簡單易上手的",
+      "titleHighlight": "AI圖像視頻創作工具",
       "subtitle": {
-        "prefix": "由全國30台家用電腦的閒置4090顯卡，",
-        "highlight": "免費無限制",
+        "prefix": "由多台家用電腦的閒置4090顯卡，",
+        "highlight": "免費",
         "suffix": "提供分散式算力支援。"
       },
-      "description": "Dreamifly - 免費AI繪畫線上生成工具 | 一鍵生成動漫、插畫、藝術圖",
+      "description": "Dreamifly - 免費 AI 繪畫/視頻線上生成工具 | 一鍵生成動漫、插畫、藝術圖，多樣化視頻創作",
       "startButton": "開始創作",
       "contactButton": "聯繫我們",
       "imageCaption": "AI藝術",
@@ -93,7 +93,8 @@
             "Z-Image": "Z-Image 是一個支援中文的文生圖模型，基於 Lumina2 架構，適合高品質中文提示詞創作。",
             "Z-Image-Turbo": "Z-Image-Turbo 是一個支援中文的快速文生圖模型，基於 Lumina2 架構，能夠快速生成高質量的圖像，特別適合中文提示詞輸入。",
             "Flux-2": "Flux-2 是 Black Forest Labs 開發的最新文本到圖像生成模型，採用改進的架構和更強大的 CLIP 編碼器，能夠生成更高質量、更細節豐富的圖像。",
-            "grok-imagine-10": "Grok Imagine 是 xAI 開發的閉源文生圖模型，具備出色的提示詞理解能力與畫質表現，支援中文輸入。"
+            "grok-imagine-10": "Grok Imagine 是 xAI 開發的閉源文生圖模型，具備出色的提示詞理解能力與畫質表現，支援中文輸入。",
+            "nano-banana-2": "Google 基於 Gemini 3.1 Flash Image 構建的高效文生圖模型，支援高保真輸出、精準文字渲染與多種畫面比例，兼顧速度與畫質。"
           }
         },
         "styleButton": "風格",

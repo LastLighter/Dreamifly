@@ -49,8 +49,8 @@ export async function generateMetadata({params}: { params: Promise<{ locale: str
     title: t('title'),
     description: t('description'),
     openGraph: {
-      title: 'Dreamifly - 免费AI绘画工具 | AI画图网站在线生成',
-      description: 'Dreamifly 是无需注册的AI生图网站，支持动漫、插画、3D风格，提供智能AI绘画服务，让创作更简单。',
+      title: t('title'),
+      description: t('description'),
       url: siteUrl,
       images: [
         {
@@ -65,8 +65,8 @@ export async function generateMetadata({params}: { params: Promise<{ locale: str
     },
     twitter: {
       card: 'summary_large_image',
-      title: 'Dreamifly - 免费AI绘画工具 | AI画图网站在线生成',
-      description: 'Dreamifly 是无需注册的AI生图网站，支持动漫、插画、3D风格，提供智能AI绘画服务，让创作更简单。',
+      title: t('title'),
+      description: t('description'),
       images: [ `${siteUrl}/images/dreamifly-logo.jpg`],
       site: twitterSite,
     },

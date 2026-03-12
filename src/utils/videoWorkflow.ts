@@ -20,6 +20,10 @@ export function generateVideoWorkflow(
     imagePath?: string; // 输入图片文件名（用于 I2V）
   }
 ): Record<string, any> {
+  if (!modelConfig.files) {
+    throw new Error(`视频模型 ${modelConfig.id} 缺少文件配置，无法生成视频工作流`);
+  }
+
   // 深拷贝工作流模板，避免修改原始模板
   // 注意：这里不直接读取JSON文件，而是构建工作流对象
   const workflow: Record<string, any> = {

@@ -87,9 +87,8 @@ export async function GET(request: NextRequest) {
         isPremium: user.isPremium,
         month: sql<string>`to_char(date_trunc('month', ${userPoints.earnedAt}), 'YYYY-MM')`,
         totalConsumedPoints: sql<number>`COALESCE(SUM(-${userPoints.points}), 0)`,
-        purchasedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} = 'purchased' THEN -${userPoints.points} ELSE 0 END), 0)`,
+        purchasedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} IN ('purchased', 'mixed') THEN -${userPoints.points} ELSE 0 END), 0)`,
         giftedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} = 'gifted' THEN -${userPoints.points} ELSE 0 END), 0)`,
-        mixedPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} = 'mixed' THEN -${userPoints.points} ELSE 0 END), 0)`,
         otherPoints: sql<number>`COALESCE(SUM(CASE WHEN ${userPoints.sourceType} IN ('other', 'refund') OR ${userPoints.sourceType} IS NULL THEN -${userPoints.points} ELSE 0 END), 0)`,
       })
       .from(userPoints)
@@ -117,7 +116,6 @@ export async function GET(request: NextRequest) {
       totalConsumedPoints: Number(row.totalConsumedPoints ?? 0),
       purchasedPoints: Number(row.purchasedPoints ?? 0),
       giftedPoints: Number(row.giftedPoints ?? 0),
-      mixedPoints: Number(row.mixedPoints ?? 0),
       otherPoints: Number(row.otherPoints ?? 0),
     }))
 

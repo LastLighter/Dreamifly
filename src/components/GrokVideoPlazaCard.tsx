@@ -5,24 +5,24 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { transferUrl } from '@/utils/locale'
 
-interface VideoToVideoPlazaCardProps {
+interface GrokVideoPlazaCardProps {
   name: string
   description?: string
   videoSrc: string
   thumbnailSrc: string
 }
 
-export default function VideoToVideoPlazaCard({
+export default function GrokVideoPlazaCard({
   name,
   videoSrc,
-  thumbnailSrc
-}: VideoToVideoPlazaCardProps) {
+  thumbnailSrc,
+}: GrokVideoPlazaCardProps) {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const params = useParams()
   const locale = (params?.locale as string) || 'zh'
 
-  // 组件挂载时自动播放视频
+  // 组件挂载时自动播放视频（静音循环预览）
   useEffect(() => {
     if (videoRef.current && isVideoLoaded) {
       videoRef.current.play().catch(() => {
@@ -34,7 +34,7 @@ export default function VideoToVideoPlazaCard({
   return (
     <div className="relative group">
       <Link
-        href={transferUrl('/create?tab=video&model=Wan2.2-I2V-Lightning', locale)}
+        href={transferUrl('/create?tab=video&model=grok-imagine-1.0-video', locale)}
         className="block"
       >
         {/* 视频卡片 */}
@@ -65,7 +65,6 @@ export default function VideoToVideoPlazaCard({
                 />
               </div>
             )}
-
           </div>
 
         </div>
@@ -74,8 +73,8 @@ export default function VideoToVideoPlazaCard({
         <div className="px-1">
           {/* 特征标签 - 位于标题上方 */}
           <div className="flex gap-1 flex-wrap mb-1.5">
-            <span className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap">
-              图生视频
+            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap">
+              支持音频
             </span>
             <span className="px-1.5 py-0.5 bg-pink-100 text-pink-700 text-[9px] sm:text-[10px] font-medium rounded whitespace-nowrap">
               支持中文
@@ -89,3 +88,4 @@ export default function VideoToVideoPlazaCard({
     </div>
   )
 }
+

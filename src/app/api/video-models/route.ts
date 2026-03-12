@@ -4,6 +4,7 @@ import { ALL_VIDEO_MODELS, type VideoModelConfig } from '@/utils/videoModelConfi
 // 视频模型环境变量映射（与 videoModelConfig.ts 保持一致）
 const VIDEO_MODEL_ENV_MAP = {
   "Wan2.2-I2V-Lightning": "WAN_I2V_URL",
+  "grok-imagine-1.0-video": "GROK_VIDEO_API_URL",
   // 可以添加更多视频模型
 } as const;
 

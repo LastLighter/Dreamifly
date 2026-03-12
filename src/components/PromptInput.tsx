@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { styleOptions } from './StyleTransferForm';
 import LoginHint from './LoginHint';
-import { GROK_ALLOWED_RATIOS } from '@/utils/modelConfig';
+import { GROK_ALLOWED_RATIOS, NANO_BANANA_ALLOWED_RATIOS } from '@/utils/modelConfig';
 
 interface PromptInputProps {
   prompt: string;
@@ -75,7 +75,9 @@ const PromptInput = ({
 
   const ratios = model === 'grok-imagine-1.0'
     ? GROK_ALLOWED_RATIOS
-    : ['10:3', '16:9', '3:2', '5:4','7:4', '1:1', '4:7', '4:5', '2:3', '9:16'];
+    : model === 'nano-banana-2'
+      ? NANO_BANANA_ALLOWED_RATIOS
+      : ['10:3', '16:9', '3:2', '5:4','7:4', '1:1', '4:7', '4:5', '2:3', '9:16'];
 
   return (
     <div>
@@ -298,7 +300,7 @@ const PromptInput = ({
             </button>
             <LoginHint className="text-xs md:text-sm" />
             {/* 额外消耗提示 - 仅对已登录用户显示，无论是否有额度都显示 */}
-            {extraCost !== null && extraCost > 0 && (
+            {model !== 'nano-banana-2' && extraCost !== null && extraCost > 0 && (
               <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600 whitespace-nowrap">
                 <svg
                   className="w-4 h-4 text-amber-500"

@@ -297,9 +297,6 @@ export default function PointsMonthlyUserStats() {
                     赠送积分消耗
                   </th>
                   <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
-                    混合积分消耗
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
                     其他积分消耗
                   </th>
                   <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
@@ -307,9 +304,6 @@ export default function PointsMonthlyUserStats() {
                   </th>
                   <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
                     赠送积分占比
-                  </th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
-                    混合积分占比
                   </th>
                   <th className="px-3 py-2 text-right font-medium text-gray-700 border-b border-gray-200 whitespace-nowrap">
                     其他积分占比
@@ -342,9 +336,6 @@ export default function PointsMonthlyUserStats() {
                       <td className="px-3 py-2 text-right text-green-600 border-b border-gray-100 whitespace-nowrap">
                         {row.giftedPoints}
                       </td>
-                      <td className="px-3 py-2 text-right text-purple-600 border-b border-gray-100 whitespace-nowrap">
-                        {row.mixedPoints}
-                      </td>
                       <td className="px-3 py-2 text-right text-gray-500 border-b border-gray-100 whitespace-nowrap">
                         {row.otherPoints}
                       </td>
@@ -353,9 +344,6 @@ export default function PointsMonthlyUserStats() {
                       </td>
                       <td className="px-3 py-2 text-right text-green-500 border-b border-gray-100 whitespace-nowrap">
                         {formatRatio(row.giftedPoints, total)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-purple-500 border-b border-gray-100 whitespace-nowrap">
-                        {formatRatio(row.mixedPoints, total)}
                       </td>
                       <td className="px-3 py-2 text-right text-gray-400 border-b border-gray-100 whitespace-nowrap">
                         {formatRatio(row.otherPoints, total)}

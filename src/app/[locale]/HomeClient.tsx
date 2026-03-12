@@ -12,6 +12,7 @@ import { getAvailableModels } from '@/utils/modelConfig'
 import { getAvailableWorkflows } from '@/utils/workflowConfig'
 import AIPlazaCard from '@/components/AIPlazaCard'
 import VideoToVideoPlazaCard from '@/components/VideoToVideoPlazaCard'
+import GrokVideoPlazaCard from '@/components/GrokVideoPlazaCard'
 import { ModelConfig } from '@/utils/modelConfig'
 import { WorkflowConfig } from '@/utils/workflowConfig'
 import CommunityMasonry, { type CommunityWork } from '@/components/CommunityMasonry'
@@ -315,7 +316,7 @@ export default function HomeClient() {
                   </div>
                 </div>
                 <h1 className="mb-7 sm:mb-9 md:mt-0 mt-0">
-                  <span className="block text-xl sm:text-2xl lg:text-4xl font-medium text-gray-800 mb-3 sm:mb-4 animate-fadeInUp">
+                  <span className="block text-2xl sm:text-3xl lg:text-5xl font-bold text-gray-800 mb-2 sm:mb-3 animate-fadeInUp">
                     {t('hero.titlePrefix')}
                   </span>
                   <span className="block text-2xl sm:text-3xl lg:text-5xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent animate-fadeInUp animation-delay-200">
@@ -331,9 +332,6 @@ export default function HomeClient() {
                   </span>
                   <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-500/75 to-amber-500/75 text-gray-900 shadow-lg">
                     {t('hero.tags.noLogin')}
-                  </span>
-                  <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-300/75 to-amber-300/75 text-gray-900 shadow-lg">
-                    {t('hero.tags.highCustomization')}
                   </span>
                   <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-yellow-400/75 to-amber-400/75 text-gray-900 shadow-lg">
                     {t('hero.tags.chineseSupport')}
@@ -452,28 +450,47 @@ export default function HomeClient() {
                 <div className="text-gray-500">加载中...</div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
-                {/* 显示所有可用的模型 */}
-                {availableModels.map((model, index) => (
-                  <div key={`model-${model.id}`} className="animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
-                    <AIPlazaCard item={model} type="model" />
+              <div className="space-y-12">
+                {/* AI 生图模型 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-5 flex items-center gap-2">
+                    <span className="w-1 h-5 bg-orange-400 rounded-full inline-block"></span>
+                    AI 生图模型
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+                    {availableModels.map((model, index) => (
+                      <div key={`model-${model.id}`} className="animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
+                        <AIPlazaCard item={model} type="model" />
+                      </div>
+                    ))}
                   </div>
-                ))}
-                {/* 图生视频卡片 - 放在文生图模型后面 */}
-                <div className="animate-fadeInUp" style={{ animationDelay: `${availableModels.length * 100}ms` }}>
-                  <VideoToVideoPlazaCard
-                    name="Wan 2.2 I2V Lightning"
-                    description="Wan 2.2 图像到视频模型，支持快速生成高质量视频，采用 Lightning 架构，4步即可生成视频。"
-                    videoSrc="/images/video-community/video-demo-8.mp4"
-                    thumbnailSrc="/images/video-community/video-demo-8.png"
-                  />
                 </div>
-                {/* 显示所有可用的工作流 */}
-                {availableWorkflows.map((workflow, index) => (
-                  <div key={`workflow-${workflow.id}`} className="animate-fadeInUp" style={{ animationDelay: `${(availableModels.length + 1 + index) * 100}ms` }}>
-                    <AIPlazaCard item={workflow} type="workflow" />
+
+                {/* AI 视频模型 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-5 flex items-center gap-2">
+                    <span className="w-1 h-5 bg-purple-400 rounded-full inline-block"></span>
+                    AI 视频模型
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+                    <div className="animate-fadeInUp" style={{ animationDelay: '0ms' }}>
+                      <VideoToVideoPlazaCard
+                        name="Wan 2.2 I2V Lightning"
+                        description="Wan 2.2 图像到视频模型，支持快速生成高质量视频，采用 Lightning 架构，4步即可生成视频。"
+                        videoSrc="/images/video-community/video-demo-8.mp4"
+                        thumbnailSrc="/images/video-community/video-demo-8.png"
+                      />
+                    </div>
+                    <div className="animate-fadeInUp" style={{ animationDelay: '100ms' }}>
+                      <GrokVideoPlazaCard
+                        name="grok-imagine-1.0-video"
+                        description="基于 Grok Imagine 的图生视频模型，支持中文提示词、快速生成，并可输出带音频的视频效果。"
+                        videoSrc="/images/video-community/video-demo-10.mp4"
+                        thumbnailSrc="/images/video-community/video-demo-10.png"
+                      />
+                    </div>
                   </div>
-                ))}
+                </div>
               </div>
             )}
           </div>
