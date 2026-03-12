@@ -333,9 +333,6 @@ export default function HomeClient() {
                   <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-500/75 to-amber-500/75 text-gray-900 shadow-lg">
                     {t('hero.tags.noLogin')}
                   </span>
-                  <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-orange-300/75 to-amber-300/75 text-gray-900 shadow-lg">
-                    {t('hero.tags.highCustomization')}
-                  </span>
                   <span className="px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-yellow-400/75 to-amber-400/75 text-gray-900 shadow-lg">
                     {t('hero.tags.chineseSupport')}
                   </span>
