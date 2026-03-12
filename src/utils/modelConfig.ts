@@ -44,7 +44,7 @@ export const ALL_MODELS: ModelConfig[] = [
     use_i2i: false,
     use_t2i: true,
     maxImages: 0,
-    tags: ["fastGeneration", "animeSpecialty"],
+    tags: ["animeSpecialty"],
     isRecommended: true
   },
   {
@@ -56,7 +56,7 @@ export const ALL_MODELS: ModelConfig[] = [
     use_i2i: true,
     use_t2i: false,
     maxImages: 3,
-    tags: ["chineseSupport", "fastGeneration"],
+    tags: ["chineseSupport"],
     isRecommended: true
   },
   {
@@ -91,7 +91,6 @@ export const ALL_MODELS: ModelConfig[] = [
     use_i2i: true,
     use_t2i: true,
     maxImages: 1,
-    tags: ["fastGeneration"]
   },
   {
     id: "Stable-Diffusion-3.5",
@@ -102,7 +101,6 @@ export const ALL_MODELS: ModelConfig[] = [
     use_i2i: false,
     use_t2i: true,
     maxImages: 1,
-    tags: ["fastGeneration"]
   },
   {
     id: "HiDream-full-fp8",
@@ -136,7 +134,7 @@ export const ALL_MODELS: ModelConfig[] = [
     use_i2i: false,
     use_t2i: true,
     maxImages: 0,
-    tags: ["chineseSupport", "fastGeneration"],
+    tags: ["chineseSupport"],
     isRecommended: true
   },
   {
@@ -160,7 +158,6 @@ export const ALL_MODELS: ModelConfig[] = [
     use_i2i: false,
     use_t2i: true,
     maxImages: 0,
-    tags: ["fastGeneration"],
     isRecommended: true
   },
   {
@@ -172,7 +169,7 @@ export const ALL_MODELS: ModelConfig[] = [
     use_i2i: false,
     use_t2i: true,
     maxImages: 0,
-    tags: ["fastGeneration","chineseSupport"],
+    tags: ["chineseSupport"],
     requiresLogin: true
   },
   {
