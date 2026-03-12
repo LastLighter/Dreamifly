@@ -5,11 +5,11 @@
   },
   "home": {
     "hero": {
-      "titlePrefix": "通过AI释放你的",
-      "titleHighlight": "无限想象力，只需一键！",
+      "titlePrefix": "简单易上手的",
+      "titleHighlight": "AI图像视频创作工具",
       "subtitle": {
-        "prefix": "由全国30台家用电脑的闲置4090显卡，",
-        "highlight": "免费无限制",
+        "prefix": "由多台家用电脑的闲置4090显卡，",
+        "highlight": "免费",
         "suffix": "提供分布式算力支持。"
       },
       "description": "Dreamifly - 免费AI绘画在线生成工具 | 一键生成动漫、插画、艺术图",

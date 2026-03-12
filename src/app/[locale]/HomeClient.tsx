@@ -316,7 +316,7 @@ export default function HomeClient() {
                   </div>
                 </div>
                 <h1 className="mb-7 sm:mb-9 md:mt-0 mt-0">
-                  <span className="block text-xl sm:text-2xl lg:text-4xl font-medium text-gray-800 mb-3 sm:mb-4 animate-fadeInUp">
+                  <span className="block text-2xl sm:text-3xl lg:text-5xl font-bold text-gray-800 mb-2 sm:mb-3 animate-fadeInUp">
                     {t('hero.titlePrefix')}
                   </span>
                   <span className="block text-2xl sm:text-3xl lg:text-5xl font-bold bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent animate-fadeInUp animation-delay-200">

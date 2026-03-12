@@ -5,11 +5,11 @@
   },
   "home": {
     "hero": {
-      "titlePrefix": "通過AI釋放你的",
-      "titleHighlight": "無限想像力，只需一鍵！",
+      "titlePrefix": "簡單易上手的",
+      "titleHighlight": "AI圖像視頻創作工具",
       "subtitle": {
-        "prefix": "由全國30台家用電腦的閒置4090顯卡，",
-        "highlight": "免費無限制",
+        "prefix": "由多台家用電腦的閒置4090顯卡，",
+        "highlight": "免費",
         "suffix": "提供分散式算力支援。"
       },
       "description": "Dreamifly - 免費AI繪畫線上生成工具 | 一鍵生成動漫、插畫、藝術圖",
