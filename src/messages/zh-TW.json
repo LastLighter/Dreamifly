@@ -1,7 +1,7 @@
 {
   "site": {
-    "title": "Dreamifly - 免費AI繪畫線上生成工具 | 一鍵生成動漫、插畫、藝術圖",
-    "description": "Dreamifly 是一款免費AI繪畫網站，無需註冊，支援動漫、插畫、3D藝術等風格。用戶可通過文字或參考圖快速生成高質量圖像，作為先進AI生圖工具，提供流暢智能創作體驗。適合設計師與繪畫愛好者，輕鬆AI作圖，可隨時利用AI生成圖片"
+    "title": "Dreamifly - 免費 AI 繪畫/視頻線上生成工具 | 一鍵生成動漫、插畫、藝術圖，多樣化視頻創作",
+    "description": "Dreamifly 提供免費 AI 繪畫與視頻生成服務，支援文生圖、圖生圖、圖生視頻等多種創作方式，涵蓋動漫、插畫、寫實等風格，無需註冊即可免費使用，適合設計師與創作愛好者。"
   },
   "home": {
     "hero": {
@@ -12,7 +12,7 @@
         "highlight": "免費",
         "suffix": "提供分散式算力支援。"
       },
-      "description": "Dreamifly - 免費AI繪畫線上生成工具 | 一鍵生成動漫、插畫、藝術圖",
+      "description": "Dreamifly - 免費 AI 繪畫/視頻線上生成工具 | 一鍵生成動漫、插畫、藝術圖，多樣化視頻創作",
       "startButton": "開始創作",
       "contactButton": "聯繫我們",
       "imageCaption": "AI藝術",
