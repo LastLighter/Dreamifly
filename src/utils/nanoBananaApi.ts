@@ -115,7 +115,6 @@ export async function generateNanoBananaImage(params: NanoBananaParams): Promise
     input.seed = params.seed
   }
 
-  const effectiveAspectRatio = params.images && params.images.length > 0 ? 'match_input_image' : aspect_ratio
   console.log(`[nano-banana-2] 开始生成，完整 input：`, JSON.stringify(input, null, 2))
 
   let lastError: unknown
